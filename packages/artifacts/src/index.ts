@@ -160,15 +160,15 @@ export async function openStore(factory: IDBFactory | undefined = globalThis.ind
   };
   return {
     persistent: true,
-    putArtifact: (a) => tx<unknown>("artifacts", "readwrite", (s) => s.put(a), () => mem.putArtifact(a)).then(() => undefined),
+    putArtifact: (a) => tx<IDBValidKey>("artifacts", "readwrite", (s) => s.put(a), () => mem.putArtifact(a).then(() => a.sha256)).then(() => undefined),
     getArtifact: (sha) => tx("artifacts", "readonly", (s) => s.get(sha) as IDBRequest<ArtifactRecord | undefined>, () => mem.getArtifact(sha) as Promise<ArtifactRecord | undefined>).then((x) => x ?? null),
     listArtifacts: () => tx("artifacts", "readonly", (s) => s.getAll() as IDBRequest<ArtifactRecord[]>, () => mem.listArtifacts()).then((xs) => xs.sort((a, b) => b.createdAt - a.createdAt)),
-    putRun: (r) => tx<unknown>("runs", "readwrite", (s) => s.put(r), () => mem.putRun(r)).then(() => undefined),
+    putRun: (r) => tx<IDBValidKey>("runs", "readwrite", (s) => s.put(r), () => mem.putRun(r).then(() => r.runId)).then(() => undefined),
     listRuns: (sha) => tx("runs", "readonly", (s) => s.index("sha256").getAll(sha) as IDBRequest<RunRecord[]>, () => mem.listRuns(sha)),
-    putSession: (x) => tx<unknown>("sessions", "readwrite", (s) => s.put(x), () => mem.putSession(x)).then(() => undefined),
+    putSession: (x) => tx<IDBValidKey>("sessions", "readwrite", (s) => s.put(x), () => mem.putSession(x).then(() => x.sessionId)).then(() => undefined),
     listSessions: () => tx("sessions", "readonly", (s) => s.getAll() as IDBRequest<SessionRecord[]>, () => mem.listSessions()).then((xs) => xs.sort((a, b) => b.at - a.at)),
     async clear() {
-      for (const name of ["artifacts", "runs", "sessions"]) await tx<unknown>(name, "readwrite", (s) => s.clear(), async () => undefined);
+      for (const name of ["artifacts", "runs", "sessions"]) await tx<undefined>(name, "readwrite", (s) => s.clear(), async () => undefined);
       await mem.clear();
     },
   };
