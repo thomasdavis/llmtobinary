@@ -1,0 +1,20 @@
+{
+  "name": "@llmtobinary/reference",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "@llmtobinary/spec": "workspace:*",
+    "@llmtobinary/decode": "workspace:*",
+    "@llmtobinary/validate": "workspace:*",
+    "@llmtobinary/devices": "workspace:*",
+    "@llmtobinary/protocol": "workspace:*",
+    "@llmtobinary/diagnostics": "workspace:*"
+  }
+}

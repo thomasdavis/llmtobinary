@@ -1,0 +1,19 @@
+{
+  "name": "@llmtobinary/annotations",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "@llmtobinary/spec": "workspace:*",
+    "@llmtobinary/decode": "workspace:*",
+    "@llmtobinary/diagnostics": "workspace:*",
+    "@llmtobinary/validate": "workspace:*",
+    "@llmtobinary/protocol": "workspace:*"
+  }
+}

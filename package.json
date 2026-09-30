@@ -1,0 +1,23 @@
+{
+  "name": "llmtobinary",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@12.6.0",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "typecheck": "pnpm -r --workspace-concurrency=2 run typecheck",
+    "test": "vitest run",
+    "test:worker": "pnpm --filter @llmtobinary/web test:worker",
+    "check:deps": "node scripts/check-deps.mjs",
+    "check:spec": "node scripts/spec-hash.mjs --check",
+    "build": "pnpm --filter @llmtobinary/web build",
+    "dev": "pnpm --filter @llmtobinary/web dev",
+    "ci": "pnpm check:spec && pnpm check:deps && pnpm typecheck && pnpm test && pnpm test:worker && pnpm build"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.0",
+    "fast-check": "4.10.2",
+    "typescript": "7.0.2",
+    "vitest": "4.1.11"
+  }
+}

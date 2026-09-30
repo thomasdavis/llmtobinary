@@ -1,0 +1,21 @@
+{
+  "name": "@llmtobinary/verify",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "@llmtobinary/spec": "workspace:*",
+    "@llmtobinary/decode": "workspace:*",
+    "@llmtobinary/validate": "workspace:*",
+    "@llmtobinary/annotations": "workspace:*",
+    "z3-solver": "5.2.0",
+    "@llmtobinary/protocol": "workspace:*",
+    "@llmtobinary/diagnostics": "workspace:*"
+  }
+}

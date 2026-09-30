@@ -1,0 +1,22 @@
+{
+  "name": "@llmtobinary/broker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "@llmtobinary/spec": "workspace:*",
+    "@llmtobinary/decode": "workspace:*",
+    "@llmtobinary/validate": "workspace:*",
+    "@llmtobinary/diagnostics": "workspace:*",
+    "@llmtobinary/annotations": "workspace:*",
+    "@llmtobinary/protocol": "workspace:*",
+    "openai": "7.25.0",
+    "@llmtobinary/check": "workspace:*"
+  }
+}

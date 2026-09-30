@@ -1,0 +1,22 @@
+{
+  "name": "@llmtobinary/research",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "@llmtobinary/spec": "workspace:*",
+    "@llmtobinary/decode": "workspace:*",
+    "@llmtobinary/validate": "workspace:*",
+    "@llmtobinary/reference": "workspace:*",
+    "@llmtobinary/runtime": "workspace:*",
+    "@llmtobinary/tasks": "workspace:*",
+    "@llmtobinary/protocol": "workspace:*",
+    "@llmtobinary/diagnostics": "workspace:*"
+  }
+}

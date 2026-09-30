@@ -1,0 +1,40 @@
+{
+  "schema": "llmtobinary-fixture-manifest/1",
+  "note": "Every fixture here is specification- or tool-created. None is a captured OpenAI response.",
+  "fixtures": [
+    {
+      "file": "return-42.anma",
+      "task": "return-42",
+      "bytes": 144,
+      "sha256": "cb05d607bc9708d41340eb0eadfb80dca4dc8153f23e51af319ad3a6a01e1bd8",
+      "provenance": {
+        "kind": "specification-fixture",
+        "origin": "PRD 3.0 handoff bundle; bytes re-derived on 2026-09-30 by enumerating candidate encodings until the PRD-published SHA-256 matched (CONST 20, CONST 22, ADD, RETURN)",
+        "modelOutput": false
+      }
+    },
+    {
+      "file": "square-plus-two.anma",
+      "task": "square-plus-two",
+      "bytes": 192,
+      "sha256": "d3f7f9e0446680bd1f5d20534d2a413df893e891f7e78f26f37cbe75b48405c1",
+      "provenance": {
+        "kind": "specification-fixture",
+        "origin": "PRD Section 17 raw bytes, verbatim",
+        "modelOutput": false
+      }
+    },
+    {
+      "file": "upstream-capstone-40.anma",
+      "task": "capstone-40",
+      "bytes": 2704,
+      "sha256": "d6e710f149bac62226ad57f9d3a2f4e4bf958cebbf3727994f0ec5477013e88a",
+      "provenance": {
+        "kind": "specification-fixture",
+        "origin": "PRD 3.0 handoff bundle; bytes re-derived on 2026-09-30 by enumerating candidate encodings until the PRD-published SHA-256 matched (interleaved CONST i / ADD x,i; fold constants 3 then 0; MUL a,3; XOR t,v[(17j) mod 40])",
+        "upstream": "skelpo/llm-to-native-binary@b79649eb9e1d46e6c35d0d2053d19547e9aadd90 (mathematical workload only; not a redistributed Mach-O binary)",
+        "modelOutput": false
+      }
+    }
+  ]
+}
