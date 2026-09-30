@@ -96,6 +96,7 @@ await page.getByText(/Imported executable loaded \(stopped\)/).waitFor();
 ok(true, "imported executable starts stopped");
 await page.getByRole("button", { name: "▶ Run" }).click();
 await page.getByRole("button", { name: "❚❚ Pause" }).click({ timeout: 2000 }).catch(() => undefined);
+await page.locator("p.status", { hasText: /state: (paused|trapped)/ }).waitFor({ timeout: 5000 }).catch(() => undefined); // the worker confirms asynchronously
 const afterPause = await page.locator("p.status").last().textContent();
 ok(/state: (paused|trapped)/.test(afterPause), `Pause works mid-run (${afterPause.slice(0, 60)})`);
 await page.getByRole("button", { name: "▶ Continue" }).click().catch(() => undefined);
