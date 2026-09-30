@@ -2,7 +2,7 @@
 
 Describe a program; an OpenAI model writes its **literal ANMA-1 bytes** in a checker-assisted agentic loop; a **TypeScript virtual machine runs those exact bytes in your browser** — and reruns the same file with fewer fast-value slots, showing the real backing-store traffic the machine (not the model) manages.
 
-- Production (fixture mode): https://llmtobinary.thomasalwyndavis.workers.dev
+- Production (live OpenAI generation, $0.50/session and $2.00/day caps): https://llmtobinary.thomasalwyndavis.workers.dev
 - Staging (live OpenAI generation, hard spend caps): https://llmtobinary-staging.thomasalwyndavis.workers.dev
 
 The authority is [`PRD.md`](PRD.md) (v3.2). What is implemented, verified, tested live, and not yet tested is in [`docs/STATUS.md`](docs/STATUS.md).
@@ -60,7 +60,7 @@ npx wrangler secret put SESSION_SIGNING_KEY --name llmtobinary-staging
 npx wrangler rollback <version-id> --name llmtobinary-staging
 ```
 
-Live generation is enabled per environment by `LIVE_GENERATION_ENABLED`, `OPENAI_MODEL`, price ceilings, and `SESSION_USD_CAP`/`DAILY_USD_CAP` in `wrangler.jsonc`; secrets are never in the repo. Production currently runs in fixture mode (live generation off); enabling it is a spend decision.
+Live generation is enabled per environment by `LIVE_GENERATION_ENABLED`, `OPENAI_MODEL`, price ceilings, and `SESSION_USD_CAP`/`DAILY_USD_CAP` in `wrangler.jsonc`; secrets are never in the repo. Production has live generation enabled with those caps.
 
 ## What this does and does not show
 

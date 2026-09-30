@@ -25,7 +25,7 @@ ok(!JSON.stringify(cfg).match(/sk-[A-Za-z0-9]/), "config exposes no secrets");
 const home = await fetch(`${base}/`);
 const html = await home.text();
 ok(home.ok && html.includes("<title>llmtobinary</title>"), "static assets: / serves the app");
-ok((home.headers.get("content-security-policy") ?? "").includes("script-src 'self'") && !(home.headers.get("content-security-policy") ?? "").includes("unsafe-eval"), "CSP from _headers is present and forbids unsafe-eval");
+ok((home.headers.get("content-security-policy") ?? "").includes("script-src 'self'") && !/(^|\s)'unsafe-eval'/.test(home.headers.get("content-security-policy") ?? ""), "CSP from _headers is present and forbids unsafe-eval");
 const spa = await fetch(`${base}/some/deep/route`);
 ok(spa.ok && (await spa.text()).includes("<title>llmtobinary</title>"), "SPA routes fall back to index.html");
 const nf = await fetch(`${base}/api/nope`);

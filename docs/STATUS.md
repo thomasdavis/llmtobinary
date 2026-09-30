@@ -34,7 +34,7 @@ Legend: **verified** = automated tests in this repo pass · **live** = exercised
 
 ## Not yet / deviations
 - **Browser coverage:** headless Chromium and Firefox 142 pass the full E2E against production (live generation E2E on Chromium/staging). WebKit is not yet run: it needs system libraries (GStreamer, libvpx, …) that would require apt installs on this shared host; the deploy workflow runs the E2E on Chromium, Firefox, and WebKit with `playwright-core install --with-deps`.
-- **Production live generation is off** (fixture mode) pending a spend decision; staging has live generation with `$0.50`/session and `$1.00`/day caps and conservative price ceilings (`$2`/`$10` per million tokens) that over-reserve.
+- **Production live generation is on** (`$0.50`/session, `$2.00`/day caps); staging has live generation with `$0.50`/session and `$1.00`/day caps and conservative price ceilings (`$2`/`$10` per million tokens) that over-reserve.
 - **Compatibility date** pinned to 2026-08-20 (the newest date supported by the pinned test runtime).
 - **Model pricing** in `wrangler.jsonc` are ceilings, not published prices; reconcile them before a study.
 - **No GitHub remote** yet, so the CI and deploy workflows have not run.
