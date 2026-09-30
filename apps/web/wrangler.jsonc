@@ -1,0 +1,116 @@
+// llmtobinary — one Cloudflare Worker serving the Vite build as static assets and the /api/* broker.
+// PRD Section 8.2. Secrets (OPENAI_API_KEY, SESSION_SIGNING_KEY) are NEVER set here: use
+// `wrangler secret put <NAME> [--env staging]`; local development reads them from .dev.vars.
+// Bindings are not inherited by environments, so staging/research repeat them explicitly.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "llmtobinary",
+  "main": "./worker/index.ts",
+  "compatibility_date": "2026-08-20",
+  "assets": {
+    "directory": "./dist/client",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  "durable_objects": {
+    "bindings": [
+      { "name": "GENERATION_SESSION", "class_name": "GenerationSession" },
+      { "name": "BUDGET_LEDGER", "class_name": "BudgetLedger" }
+    ]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["GenerationSession", "BudgetLedger"] }],
+  "ratelimits": [{ "name": "ADMISSION_LIMITER", "namespace_id": "4201", "simple": { "limit": 20, "period": 60 } }],
+  "version_metadata": { "binding": "CF_VERSION_METADATA" },
+  "observability": { "enabled": true },
+  "vars": {
+    "ENVIRONMENT": "production",
+    "LIVE_GENERATION_ENABLED": "false",
+    "OPENAI_MODEL": "",
+    "OPENAI_PROFILE_LABEL": "",
+    "OPENAI_REASONING_EFFORT": "",
+    "OPENAI_CARRY_REASONING": "false",
+    "OPENAI_PRICE_INPUT_PER_MTOK": "",
+    "OPENAI_PRICE_OUTPUT_PER_MTOK": "",
+    "SESSION_USD_CAP": "0.50",
+    "DAILY_USD_CAP": "2.00",
+    "RECOVERY_TTL_SECONDS": "3600",
+    "ALLOWED_FEATURES": "15"
+  },
+  "env": {
+    "staging": {
+      "name": "llmtobinary-staging",
+      "durable_objects": {
+        "bindings": [
+          { "name": "GENERATION_SESSION", "class_name": "GenerationSession" },
+          { "name": "BUDGET_LEDGER", "class_name": "BudgetLedger" }
+        ]
+      },
+      "ratelimits": [{ "name": "ADMISSION_LIMITER", "namespace_id": "4202", "simple": { "limit": 20, "period": 60 } }],
+      "version_metadata": { "binding": "CF_VERSION_METADATA" },
+      "vars": {
+        "ENVIRONMENT": "staging",
+        "LIVE_GENERATION_ENABLED": "false",
+        "OPENAI_MODEL": "",
+        "OPENAI_PROFILE_LABEL": "",
+        "OPENAI_REASONING_EFFORT": "",
+        "OPENAI_CARRY_REASONING": "false",
+        "OPENAI_PRICE_INPUT_PER_MTOK": "",
+        "OPENAI_PRICE_OUTPUT_PER_MTOK": "",
+        "SESSION_USD_CAP": "0.50",
+        "DAILY_USD_CAP": "1.00",
+        "RECOVERY_TTL_SECONDS": "3600",
+        "ALLOWED_FEATURES": "15"
+      }
+    },
+    "test": {
+      "name": "llmtobinary-test",
+      "durable_objects": {
+        "bindings": [
+          { "name": "GENERATION_SESSION", "class_name": "GenerationSession" },
+          { "name": "BUDGET_LEDGER", "class_name": "BudgetLedger" }
+        ]
+      },
+      "ratelimits": [{ "name": "ADMISSION_LIMITER", "namespace_id": "4204", "simple": { "limit": 60, "period": 60 } }],
+      "version_metadata": { "binding": "CF_VERSION_METADATA" },
+      "vars": {
+        "ENVIRONMENT": "test",
+        "LIVE_GENERATION_ENABLED": "false",
+        "OPENAI_MODEL": "",
+        "OPENAI_PROFILE_LABEL": "",
+        "OPENAI_REASONING_EFFORT": "",
+        "OPENAI_CARRY_REASONING": "false",
+        "OPENAI_PRICE_INPUT_PER_MTOK": "",
+        "OPENAI_PRICE_OUTPUT_PER_MTOK": "",
+        "SESSION_USD_CAP": "1.00",
+        "DAILY_USD_CAP": "5.00",
+        "RECOVERY_TTL_SECONDS": "3600",
+        "ALLOWED_FEATURES": "15"
+      }
+    },
+    "research": {
+      "name": "llmtobinary-research",
+      "durable_objects": {
+        "bindings": [
+          { "name": "GENERATION_SESSION", "class_name": "GenerationSession" },
+          { "name": "BUDGET_LEDGER", "class_name": "BudgetLedger" }
+        ]
+      },
+      "ratelimits": [{ "name": "ADMISSION_LIMITER", "namespace_id": "4203", "simple": { "limit": 60, "period": 60 } }],
+      "version_metadata": { "binding": "CF_VERSION_METADATA" },
+      "vars": {
+        "ENVIRONMENT": "research",
+        "LIVE_GENERATION_ENABLED": "false",
+        "OPENAI_MODEL": "",
+        "OPENAI_PROFILE_LABEL": "",
+        "OPENAI_REASONING_EFFORT": "",
+        "OPENAI_CARRY_REASONING": "false",
+        "OPENAI_PRICE_INPUT_PER_MTOK": "",
+        "OPENAI_PRICE_OUTPUT_PER_MTOK": "",
+        "SESSION_USD_CAP": "2.00",
+        "DAILY_USD_CAP": "0.00",
+        "RECOVERY_TTL_SECONDS": "86400",
+        "ALLOWED_FEATURES": "15"
+      }
+    }
+  }
+}

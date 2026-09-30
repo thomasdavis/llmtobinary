@@ -387,3 +387,4 @@ export function parseU64Decimal(text: string): bigint | null {
   const v = BigInt(text);
   return v > U64_MASK ? null : v;
 }
+export { SPEC_SHA256 } from "./spec-hash.ts";
