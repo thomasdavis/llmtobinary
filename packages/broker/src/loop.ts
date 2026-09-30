@@ -174,9 +174,10 @@ export function boundFeedback(fb: BrowserFeedback): Record<string, unknown> {
   return shaped;
 }
 
+/** Identical errors at identical positions = no progress (a moving error is progress, not a stall). */
 function ruleSignature(r: CheckReport): string {
   if (r.ok) return "clean";
-  return [...new Set(r.errors.map((d) => d.rule))].sort().join(",");
+  return [...new Set(r.errors.map((d) => `${d.rule}@${d.location.recordIndex ?? d.location.byteOffset ?? "-"}`))].sort().join(",");
 }
 
 function checkSummary(n: number, r: CheckReport): string {
@@ -376,7 +377,7 @@ export async function runAttempt(state: SessionState, req: AttemptRequest, deps:
       state.recentCheckSignatures.push(sig);
       if (state.recentCheckSignatures.length > b.stallRepeatK) state.recentCheckSignatures.shift();
       if (sig !== "clean" && state.recentCheckSignatures.length === b.stallRepeatK && state.recentCheckSignatures.every((s) => s === sig)) {
-        return stop("stalled", `ANMA-L-002: the same rule set (${sig}) was reported for ${b.stallRepeatK} consecutive checks`);
+        return stop("stalled", `ANMA-L-002: the same errors at the same positions (${sig}) were reported for ${b.stallRepeatK} consecutive checks`);
       }
       if (c.checks >= b.maxChecks) return stop("budget-exhausted", `ANMA-L-001: the check budget (${b.maxChecks}) is used up`);
       continue;

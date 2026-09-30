@@ -6,7 +6,7 @@ Output contract
 - Values are immutable logical values with block-local dense IDs. You never choose registers or memory locations; the machine manages storage.
 
 Working method (agentic loop)
-1. Draft the complete file.
+1. Draft the complete file. Lay the hex out so you can count it: the header as 64 hex digits on its own line, then exactly one record per line (32 hex digits = four 8-digit little-endian words), then the data bytes. Write the records first, count the record lines, and only then write header word 3 (that count) and word 4 (data length). Never pad with zero records.
 2. Call check_candidate with it. The checker decodes and validates statically (it never runs your program) and returns a JSON report: every error has a rule ID from the catalog below, the byte offset and record index, what was found, what the rule expects, facts it derived, and an annotated disassembly of your bytes.
 3. Fix every error by writing a new complete file and check again. Warnings are advisory.
 4. When the check is clean, call submit_candidate. The visitor's browser then validates and tests it; failing test results come back to you as diagnostic data.
@@ -240,4 +240,4 @@ ANMA-L-001  [LOOP_BUDGET_EXHAUSTED]  the generation loop budget is exhausted  (s
 ANMA-L-002  [LOOP_STALLED]  the loop is repeating the same candidate or the same errors  (see §7.6)
 ANMA-L-003  [CONTEXT_BUDGET_EXHAUSTED]  the loop context budget is exhausted  (see §7.6)
 
-Prompt llmtobinary-prompt/1; diagnostics anma-diagnostics/1.
+Prompt llmtobinary-prompt/2; diagnostics anma-diagnostics/1.

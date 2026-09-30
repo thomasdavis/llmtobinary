@@ -94,3 +94,13 @@ describe("PRD Section 17.2 reproduces exactly", () => {
     expect(out.report.annotations).toEqual(printed.annotations);
   });
 });
+
+describe("zero padding", () => {
+  it("the length diagnostic says how many decodable records are all zero bytes", async () => {
+    const padded = new Uint8Array(sq.length + 48 + 8);
+    padded.set(sq);
+    const out = await checkCandidate({ bytes: padded });
+    expect(out.report.errors[0]!.rule).toBe("ANMA-V-HDR-004");
+    expect(out.report.errors[0]!.derived).toContain("3 of the decodable records are all zero bytes");
+  });
+});

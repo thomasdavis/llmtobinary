@@ -397,7 +397,7 @@ A draft passed to `check_candidate` is recorded but is never a candidate and nev
 | `passed` | Submitted candidate validates and passes every test and contract check at the requested tier |
 | `passed-unverified` | Valid and executed, but the task has no oracle; labelled "executed; intent not independently verified" |
 | `budget-exhausted` | Any limit below would be exceeded by the next turn |
-| `stalled` | The same candidate SHA-256 is submitted twice, or the same set of rule IDs is reported for K consecutive checks (default K=3) |
+| `stalled` | The same candidate SHA-256 is submitted twice, or the same errors (rule IDs at the same record positions) are reported for K consecutive checks (default K=3) |
 | `refused` | Model refusal; no automated bypass prompt |
 | `cancelled` | Visitor or system cancel |
 | `infrastructure-error` | API/configuration failure after the bounded, visible retry policy; not a model score |

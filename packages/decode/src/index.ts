@@ -354,6 +354,11 @@ export function decodeFile(bytes: Uint8Array, limits: Pick<Limits, "importedExec
       derived += `After the header${dataFits && header.dataBytes ? " and data" : ""} there are ${recordArea} bytes = ${plural(complete, "complete record")} plus ${rem} stray bytes; every record is exactly 16 bytes.`;
     }
     if (!dataFits) derived += ` The declared ${header.dataBytes} data bytes do not fit in the file.`;
+    let zeroRecords = 0;
+    for (let off = HEADER_BYTES; off + RECORD_BYTES <= HEADER_BYTES + complete * RECORD_BYTES; off += RECORD_BYTES) {
+      if (bytes.subarray(off, off + RECORD_BYTES).every((b) => b === 0)) zeroRecords++;
+    }
+    if (zeroRecords > 0) derived += ` ${zeroRecords} of the decodable records are all zero bytes; zero is not an opcode, so zero padding is never valid.`;
     diagnostics.push(
       diag("ANMA-V-HDR-004", {
         message: "File length does not match the header.",

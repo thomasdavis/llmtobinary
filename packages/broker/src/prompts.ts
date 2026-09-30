@@ -6,7 +6,7 @@ import { IMPORTS, OPS, SPEC_ID, TYPE_CLAIM_NAMES, TYPE_NAMES, UNIT_SENTINEL, typ
 import { CATALOG_VERSION, renderRuleCatalog } from "@llmtobinary/diagnostics";
 import { renderSpecGrammar } from "@llmtobinary/annotations";
 
-export const PROMPT_VERSION = "llmtobinary-prompt/1";
+export const PROMPT_VERSION = "llmtobinary-prompt/2";
 
 export const GENERATION_SYSTEM = `You write executable programs for ANMA-1, a virtual instruction set, as LITERAL BYTES.
 
@@ -16,7 +16,7 @@ Output contract
 - Values are immutable logical values with block-local dense IDs. You never choose registers or memory locations; the machine manages storage.
 
 Working method (agentic loop)
-1. Draft the complete file.
+1. Draft the complete file. Lay the hex out so you can count it: the header as 64 hex digits on its own line, then exactly one record per line (32 hex digits = four 8-digit little-endian words), then the data bytes. Write the records first, count the record lines, and only then write header word 3 (that count) and word 4 (data length). Never pad with zero records.
 2. Call check_candidate with it. The checker decodes and validates statically (it never runs your program) and returns a JSON report: every error has a rule ID from the catalog below, the byte offset and record index, what was found, what the rule expects, facts it derived, and an annotated disassembly of your bytes.
 3. Fix every error by writing a new complete file and check again. Warnings are advisory.
 4. When the check is clean, call submit_candidate. The visitor's browser then validates and tests it; failing test results come back to you as diagnostic data.
