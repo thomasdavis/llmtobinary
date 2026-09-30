@@ -3,7 +3,7 @@
 // It decodes, validates, and cross-checks annotations. It NEVER executes guest code and NEVER
 // returns corrected bytes.
 
-import { DEFAULT_LIMITS, IMPORTS, Op, SPEC_ID, TYPE_NAMES, type Limits, type TypeTag } from "@llmtobinary/spec";
+import { DEFAULT_LIMITS, IMPORTS, OP_BY_CODE, Op, SPEC_ID, TYPE_NAMES, opName, type Limits, type TypeTag } from "@llmtobinary/spec";
 import { listingLines, parseEnvelope, parseHex, toHex, type DecodedFile } from "@llmtobinary/decode";
 import { validateBytes, type Module } from "@llmtobinary/validate";
 import { CATALOG_VERSION, Stage, assemble, diag, jsonBytes, renderContext, type Diagnostic } from "@llmtobinary/diagnostics";
@@ -223,6 +223,24 @@ export async function checkCandidate(input: CheckInput, opts: CheckOptions = {})
     }
   }
 
+  // 3c. A record written a word short (or long) shifts every later record, and the checker then
+  // reports a cascade at the symptoms. Locate the break by finding where the byte stream re-aligns;
+  // the hint names the record and the size of the slip, never replacement bytes.
+  if (v.decoded) {
+    const recErrors = all.filter((d) => d.severity === "error" && d.location.recordIndex !== null && d.stage !== 1);
+    if (recErrors.length) {
+      const first = Math.min(...recErrors.map((d) => d.location.recordIndex!));
+      const h = v.decoded.header;
+      const hint = misalignmentHint(bytes, h.dataBytes <= bytes.length - 32 ? h.dataBytes : 0, first);
+      if (hint) {
+        const target = recErrors.find((d) => d.location.recordIndex === first) ?? recErrors[0]!;
+        target.derived = target.derived ? `${hint} ${target.derived}` : hint;
+        const len = all.find((d) => d.rule === "ANMA-V-HDR-004");
+        if (len) len.derived = len.derived ? `${len.derived} ${hint}` : hint;
+      }
+    }
+  }
+
   // 4. attach the model's own claim to structural diagnostics at that record
   for (const d of all) {
     if (d.claim === null && d.location.recordIndex !== null && claims.has(d.location.recordIndex)) d.claim = claims.get(d.location.recordIndex)!;
@@ -301,4 +319,53 @@ export async function checkAnmrCandidate(input: { envelopeText?: string; hex?: s
   finish(v.diagnostics);
   report.ok = v.ok;
   return { report, program: v.ok ? v.program : null, bytes: h.bytes };
+}
+
+/** Is there a well-formed record at byte offset `off`: a known opcode whose zero fields are zero? */
+function plausibleRecord(dv: DataView, off: number, end: number): boolean {
+  if (off < 32 || off + 16 > end) return false;
+  const info = OP_BY_CODE.get(dv.getUint32(off, true));
+  if (!info) return false;
+  for (let i = 0; i < 3; i++) if (info.fields[i] === "zero" && dv.getUint32(off + 4 + 4 * i, true) !== 0) return false;
+  return true;
+}
+
+/**
+ * Find the record whose length slip best explains a decoding cascade: for records just before the
+ * first error, test whether the following bytes decode as well-formed records if that record were
+ * 4, 8 or 12 bytes short or long. Returns a plain-language hint, or null when nothing stands out.
+ */
+export function misalignmentHint(bytes: Uint8Array, dataBytes: number, firstError: number): string | null {
+  const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const end = bytes.length - dataBytes;
+  const WINDOW = 32;
+  const score = (start: number) => {
+    let n = 0;
+    let total = 0;
+    for (let off = start; off + 16 <= end && total < WINDOW; off += 16, total++) if (plausibleRecord(dv, off, end)) n++;
+    return { n, total };
+  };
+  let best: { r: number; k: number; n: number; total: number; base: number } | null = null;
+  for (let r = Math.max(0, firstError - 3); r <= firstError; r++) {
+    const next = 32 + 16 * (r + 1);
+    const base = score(next).n;
+    for (const k of [-12, -8, -4, 4, 8, 12]) {
+      const s = score(next + k);
+      if (s.total < 4 || s.n / s.total < 0.9 || s.n < base + 4) continue;
+      // Several readings can realign identically (record r+1 one word short == record r three words
+      // long); prefer the most records explained, then the smallest slip, then the flagged record.
+      const better = !best || s.n > best.n || (s.n === best.n && (Math.abs(k) < Math.abs(best.k) || (Math.abs(k) === Math.abs(best.k) && Math.abs(r - firstError) < Math.abs(best.r - firstError))));
+      if (better) best = { r, k, n: s.n, total: s.total, base };
+    }
+  }
+  if (!best) return null;
+  const { r, k, n, total, base } = best;
+  const off = 32 + 16 * r;
+  const at = off + 16 + k;
+  const words = Math.abs(k) / 4;
+  if (k < 0) {
+    const stray = dv.getUint32(off + 16 + k, true);
+    return `Record ${r} (byte ${off}) looks ${-k} bytes short: its last ${words === 1 ? "word is" : `${words} words are`} missing. The next record really starts at byte ${at}, where 0x${stray.toString(16)} is the opcode ${opName(stray)}. Read that way, ${n} of the next ${total} records are well-formed, against ${base} with the current layout. Every later record is shifted by ${-k} bytes until the slip is fixed.`;
+  }
+  return `Record ${r} (byte ${off}) looks ${k} bytes too long: ${words === 1 ? "an extra word follows" : `${words} extra words follow`} it. The next record really starts at byte ${at}. Read that way, ${n} of the next ${total} records are well-formed, against ${base} with the current layout.`;
 }

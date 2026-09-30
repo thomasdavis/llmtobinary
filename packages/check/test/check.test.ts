@@ -129,3 +129,22 @@ describe("task requirements (static, known to the generation loop)", () => {
   });
 });
 
+describe("misalignment hint: a record written a word short", () => {
+  it("names the short record and where the next one really starts (a live model's JUMP slip)", async () => {
+    const b = new Uint8Array(readFileSync(new URL("../../../fixtures/fizzbuzz.anma", import.meta.url)));
+    const dv = new DataView(b.buffer);
+    let r = -1;
+    for (let i = 3; (32 + 16 * i + 16) <= b.length; i++) if (dv.getUint32(32 + 16 * i, true) === 0x40) { r = i; break; } // first JUMP
+    expect(r).toBeGreaterThan(0);
+    const off = 32 + 16 * r;
+    // Drop the JUMP's last (zero) word and pad at the end so the length stays a record multiple.
+    const cut = new Uint8Array(b.length);
+    cut.set(b.subarray(0, off + 12), 0);
+    cut.set(b.subarray(off + 16), off + 12);
+    const out = await checkCandidate({ bytes: cut }, { allowedFeatures: 15 });
+    expect(out.report.ok).toBe(false);
+    const text = JSON.stringify(out.report.errors);
+    expect(text).toContain(`Record ${r} (byte ${off}) looks 4 bytes short`);
+    expect(text).toContain(`starts at byte ${off + 12}`);
+  });
+});

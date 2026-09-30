@@ -51,7 +51,9 @@ console.log(`events ${s.events} (stream deltas omitted: ${JSON.stringify(s.strea
 console.log("\ntimeline:");
 let prev = t0;
 for (const e of a.events) {
-  const gap = e.at - prev > 60_000 ? `   ⚠ ${((e.at - prev) / 1000).toFixed(0)}s gap` : "";
+  const secs = ((e.at - prev) / 1000).toFixed(0);
+  // A long wait that ends in attempt.completed is the model reasoning/streaming; anything else is a stall.
+  const gap = e.at - prev > 60_000 ? (e.type === "attempt.completed" || e.type === "attempt.incomplete" ? `   (model worked ${secs}s)` : `   ⚠ ${secs}s gap`) : "";
   prev = e.at;
   let d = "";
   if (e.type === "check.result") d = e.report.ok ? `clean ${e.report.byteLength} B` : `${e.report.errors.length} error(s): ${e.report.errors.map((x) => x.rule).join(", ")}`;
