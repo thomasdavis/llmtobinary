@@ -179,13 +179,14 @@ export class MachineClient {
   private startTicks(): void {
     this.stopTicks();
     this.tickTimer = setInterval(() => {
-      // Slowed for watching: only send the next tick once the program is waiting for it, so the
-      // queue never overflows and the recorded ticks replay exactly.
-      if (this.rate !== null && this.view.status !== "waiting-input") return;
+      // Only send the next tick once the program is waiting for it: a program slower than the tick
+      // rate would otherwise fall behind a growing queue (key presses applied seconds late, then
+      // dropped when the queue fills). Every sent tick is recorded, so replay stays exact.
+      if (this.view.status !== "waiting-input") return;
       const event: TickEvent = { tick: String(++this.tickNo), keys: this.keys };
       this.view.ticks.push(event); // recorded for exact replay
       this.send({ type: "tick", runId: this.runId, event });
-      if (this.rate !== null) this.view.status = "running"; // until the worker reports waiting again
+      this.view.status = "running"; // until the worker reports waiting again
     }, TICK_MS);
   }
 

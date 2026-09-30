@@ -145,7 +145,7 @@ export function MachinePanel(props: {
             {s?.lastMicrosteps.length ? <ol className="mono small">{s.lastMicrosteps.map((m, i) => <li key={i}>{m}</li>)}</ol> : <p className="muted">Enable by stepping (tracing runs are recorded at the default trace level).</p>}
           </details>
           <details>
-            <summary>Trace (bounded; latest 200 of up to 10,000){s?.traceTruncated ? " — truncated" : ""}</summary>
+            <summary>Trace (bounded; latest 200 of up to 10,000; recorded while stepping or slowed, not at full speed){s?.traceTruncated ? " — truncated" : ""}</summary>
             <pre className="trace">{(s?.trace ?? []).map((t) => t.text).join("\n")}</pre>
           </details>
           <h3>Same binary, different F</h3>

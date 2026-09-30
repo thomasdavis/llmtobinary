@@ -72,4 +72,21 @@ describe(`chip instrumentation (${COST_MODEL_ID})`, () => {
     expect({ ...r.counters, hostWallTimeMs: 0 }).toEqual({ ...plain.counters, hostWallTimeMs: 0 });
     expect(seen.filter((e) => e.u === "fetch").length).toBe(Math.floor((n + 1) / 3));
   });
+
+  it("trace ring: past the 10,000-entry bound the snapshot still returns the latest 200, in order", () => {
+    const m = createFiniteMachine(mod("fibonacci.anma"), [u("22")], { config: { fastSlots: 4, trace: true } });
+    while (m.status !== "halted" && m.status !== "trapped") m.run(100_000);
+    const snap = m.snapshot();
+    const n = snap.counters.executedInstructions;
+    expect(n).toBeGreaterThan(10_000);
+    expect(snap.trace).toHaveLength(200);
+    snap.trace.forEach((t, i) => i && expect(t.seq).toBe(snap.trace[i - 1]!.seq + 1));
+    // Toggling tracing off stops trace growth without changing execution.
+    const off = createFiniteMachine(mod("fibonacci.anma"), [u("22")], { config: { fastSlots: 4, trace: true } });
+    off.setTracing(false);
+    while (off.status !== "halted" && off.status !== "trapped") off.run(100_000);
+    expect(off.snapshot().trace).toHaveLength(0);
+    expect(off.result().returnValue).toEqual(m.result().returnValue);
+  });
 });
+

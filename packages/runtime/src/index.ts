@@ -141,7 +141,7 @@ export class FiniteMachine implements Engine {
   private trace: { seq: number; text: string }[] = [];
   private traceSeq = 0;
   private traceTruncated = false;
-  private readonly tracing: boolean;
+  private tracing: boolean;
   private startedAt = 0;
   /** Chip-view listener (null when nobody is watching: no event objects are built). */
   private ev: ((e: MicroEvent) => void) | null;
@@ -197,6 +197,7 @@ export class FiniteMachine implements Engine {
     return at;
   }
 
+  /** Count a microstep. Callers build the text only when tracing (`this.tracing ? `...` : ""`): formatting values on every instruction was a large share of run time. */
   private m(text: string): void {
     this.counters.microsteps++;
     if (this.tracing && this.micro.length < 64) this.micro.push(text);
@@ -258,7 +259,7 @@ export class FiniteMachine implements Engine {
     if (dead !== -1) {
       // The value has no remaining uses: reclaim now (its payload is already latched if this instruction read it).
       const k = this.slotKey[dead]!;
-      this.m(`reclaim ${this.name(k)} from s${dead} (no remaining uses)`);
+      this.m(this.tracing ? `reclaim ${this.name(k)} from s${dead} (no remaining uses)` : "");
       const at = this.tk(LATENCY.reclaim);
       if (this.ev) this.ev({ at, ticks: LATENCY.reclaim, u: "reclaim", slot: dead, entry: null, value: this.name(k) });
       this.dir.delete(k);
@@ -278,7 +279,7 @@ export class FiniteMachine implements Engine {
     this.counters.backingWrites++;
     this.counters.backingBytesWritten += PAYLOAD_BYTES;
     this.counters.evictions++;
-    this.m(`evict ${this.name(k)} s${oldest} -> backing[${b}]`);
+    this.m(this.tracing ? `evict ${this.name(k)} s${oldest} -> backing[${b}]` : "");
     const at = this.tk(LATENCY.evict);
     if (this.ev) this.ev({ at, ticks: LATENCY.evict, u: "evict", slot: oldest, entry: b, value: this.name(k) });
     this.slotKey[oldest] = -1;
@@ -303,7 +304,7 @@ export class FiniteMachine implements Engine {
     if (e.loc === 0) {
       this.counters.operandHits++;
       payload = this.slotPayload[e.where]!;
-      this.m(`hit ${this.name(k)} s${e.where} -> ${latch}`);
+      this.m(this.tracing ? `hit ${this.name(k)} s${e.where} -> ${latch}` : "");
       const at = this.tk(LATENCY.hit);
       if (this.ev) this.ev({ at, ticks: LATENCY.hit, u: "hit", slot: e.where, latch, value: this.name(k), payload: formatRuntimeValue(payload) });
     } else {
@@ -312,7 +313,7 @@ export class FiniteMachine implements Engine {
       payload = this.backingPayload[b]!;
       this.counters.backingReads++;
       this.counters.backingBytesRead += PAYLOAD_BYTES;
-      this.m(`miss ${this.name(k)} backing[${b}] -> ${latch}`);
+      this.m(this.tracing ? `miss ${this.name(k)} backing[${b}] -> ${latch}` : "");
       const at = this.tk(LATENCY.miss);
       if (this.ev) this.ev({ at, ticks: LATENCY.miss, u: "miss", entry: b, latch, value: this.name(k), payload: formatRuntimeValue(payload) });
       // The home moves to fast storage; the freed backing entry is available for the exchange.
@@ -322,7 +323,7 @@ export class FiniteMachine implements Engine {
       const slot = this.takeSlot(); // may evict into the backing entry just freed (the F=1 exchange)
       this.install(slot, k, payload);
       e.where = slot;
-      this.m(`install ${this.name(k)} -> s${slot}`);
+      this.m(this.tracing ? `install ${this.name(k)} -> s${slot}` : "");
       const at2 = this.tk(LATENCY.install);
       if (this.ev) this.ev({ at: at2, ticks: LATENCY.install, u: "install", slot, value: this.name(k) });
     }
@@ -344,7 +345,7 @@ export class FiniteMachine implements Engine {
     const e: DirEntry = { loc: 0, where: slot, remaining: uses, type, fnAct, blockAct, id };
     this.dir.set(k, e);
     this.install(slot, k, this.R!);
-    this.m(`publish R -> ${this.name(k)} s${slot}`);
+    this.m(this.tracing ? `publish R -> ${this.name(k)} s${slot}` : "");
     const at = this.tk(LATENCY.publish);
     if (this.ev) this.ev({ at, ticks: LATENCY.publish, u: "publish", slot, value: this.name(k), payload: formatRuntimeValue(this.R) });
     this.touched.push(k);
@@ -363,7 +364,7 @@ export class FiniteMachine implements Engine {
         this.slotKey[e.where] = -1;
         this.fastOccupied--;
       } else this.backingRelease(e.where);
-      this.m(`reclaim ${`f${e.fnAct}.b${e.blockAct}.v${e.id}`}`);
+      this.m(this.tracing ? `reclaim f${e.fnAct}.b${e.blockAct}.v${e.id}` : "");
       if (this.ev) this.ev({ at: this.tk(LATENCY.reclaim), ticks: LATENCY.reclaim, u: "reclaim", slot: e.loc === 0 ? e.where : null, entry: e.loc === 1 ? e.where : null, value: `f${e.fnAct}.b${e.blockAct}.v${e.id}` });
     }
     this.touched.length = 0;
@@ -375,7 +376,7 @@ export class FiniteMachine implements Engine {
       throw new ResourceTrap(makeTrap("RESOURCE_EXHAUSTED", `argument staging would exceed ${this.limits.stagingPayloadBytes} bytes`, "staging"));
     }
     this.staging.push(v);
-    this.m(`stage ${formatRuntimeValue(v)}`);
+    this.m(this.tracing ? `stage ${formatRuntimeValue(v)}` : "");
     const at = this.tk(LATENCY.stage);
     if (this.ev) this.ev({ at, ticks: LATENCY.stage, u: "stage", payload: formatRuntimeValue(v) });
     const bytes = this.staging.length * PAYLOAD_BYTES;
@@ -396,7 +397,7 @@ export class FiniteMachine implements Engine {
         this.slotKey[e.where] = -1;
         this.fastOccupied--;
       } else this.backingRelease(e.where);
-      this.m(`release ${`f${e.fnAct}.b${e.blockAct}.v${id}`} (block exit)`);
+      this.m(this.tracing ? `release f${e.fnAct}.b${e.blockAct}.v${id} (block exit)` : "");
       if (this.ev) this.ev({ at: this.tk(LATENCY.reclaim), ticks: LATENCY.reclaim, u: "reclaim", slot: e.loc === 0 ? e.where : null, entry: e.loc === 1 ? e.where : null, value: `f${e.fnAct}.b${e.blockAct}.v${id}` });
     }
   }
@@ -449,6 +450,14 @@ export class FiniteMachine implements Engine {
     if (!f) return null;
     const rec = f.pc < f.block.instrs.length ? f.block.instrs[f.pc]!.rec : f.block.term.rec;
     return { functionId: f.fn.id, blockId: f.block.id, recordIndex: rec, depth: this.frames.length - 1 };
+  }
+
+  /**
+   * Turn the text trace on or off between instructions (never changes execution). Building trace
+   * text roughly doubles interpreter time, so hosts enable it for stepping and slowed runs only.
+   */
+  setTracing(on: boolean): void {
+    this.tracing = on && this.config.trace;
   }
 
   /** Attach or detach the micro-event listener between instructions (never changes execution). */
@@ -524,15 +533,26 @@ export class FiniteMachine implements Engine {
     return f.blockAct * SPAN + id;
   }
 
+  /** The newest n trace entries, oldest first (the trace is a ring once full). */
+  private traceTail(n: number): { seq: number; text: string }[] {
+    const cap = this.limits.traceEvents;
+    if (this.trace.length < cap) return this.trace.slice(-n);
+    const out: { seq: number; text: string }[] = [];
+    for (let s = Math.max(0, this.traceSeq - n); s < this.traceSeq; s++) out.push(this.trace[s % cap]!);
+    return out;
+  }
+
   private traceInstr(f: Frame, rec: number): void {
     if (!this.tracing) return;
     const r = this.module.records[rec]!;
     const text = `#${this.counters.executedInstructions} r${rec} fn${f.fn.id}.block${f.block.id} ${opName(r.op)}: ${this.micro.join("; ")}`;
-    if (this.trace.length >= this.limits.traceEvents) {
-      this.trace.shift();
+    // Fixed-size ring: shifting a 10,000-entry array on every instruction dominated run time.
+    const cap = this.limits.traceEvents;
+    if (this.trace.length < cap) this.trace.push({ seq: this.traceSeq++, text });
+    else {
+      this.trace[this.traceSeq % cap] = { seq: this.traceSeq++, text };
       this.traceTruncated = true;
     }
-    this.trace.push({ seq: this.traceSeq++, text });
   }
 
   private exec(f: Frame, ins: Instr): boolean {
@@ -540,7 +560,7 @@ export class FiniteMachine implements Engine {
     switch (ins.k) {
       case "const":
         this.R = ins.value;
-        this.m(`R = ${formatRuntimeValue(ins.value)}`);
+        this.m(this.tracing ? `R = ${formatRuntimeValue(ins.value)}` : "");
         if (this.ev) this.ev({ at: this.tk(1), ticks: 1, u: "alu", op: "CONST", result: formatRuntimeValue(ins.value) });
         else this.tk(1);
         this.publish(f.fnAct, f.blockAct, ins.dst, f.block.types[ins.dst]!, f.block.uses[ins.dst]!);
@@ -554,7 +574,7 @@ export class FiniteMachine implements Engine {
           return false;
         }
         this.R = r.value;
-        this.m(`R = A ${opName(ins.op)} B = ${formatRuntimeValue(r.value)}`);
+        this.m(this.tracing ? `R = A ${opName(ins.op)} B = ${formatRuntimeValue(r.value)}` : "");
         {
           const n = aluTicks(ins.op);
           const at = this.tk(n);
@@ -566,7 +586,7 @@ export class FiniteMachine implements Engine {
       case "un": {
         const a = this.read(this.key(f, ins.a), "A");
         this.R = ins.op === Op.NOT_BOOL ? !(a as boolean) : ins.op === Op.BOOL_TO_U64 ? ((a as boolean) ? 1n : 0n) : (a as bigint) !== 0n;
-        this.m(`R = ${opName(ins.op)}(A) = ${formatRuntimeValue(this.R)}`);
+        this.m(this.tracing ? `R = ${opName(ins.op)}(A) = ${formatRuntimeValue(this.R)}` : "");
         if (this.ev) this.ev({ at: this.tk(1), ticks: 1, u: "alu", op: opName(ins.op), result: formatRuntimeValue(this.R) });
         else this.tk(1);
         this.publish(f.fnAct, f.blockAct, ins.dst, f.block.types[ins.dst]!, f.block.uses[ins.dst]!);
@@ -579,7 +599,7 @@ export class FiniteMachine implements Engine {
         this.counters.heapBytes = this.heap.bytes;
         this.counters.heapAllocations = this.heap.count;
         this.R = r.value;
-        this.m(`R = alloc(${n})`);
+        this.m(this.tracing ? `R = alloc(${n})` : "");
         if (this.ev) this.ev({ at: this.tk(LATENCY.heapAlloc), ticks: LATENCY.heapAlloc, u: "heap", kind: "alloc", bytes: this.heap.bytes, allocations: this.heap.count });
         else this.tk(LATENCY.heapAlloc);
         this.publish(f.fnAct, f.blockAct, ins.dst, f.block.types[ins.dst]!, f.block.uses[ins.dst]!);
@@ -591,7 +611,7 @@ export class FiniteMachine implements Engine {
         const r = this.heap.load(ins.op === Op.LOAD_U64 ? "u64" : "u8", h, i);
         if (!r.ok) return this.failWith(r.trap);
         this.R = r.value;
-        this.m(`R = heap[A][B] = ${r.value}`);
+        this.m(this.tracing ? `R = heap[A][B] = ${r.value}` : "");
         if (this.ev) this.ev({ at: this.tk(LATENCY.heapAccess), ticks: LATENCY.heapAccess, u: "heap", kind: "load", bytes: this.heap.bytes, allocations: this.heap.count });
         else this.tk(LATENCY.heapAccess);
         this.publish(f.fnAct, f.blockAct, ins.dst, f.block.types[ins.dst]!, f.block.uses[ins.dst]!);
@@ -603,7 +623,7 @@ export class FiniteMachine implements Engine {
         const v = this.read(this.key(f, ins.value), "R") as bigint;
         const r = this.heap.store(ins.op === Op.STORE_U64 ? "u64" : "u8", h, i, v);
         if (!r.ok) return this.failWith(r.trap);
-        this.m(`heap[A][B] = R`);
+        this.m(this.tracing ? `heap[A][B] = R` : "");
         if (this.ev) this.ev({ at: this.tk(LATENCY.heapAccess), ticks: LATENCY.heapAccess, u: "heap", kind: "store", bytes: this.heap.bytes, allocations: this.heap.count });
         else this.tk(LATENCY.heapAccess);
         break;
@@ -630,7 +650,7 @@ export class FiniteMachine implements Engine {
         }
         if (ins.dst !== null) {
           this.R = out.value as RuntimeValue;
-          this.m(`R = ${formatRuntimeValue(this.R)}`);
+          this.m(this.tracing ? `R = ${formatRuntimeValue(this.R)}` : "");
           this.publish(f.fnAct, f.blockAct, ins.dst, f.block.types[ins.dst]!, f.block.uses[ins.dst]!);
         }
         break;
@@ -641,7 +661,7 @@ export class FiniteMachine implements Engine {
         this.traceInstr(f, ins.rec);
         f.pc++;
         this.counters.executedInstructions++;
-        this.m(`call fn${ins.fn}${ins.dst !== null ? ` (destination v${ins.dst} reserved)` : ""}`);
+        this.m(this.tracing ? `call fn${ins.fn}${ins.dst !== null ? ` (destination v${ins.dst} reserved)` : ""}` : "");
         if (this.ev) this.ev({ at: this.tk(LATENCY.call), ticks: LATENCY.call, u: "call", fn: ins.fn });
         else this.tk(LATENCY.call);
         this.pushFrame(this.module.functions[ins.fn]!, ins.dst);
@@ -668,8 +688,9 @@ export class FiniteMachine implements Engine {
       let edge = t.k === "jump" ? t.edge : null;
       if (t.k === "br") {
         const c = this.read(this.key(f, t.cond), "A") as boolean;
-        edge = c ? t.t : t.f;
-        this.m(`branch ${c ? "true" : "false"} -> block${edge.target}`);
+        const taken = c ? t.t : t.f;
+        edge = taken;
+        this.m(this.tracing ? `branch ${c ? "true" : "false"} -> block${taken.target}` : "");
         if (this.ev) this.ev({ at: this.tk(LATENCY.branch), ticks: LATENCY.branch, u: "branch", target: edge.target, taken: c });
         else this.tk(LATENCY.branch);
       } else if (this.ev) this.ev({ at: this.tk(LATENCY.branch), ticks: LATENCY.branch, u: "branch", target: edge!.target, taken: null });
@@ -783,7 +804,7 @@ export class FiniteMachine implements Engine {
       liveValues: this.dir.size,
       counters: { ...this.counters },
       lastMicrosteps: [...this.micro],
-      trace: this.trace.slice(-200),
+      trace: this.traceTail(200),
       traceTruncated: this.traceTruncated || this.trace.length > 200,
     };
   }

@@ -69,6 +69,7 @@ export function LiveChip(props: { artifact: LoadedArtifact; view: MachineView; m
   const { artifact, view, machine, controls } = props;
   const reducedMotion = useReducedMotion();
   const [speed, setSpeed] = useState(0);
+  const [lights, setLights] = useState(true);
   const [expanded, setExpanded] = useState(false);
   const [, setFrame] = useState(0);
   const rootRef = useRef<HTMLElement>(null);
@@ -95,8 +96,9 @@ export function LiveChip(props: { artifact: LoadedArtifact; view: MachineView; m
   useEffect(() => {
     const rate = SPEEDS[speed]!.rate;
     machine.setRate(rate);
-    machine.setWatch(rate === null ? "heat" : "events");
-  }, [machine, speed]);
+    // Instrumentation costs time: with lights off the machine runs without an event listener.
+    machine.setWatch(!lights ? "off" : rate === null ? "heat" : "events");
+  }, [machine, speed, lights]);
   useEffect(
     () => () => {
       machine.setWatch("off");
@@ -256,6 +258,10 @@ export function LiveChip(props: { artifact: LoadedArtifact; view: MachineView; m
             {SPEEDS.map((s, i) => <option key={s.label} value={i}>{s.label}</option>)}
           </select>
         </label>
+        <label className="chip-check livechip-lights" title="Turn off to run faster: the chip stops listening to the machine">
+          <input type="checkbox" checked={lights} onChange={(e) => setLights(e.target.checked)} />
+          <span>Lights</span>
+        </label>
         {expanded && (
           <div className="chip-transport" role="toolbar" aria-label="Execution controls">
             <button className="chip-btn is-primary" onClick={controls.run} disabled={!controls.canRun || running}>Run</button>
@@ -274,7 +280,7 @@ export function LiveChip(props: { artifact: LoadedArtifact; view: MachineView; m
           <p className="livechip-status">
             <span>{`state ${view.status}`}</span>
             <span>{g.vm.rec !== null ? `record ${g.vm.rec} ${g.vm.text}` : c.instructions ? "" : "arguments installed"}</span>
-            <span>{rate === null ? (running ? "full speed: units glow by activity" : "") : `slowed to ${rate.toLocaleString()} instr/s`}</span>
+            <span>{!lights ? "lights off: running without instrumentation" : rate === null ? (running ? "full speed: units glow by activity" : "") : `slowed to ${rate.toLocaleString()} instr/s`}</span>
           </p>
         </div>
         <aside className="livechip-devices" aria-label="Devices">

@@ -178,6 +178,7 @@ self.onmessage = (ev: MessageEvent<ToMachine | ToChip>) => {
         running = true;
         credit = 1;
         lastSlice = performance.now();
+        machine.setTracing(rate !== null); // full speed runs without building trace text
         if (!scheduled) loop(runId); // else the pending continuation resumes it
         return;
       case "pause":
@@ -188,6 +189,7 @@ self.onmessage = (ev: MessageEvent<ToMachine | ToChip>) => {
       case "step":
         if (m.runId !== runId || !machine || finished()) return;
         running = false;
+        machine.setTracing(true);
         {
           // A single step always streams its full microstep sequence so the chip can animate it.
           const prev = watch;
@@ -218,6 +220,7 @@ self.onmessage = (ev: MessageEvent<ToMachine | ToChip>) => {
         return;
       case "rate":
         rate = m.rate !== null && m.rate > 0 ? m.rate : null;
+        machine?.setTracing(rate !== null || !running);
         credit = 1;
         lastSlice = performance.now();
         return;
