@@ -12,6 +12,7 @@
   "dependencies": {
     "@llmtobinary/spec": "workspace:*",
     "@llmtobinary/protocol": "workspace:*",
-    "@llmtobinary/diagnostics": "workspace:*"
+    "@llmtobinary/diagnostics": "workspace:*",
+    "@llmtobinary/validate": "workspace:*"
   }
 }

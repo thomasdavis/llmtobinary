@@ -272,9 +272,6 @@ importers:
       '@llmtobinary/protocol':
         specifier: workspace:*
         version: link:../protocol
-      '@llmtobinary/reference':
-        specifier: workspace:*
-        version: link:../reference
       '@llmtobinary/spec':
         specifier: workspace:*
         version: link:../spec
@@ -362,6 +359,9 @@ importers:
       '@llmtobinary/spec':
         specifier: workspace:*
         version: link:../spec
+      '@llmtobinary/validate':
+        specifier: workspace:*
+        version: link:../validate
 
   packages/diagnostics:
     dependencies:
@@ -505,9 +505,6 @@ importers:
       '@llmtobinary/protocol':
         specifier: workspace:*
         version: link:../protocol
-      '@llmtobinary/reference':
-        specifier: workspace:*
-        version: link:../reference
       '@llmtobinary/spec':
         specifier: workspace:*
         version: link:../spec
@@ -517,6 +514,18 @@ importers:
       z3-solver:
         specifier: 5.2.0
         version: 5.2.0
+
+  tools/fixture-builder:
+    dependencies:
+      '@llmtobinary/decode':
+        specifier: workspace:*
+        version: link:../../packages/decode
+      '@llmtobinary/spec':
+        specifier: workspace:*
+        version: link:../../packages/spec
+      '@llmtobinary/validate':
+        specifier: workspace:*
+        version: link:../../packages/validate
 
 packages:
 

@@ -92,7 +92,10 @@ export interface RunResult {
   returnValue: GuestValue | null;
   /** Exact terminal bytes (UTF-8/ASCII as written by the guest). */
   terminal: Uint8Array;
+  /** Up to the first 2000 effects, verbatim (effectsHash covers all of them). */
   effects: Effect[];
+  effectCount: number;
+  effectsTruncated: boolean;
   effectsHash: string;
   framebufferHash: string | null;
   framesPresented: number;

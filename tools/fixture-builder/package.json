@@ -1,0 +1,17 @@
+{
+  "name": "@llmtobinary/fixture-builder",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "DEVELOPER/TEST-ONLY symbolic ANMA-1 and ANMR-1 fixture builder. Never import from live packages (CI enforces).",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p .",
+    "build-fixtures": "node --experimental-strip-types --no-warnings src/build-fixtures.ts"
+  },
+  "dependencies": {
+    "@llmtobinary/spec": "workspace:*",
+    "@llmtobinary/decode": "workspace:*",
+    "@llmtobinary/validate": "workspace:*"
+  }
+}
