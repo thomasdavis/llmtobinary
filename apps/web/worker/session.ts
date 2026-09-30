@@ -149,7 +149,10 @@ export class GenerationSession extends DurableObject<Env> {
         });
       } catch (e) {
         const msg = e instanceof LoopError ? e.message : "internal error";
-        await write({ type: "attempt.error", sessionId: s.sessionId, attemptId: "", seq: s.seq, at: Date.now(), code: "loop_error", message: msg, retryable: false });
+        // A real, stored sequence number: clients drop events that do not advance the sequence.
+        const ev = { type: "attempt.error", sessionId: s.sessionId, attemptId: s.attempts.at(-1)?.attemptId ?? "", seq: ++s.seq, at: Date.now(), code: "loop_error", message: msg, retryable: false } as LoopEvent;
+        await this.ctx.storage.put(`e:${pad(ev.seq)}`, ev);
+        await write(ev);
         if (!(e instanceof LoopError)) log({ event: "loop-exception", sessionId: s.sessionId, name: (e as Error)?.name });
       } finally {
         clearInterval(heartbeat);

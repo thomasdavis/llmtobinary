@@ -84,17 +84,24 @@ export class GenerationController {
   private async attempt(key: string, feedback: BrowserFeedback | null): Promise<LoopEvent[]> {
     const start = this.state.events.length;
     this.abort = new AbortController();
+    let broken = false;
     try {
       await streamAttempt(this.state.sessionId!, this.token!, { idempotencyKey: key, feedback }, this.onEvent, this.abort.signal);
     } catch (e) {
       if (this.abort.signal.aborted) throw e;
-      // Reconnect: poll stored events until the attempt is no longer running.
-      for (let i = 0; i < 600; i++) {
-        this.set({ reconnects: this.state.reconnects + 1 });
-        await new Promise((r) => setTimeout(r, 1000));
+      broken = true;
+    }
+    // A stream can also end cleanly but early (a dropped connection): unless the attempt visibly
+    // finished, follow it on the server by sequence until it is no longer running.
+    const finished = () => this.state.outcome !== null || this.state.events.slice(start).some((e) => e.type === "candidate.submitted");
+    if (broken || !finished()) {
+      for (let i = 0; i < 1500; i++) {
+        if (this.abort.signal.aborted) break;
         const r = await resumeEvents(this.state.sessionId!, this.token!, this.lastSeq);
         r.events.forEach(this.onEvent);
         if (!r.running) break;
+        this.set({ reconnects: this.state.reconnects + 1 });
+        await new Promise((res) => setTimeout(res, 1000));
       }
     }
     return this.state.events.slice(start);
@@ -114,7 +121,8 @@ export class GenerationController {
         if (this.state.outcome) return;
         const sub = [...evs].reverse().find((e): e is Extract<LoopEvent, { type: "candidate.submitted" }> => e.type === "candidate.submitted");
         if (!sub) {
-          this.set({ phase: "error", error: "the attempt ended without a submission or a stop outcome" });
+          const err = [...evs].reverse().find((e): e is Extract<LoopEvent, { type: "attempt.error" }> => e.type === "attempt.error");
+          this.set({ phase: "error", error: err ? `the server stopped this attempt: ${err.message}` : "the attempt ended without a submission or a stop outcome" });
           return;
         }
         this.set({ phase: "testing" });

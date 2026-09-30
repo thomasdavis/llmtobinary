@@ -182,3 +182,37 @@ describe("a program that plays the game but never draws gets a plain diagnosis, 
     expect(d.found).not.toContain("sha256");
   });
 });
+
+describe("open tasks: model examples for programs that run until input ends them", () => {
+  // Like the visitor's "snake runs forever" prompt: draw, wait for a tick, repeat; never returns.
+  const forever = () => {
+    const mb = new ModuleBuilder();
+    const f = mb.func(["u64"], "u64");
+    const b0 = f.block();
+    const loop = f.block();
+    b0.jump(loop, []);
+    loop.host("display.clear", [loop.const(0x000000ff)]);
+    loop.host("display.present", []);
+    loop.host("input.wait_tick", []);
+    loop.jump(loop, []);
+    return mustValidate(mb.build());
+  };
+  const ann = (result: string | null) =>
+    parseAnnotations({ summary: "", params: [{ function: 0, index: 0, name: "seed" }], records: [], contracts: [], invariants: [], examples: [{ inputs: ["0"], result, terminal: null }] }).annotations!;
+
+  it("an example that claims nothing holds while the program waits for input", () => {
+    const r = runTaskTests(forever(), null, { annotations: ann(null), allowedFeatures: 0xf });
+    expect(r.passed).toBe(true);
+    expect(r.cases[0]!.actual).toBe("waiting for input");
+  });
+  it("a claimed result is reported as never returned, with the reason", () => {
+    const r = runTaskTests(forever(), null, { annotations: ann("5"), allowedFeatures: 0xf });
+    expect(r.passed).toBe(false);
+    expect(r.cases[0]!.diagnostic!.message).toContain("still waiting for input (examples run with no input ticks)");
+  });
+  it("the open-task prompt tells the model how examples run when input is permitted", async () => {
+    const { openTaskPromptText } = await import("../src/registry.ts");
+    expect(openTaskPromptText("snake", ["u64"], "u64", 0xc)).toContain("NO input ticks");
+    expect(openTaskPromptText("digits", ["u64"], "u64", 0x2)).not.toContain("NO input ticks");
+  });
+});

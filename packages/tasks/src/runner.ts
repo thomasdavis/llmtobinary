@@ -245,8 +245,15 @@ export function runTaskTests(module: Module, task: TaskSpec | null, opts: Runner
       const got = resultText(r);
       const text = new TextDecoder().decode(r.terminal);
       const problems: string[] = [];
-      if (r.status !== "halted") problems.push(r.trap ? `trapped ${r.trap.code}: ${r.trap.message}` : "did not finish");
-      else {
+      // runToCompletion only cancels a program that is waiting for input: examples run without ticks.
+      const waiting = r.status === "cancelled";
+      if (waiting) {
+        if (ex.result !== null) problems.push(`the program was still waiting for input (examples run with no input ticks), so the claimed result ${ex.result} was never returned`);
+        if (ex.terminal !== null && text !== ex.terminal) problems.push(`before waiting for input it printed ${JSON.stringify(text.slice(0, SNIP))}, the example claims ${JSON.stringify(ex.terminal.slice(0, SNIP))}`);
+      } else if (r.status !== "halted") {
+        const fuelHint = r.trap?.code === "FUEL_EXHAUSTED" ? ` (an example must finish within ${fuel.toLocaleString("en-US")} executed instructions, or wait for input with input.wait_tick)` : "";
+        problems.push(r.trap ? `trapped ${r.trap.code}: ${r.trap.message}${fuelHint}` : "did not finish");
+      } else {
         if (ex.result !== null && got !== ex.result) problems.push(`returned ${got}, the example claims ${ex.result}`);
         if (ex.terminal !== null && text !== ex.terminal) problems.push(`printed ${JSON.stringify(text.slice(0, SNIP))}, the example claims ${JSON.stringify(ex.terminal.slice(0, SNIP))}`);
       }
@@ -256,7 +263,7 @@ export function runTaskTests(module: Module, task: TaskSpec | null, opts: Runner
         passed: problems.length === 0,
         inputs: ex.inputs,
         expected: ex.result,
-        actual: r.status === "halted" ? got : `trap ${r.trap?.code ?? ""}`,
+        actual: r.status === "halted" ? got : waiting ? "waiting for input" : `trap ${r.trap?.code ?? ""}`,
         diagnostic: problems.length ? diag("ANMA-K-005", { message: `Model-claimed example ${i} does not hold: ${problems.join("; ")}.`, found: problems.join("; "), expected: JSON.stringify(ex), stage: Stage.TASK }) : null,
       });
     });

@@ -381,6 +381,11 @@ export function openTaskPromptText(description: string, params: readonly ParamTy
     `Permitted devices: ${featureText(features)}. Declare exactly the feature bits you use.`,
     "Include examples in the annotations so the program can be checked against your own claims.",
   ];
+  if (features & 8) {
+    lines.push(
+      "Examples run once with the given inputs and NO input ticks. A program that loops on input.wait_tick (for example one meant to run until the visitor quits, or forever) never finishes such a run: that is accepted when the example claims no result and no terminal text (use null for both), but a claimed result can never be observed.",
+    );
+  }
   if (opts.requireClaims) lines.push("Record claims are required: annotate every record with its claim in the annotations sidecar.");
   return lines.join("\n");
 }
