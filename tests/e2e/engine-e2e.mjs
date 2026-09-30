@@ -32,6 +32,11 @@ const exe = executablePath();
 const browser = await chromium.launch({ headless: true, ...(exe ? { executablePath: exe } : {}) });
 const ctx = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
 const page = await ctx.newPage();
+await page.addInitScript(() => {
+  // These suites exercise the full instrument: start in expert view with the explainer dismissed.
+  localStorage.setItem("llmtobinary.settings.v1.expert", "true");
+  localStorage.setItem("llmtobinary.settings.v1.introSeen", "true");
+});
 const errors = [];
 page.on("pageerror", (e) => errors.push(e.message));
 page.on("console", (m) => m.type() === "error" && errors.push(m.text()));

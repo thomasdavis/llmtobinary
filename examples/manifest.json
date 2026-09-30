@@ -1,0 +1,108 @@
+{
+  "schema": "llmtobinary-examples/1",
+  "note": "Every example here is unedited model output from a live generation session on the public site, kept exactly as submitted. Fixtures (in fixtures/) are the opposite: specification- or tool-created bytes.",
+  "examples": [
+    {
+      "file": "ai-platform-game.anma",
+      "title": "Platform game",
+      "bytes": 4080,
+      "sha256": "a3f76ecbbba510abe53e86abb417e3aded1cfa4a49665784103a453cc4f88e44",
+      "prompt": "build a good looking version of a clone of super mario brothers where i can jump around, make all the pixels so it looks like super marios world. mario should be able to move with direction keys, and space bar to jump",
+      "provenance": {
+        "kind": "model-generated",
+        "sessionId": "b1ea90c8-c61e-4a1b-b885-cead9b907c33",
+        "attemptId": "3687e6d4-98d8-4534-8505-563951bd7b79",
+        "candidateSeq": 4,
+        "requestedModel": "gpt-6-luna",
+        "returnedModels": [
+          "gpt-6-luna"
+        ],
+        "mode": "tools",
+        "promptVersion": "llmtobinary-prompt/3",
+        "modelOutput": true
+      },
+      "reasoningEffort": "high",
+      "counters": {
+        "turns": 5,
+        "checks": 4,
+        "submissions": 1,
+        "outputTokens": 34319,
+        "inputTokens": 262925,
+        "unknownUsageTurns": 0,
+        "startedAt": 1790793894845
+      },
+      "usdSpent": 0.043452,
+      "controls": "\u2190 \u2192 move, Space jumps",
+      "annotations": {
+        "summary": "A colorful platform scene with a controllable red-cap hero. Left/right move across the screen; Space raises the hero and release lets him descend. Sky, ground, cloud, and green pipe are redrawn each frame.",
+        "params": [],
+        "records": [],
+        "contracts": [],
+        "invariants": [],
+        "examples": [
+          {
+            "inputs": [
+              "0"
+            ],
+            "result": null,
+            "terminal": null
+          }
+        ]
+      }
+    },
+    {
+      "file": "ai-platform-game-first-try.anma",
+      "title": "Platform game (an earlier attempt)",
+      "bytes": 3072,
+      "sha256": "d925bc7c3863f7fe2c8164cf84bcf571f58e8db32e54f12beb97efc9006a36c1",
+      "prompt": "build a good looking version of a clone of super mario brothers where i can jump around, make all the pixels so it looks like super marios world. mario should be able to move with direction keys, and space bar to jump",
+      "provenance": {
+        "kind": "model-generated",
+        "sessionId": "8c4b9c8d-fc47-4853-9b32-9f2f23537949",
+        "attemptId": "400d19b5-aaad-4337-8d79-825a1dbbcc28",
+        "candidateSeq": 3,
+        "requestedModel": "gpt-6-luna",
+        "returnedModels": [
+          "gpt-6-luna"
+        ],
+        "mode": "tools",
+        "promptVersion": "llmtobinary-prompt/3",
+        "modelOutput": true
+      },
+      "reasoningEffort": "high",
+      "counters": {
+        "turns": 4,
+        "checks": 3,
+        "submissions": 1,
+        "outputTokens": 34328,
+        "inputTokens": 168196,
+        "unknownUsageTurns": 0,
+        "startedAt": 1790792891079
+      },
+      "usdSpent": 0.033983599999999996,
+      "controls": "\u2190 \u2192 move, Space jumps",
+      "annotations": {
+        "summary": "A looping pixel-art platform scene: a blue sky with cloud, brick ledge, pipe and grassy floor; a chunky red, skin-tone and blue Mario moves left/right and rises while Space is held. Frames are drawn with nested pixel loops and presented before waiting for the next tick.",
+        "params": [
+          {
+            "function": 0,
+            "index": 0,
+            "name": "seed"
+          }
+        ],
+        "records": [],
+        "contracts": [],
+        "invariants": [],
+        "examples": [
+          {
+            "inputs": [
+              "0"
+            ],
+            "result": null,
+            "terminal": null
+          }
+        ]
+      }
+    }
+  ]
+}

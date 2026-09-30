@@ -51,6 +51,7 @@ export function parseEntryInputs(a: LoadedArtifact, texts: string[]): { inputs: 
 }
 
 export function MachinePanel(props: {
+  expert: boolean;
   artifact: LoadedArtifact | null;
   view: MachineView;
   machine: MachineClient;
@@ -77,7 +78,7 @@ export function MachinePanel(props: {
   const fast = props.engine === "fast";
   return (
     <section className="panel" aria-label="Machine">
-      <h2>Machine</h2>
+      <h2>{props.expert ? "Machine" : "3. Run it on the chip"}</h2>
       {!a?.module ? <p className="muted">A valid executable is required to run.</p> : (
         <>
           <div className="row wrap">
@@ -100,10 +101,10 @@ export function MachinePanel(props: {
                 <button role="radio" aria-checked={fast} className={fast ? "on" : ""} onClick={() => props.setEngine("fast")} title="The same bytes translated to WebAssembly: identical results, much faster; storage (slots, backing) is not simulated">Fast</button>
               </div>
             </div>
-            <label className="field">
+            {props.expert && <label className="field">
               <span>fast slots F</span>
               <select value={F} disabled={fast} title={fast ? "The fast engine does not simulate fast slots" : ""} onChange={(e) => props.setF(Number(e.target.value))}>{F_CHOICES.map((f) => <option key={f} value={f}>{f}{f === 1 ? " (edge test)" : ""}</option>)}</select>
-            </label>
+            </label>}
             {interactive ? (
               <label className="field">
                 <span>ticks per second</span>
@@ -141,6 +142,7 @@ export function MachinePanel(props: {
             hasFramebuffer={(a.module.features & Feature.FRAMEBUFFER) !== 0}
             controls={{ run: () => props.onLoadRun(false), pause: () => machine.pause(), resume: () => machine.run(), step: () => machine.step(), stop: () => machine.stop(), canRun: !parsed.error }}
           />
+          {props.expert && (<>
           <details className="machine-text">
             <summary>Machine state as text (slots, latches, backing, frames)</summary>
             <div>
@@ -190,6 +192,7 @@ export function MachinePanel(props: {
               </table></div>
             </>
           )}
+          </>)}
         </>
       )}
     </section>

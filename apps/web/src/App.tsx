@@ -11,7 +11,10 @@ import { GenerationController, type GenState, type SubmittedCandidate } from "./
 import { Inspector, type VerificationState } from "./Inspector.tsx";
 import { verify } from "./verify-client.ts";
 import { F_CHOICES, MachinePanel, parseEntryInputs } from "./Machine.tsx";
-import { oneOf, usePersistentState } from "./settings.ts";
+import { isBool, oneOf, usePersistentState } from "./settings.ts";
+import { Intro, type IntroAction } from "./Intro.tsx";
+import { BinaryView } from "./BinaryView.tsx";
+import { AI_EXAMPLES, loadExample, type AiExample } from "./examples.ts";
 import { MachineClient, type MachineView } from "./machine-client.ts";
 import { TaskPanel } from "./TaskPanel.tsx";
 import type { CompareRow, EngineKind } from "./worker-protocol.ts";
@@ -42,6 +45,14 @@ export function App() {
   const [F, setF] = usePersistentState("fastSlots", 16, oneOf(...F_CHOICES));
   const [engine, setEngine] = usePersistentState<EngineKind>("engine", "exact", oneOf("exact", "fast"));
   const [tickRate, setTickRate] = usePersistentState("tickRate", 30, oneOf(20, 30, 60));
+  const [expert, setExpert] = usePersistentState("expert", false, isBool);
+  const [introSeen, setIntroSeen] = usePersistentState("introSeen", false, isBool);
+  const [introOpen, setIntroOpen] = useState(!introSeen);
+  const [promptFocus, setPromptFocus] = useState(0);
+  const closeIntro = () => {
+    setIntroOpen(false);
+    setIntroSeen(true);
+  };
   const [inputTexts, setInputTexts] = useState<string[]>([]);
   const [compare, setCompare] = useState<{ rows: CompareRow[]; semanticAgreement: boolean; missingBackingActivity: number[]; resourceLimited: number[] } | null>(null);
   const [comparing, setComparing] = useState(false);
@@ -104,6 +115,25 @@ export function App() {
     }
   };
 
+  // Simple view: examples load and run straight away.
+  const [autoRun, setAutoRun] = useState<string | null>(null);
+  const onExample = async (e: { kind: "ai"; example: AiExample } | { kind: "ref"; file: string; task: string }) => {
+    try {
+      let a: LoadedArtifact;
+      if (e.kind === "ai") {
+        const bytes = await loadExample(e.example.file);
+        a = await loadArtifact({ bytes, annotations: e.example.annotations, name: e.example.file, taskId: null, provenance: e.example.provenance, allowedFeatures: allowed });
+      } else {
+        const bytes = await loadFixture(e.file);
+        a = await loadArtifact({ bytes, name: e.file, taskId: TASK_BY_ID.has(e.task) ? e.task : null, provenance: { kind: "bundled-fixture", file: e.file, origin: "fixtures/manifest.json", modelOutput: false }, allowedFeatures: allowed });
+      }
+      setAutoRun(a.record.sha256);
+      await select(a);
+    } catch (err) {
+      setNotice((err as Error).message);
+    }
+  };
+
   const onSubmission = useCallback(
     async (c: SubmittedCandidate) => {
       if (!c.bytes) return;
@@ -146,6 +176,18 @@ export function App() {
     setLastRun({ inputs: p.inputs, F: f });
     setTab("machine");
   };
+
+  useEffect(() => {
+    if (!autoRun || artifact?.record.sha256 !== autoRun || !artifact.module) return;
+    setAutoRun(null);
+    loadRun();
+    // Games take keys at once: focus the screen and bring the chip into view.
+    setTimeout(() => {
+      const fb = document.querySelector<HTMLCanvasElement>("section.livechip canvas.fb");
+      document.querySelector("section.livechip")?.scrollIntoView({ block: "start", behavior: "smooth" });
+      if (fb && fb.tabIndex >= 0) fb.focus({ preventScroll: true });
+    }, 150);
+  }, [artifact, autoRun]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const changeF = (f: number) => {
     setF(f);
@@ -264,14 +306,35 @@ export function App() {
   };
 
   const running = view.status === "running" || view.status === "waiting-input";
+  const onIntroAction = (a: IntroAction) => {
+    closeIntro();
+    if (a === "watch") {
+      // The first impression is a game: run it on the fast engine so it plays smoothly.
+      setEngine("fast");
+      void onExample({ kind: "ai", example: AI_EXAMPLES[0]! });
+    }
+    if (a === "ask") setPromptFocus((n) => n + 1);
+  };
   return (
-    <div className="app">
-      <header>
-        <h1>llmtobinary</h1>
-        <p className="tagline">OpenAI generation · TypeScript virtual-machine execution in your browser.</p>
-        <p className="muted small">
-          {config ? <>spec {config.specId} ({config.specSha256.slice(0, 12)}) · build {config.buildCommit} · {config.environment} · {config.liveGeneration ? "live generation available" : "fixture mode"}</> : configError ? `offline or API unavailable (${configError}) — fixtures and saved artifacts still run` : "loading configuration…"}
-        </p>
+    <div className={`app${expert ? " is-expert" : " is-simple"}`}>
+      <Intro open={introOpen} onClose={closeIntro} onAction={onIntroAction} canGenerate={!!config?.liveGeneration} />
+      <header className="site-head">
+        <div className="site-title">
+          <h1>llmtobinary</h1>
+          <p className="pitch">An AI writes machine code directly, byte by byte, for ANMA-1: a processor designed so that AI can program it. No source code, no compiler.</p>
+          <p className="tagline">OpenAI generation · TypeScript virtual-machine execution in your browser.</p>
+        </div>
+        <div className="site-actions">
+          <button className="primary" onClick={() => setIntroOpen(true)}>What is this?</button>
+          <label className="check expert-toggle" title="Show the full instrument: hex inspector, diagnostics, counters, trace, curated tasks, export">
+            <input type="checkbox" checked={expert} onChange={(e) => setExpert(e.target.checked)} /> Expert view
+          </label>
+        </div>
+        {expert && (
+          <p className="muted small site-meta">
+            {config ? <>spec {config.specId} ({config.specSha256.slice(0, 12)}) · build {config.buildCommit} · {config.environment} · {config.liveGeneration ? "live generation available" : "fixture mode"}</> : configError ? `offline or API unavailable (${configError}) — fixtures and saved artifacts still run` : "loading configuration…"}
+          </p>
+        )}
       </header>
       {notice && <p className="notice" role="status">{notice} <button className="link" onClick={() => setNotice(null)}>dismiss</button></p>}
       <nav className="tabs mobile" role="tablist" aria-label="Panels">
@@ -283,10 +346,10 @@ export function App() {
       </div>
       <main className={`layout show-${tab}`}>
         <div className="col col-program">
-          <TaskPanel config={config} configError={configError} gen={genState} history={history} onFixture={onFixture} onGenerate={(req: CreateSessionRequest) => void gen.start(req)} onCancel={() => void gen.cancel()} onSelectSubmission={(c) => void onSubmission(c)} onSelectHistory={(h) => void loadArtifact({ bytes: h.bytes, annotations: h.annotations, name: h.name, taskId: h.taskId, provenance: h.provenance, responseText: h.responseText, allowedFeatures: allowed }).then((a) => select(a))} onImport={(f) => void onImport(f)} onExport={(w) => void onExport(w)} onDownload={onDownload} onClearHistory={() => void onClearHistory()} hasArtifact={!!artifact} onShareDebug={onShareDebug} />
+          <TaskPanel config={config} configError={configError} gen={genState} history={history} onFixture={onFixture} onGenerate={(req: CreateSessionRequest) => void gen.start(req)} onCancel={() => void gen.cancel()} onSelectSubmission={(c) => void onSubmission(c)} onSelectHistory={(h) => void loadArtifact({ bytes: h.bytes, annotations: h.annotations, name: h.name, taskId: h.taskId, provenance: h.provenance, responseText: h.responseText, allowedFeatures: allowed }).then((a) => select(a))} onImport={(f) => void onImport(f)} onExport={(w) => void onExport(w)} onDownload={onDownload} onClearHistory={() => void onClearHistory()} hasArtifact={!!artifact} onShareDebug={onShareDebug} expert={expert} onExample={(e) => void onExample(e)} promptFocus={promptFocus} />
         </div>
         <div className="col col-executable">
-          <Inspector
+          {!expert ? <BinaryView artifact={artifact} onExpert={() => setExpert(true)} /> : <Inspector
             artifact={artifact}
             selected={selected}
             onSelect={setSelected}
@@ -297,10 +360,10 @@ export function App() {
               setVerification({ sha, status: "running" });
               void verify(artifact.record.bytes, artifact.record.taskId, artifact.record.annotations).then((r) => setVerification(r.ok ? { sha, status: "done", report: r.report } : { sha, status: "unavailable", reason: r.unavailable }));
             }}
-          />
+          />}
         </div>
         <div className="col col-machine">
-          <MachinePanel artifact={artifact} view={view} machine={machine} F={F} setF={changeF} engine={engine} setEngine={changeEngine} tickRate={tickRate} setTickRate={setTickRate} inputTexts={inputTexts} setInputTexts={setInputTexts} onLoadRun={(replay) => loadRun(!!replay)} compare={compare} onCompare={() => void onCompare()} comparing={comparing} allowedFeatures={allowed} />
+          <MachinePanel expert={expert} artifact={artifact} view={view} machine={machine} F={F} setF={changeF} engine={engine} setEngine={changeEngine} tickRate={tickRate} setTickRate={setTickRate} inputTexts={inputTexts} setInputTexts={setInputTexts} onLoadRun={(replay) => loadRun(!!replay)} compare={compare} onCompare={() => void onCompare()} comparing={comparing} allowedFeatures={allowed} />
         </div>
       </main>
       <footer className="muted small">

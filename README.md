@@ -49,6 +49,7 @@ node tests/e2e/browser-e2e.mjs <url> [--live]
 node tests/e2e/chip-e2e.mjs <url> [screenshot-dir]   # /chip view
 node tests/e2e/custom-prompt-e2e.mjs <url> [--live]   # writing your own prompt
 node tests/e2e/engine-e2e.mjs <url>   # fast engine, chip time, remembered settings
+node tests/e2e/simple-e2e.mjs <url> [screenshot-dir]   # explainer + simple view (desktop and phone)
 node --experimental-transform-types --no-warnings tools/research-cli/src/verify.ts fixtures/upstream-capstone-40.anma --task capstone-40
 ```
 
@@ -68,6 +69,10 @@ Live generation is enabled per environment by `LIVE_GENERATION_ENABLED`, `OPENAI
 ## Chip view
 
 `/chip` shows a modeled floorplan of the machine: fetch/decode, value directory, fast slots, latches, ALU, backing SRAM, staging, stack and I/O. Units light up as the engine executes each microstep. Every light is an event the engine actually emitted. Time is in **modeled ticks** from the declared cost model `anma-cost/1`, not measured cycles. The same chip also runs **live in the machine panel**. It lights up for the run you start there. The speed control slows the machine down to 2 instructions per second, the terminal and framebuffer sit beside the die, and **Full screen** has its own controls. You can play ball/paddle and watch the chip at the same time.
+
+## First visit
+
+New visitors see a short explainer (what binary is, why AI might write it directly, why ANMA-1, what one instruction looks like, why it would need to be manufactured) and a simple view: choose a program (an AI-written game or reference programs), read its binary in plain English, and run it on the chip. **Expert view** in the header shows the full instrument.
 
 ## Engines
 

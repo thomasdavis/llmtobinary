@@ -58,6 +58,17 @@ Legend: **verified** = automated tests in this repo pass · **live** = exercised
 
 - **live** Session debug archive: every session is archived to R2 (`llmtobinary-debug`, `-staging`) after each attempt, on lost-attempt recovery, and before purge. **Share for debugging** adds the browser record and yields `llmtobinary debug <env> <id>`; `scripts/debug-session.mjs` fetches and summarizes it. The consent text discloses the archive. Verified live on staging.
 
+## First-visit experience (simple view)
+- **live** An explainer opens on a first visit (native `<dialog>`; ✕, Esc or backdrop closes it; remembered; reopened with "What is this?").
+  - It has 6 steps: binary and compilers, the AI-writes-binary idea, why ANMA-1 (registers vs named values), a colour-coded 16-byte instruction, why it would need to be manufactured (FPGA, then a chip; Exact simulates, Fast translates), and "try it".
+- **live** The simple view is the default; Expert view is a remembered switch.
+  - **1. Choose a program:** the AI-written platform game (unedited `gpt-6-luna` output from `examples/`, with its session provenance and its own annotations), plus reference programs labelled "made by our own tools, not by the AI".
+  - **2. The binary:** every instruction in plain English with its bytes (`apps/web/src/plain.ts`).
+  - **3. Run it on the chip.**
+  - Examples load and run straight away; the explainer's "Watch the AI's game run" uses the fast engine.
+  - Expert-only: fixture list, curated tasks, output mode and claims, export/import, hex inspector, F, counters, trace, compare across F.
+- **verified** `tests/e2e/simple-e2e.mjs` (desktop and phone); the other suites start in expert view.
+
 ## Engines and chip time (PRD 14B)
 - **live** Fast engine: ANMA-1 translated to WebAssembly (`packages/runtime/src/fast/`: a hand-rolled Wasm encoder, the translator, and FastMachine).
   - Differential tests (`packages/runtime/test/fast.test.ts`, 35 tests) show exact agreement with the reference engine on every fixture, both model-generated Mario programs, edge cases and 300 random ALU programs. Modeled ticks equal the exact engine's whenever nothing spills.

@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Feature } from "@llmtobinary/spec";
 import { TASKS, TASK_BY_ID, signatureText } from "@llmtobinary/tasks/registry";
 import type { CreateSessionRequest, LoopEvent } from "@llmtobinary/protocol";
 import type { ArtifactRecord } from "@llmtobinary/artifacts";
 import type { Config } from "./api.ts";
 import { FIXTURES } from "./fixtures.ts";
+import { AI_EXAMPLES, REFERENCE_EXAMPLES, type AiExample } from "./examples.ts";
 import type { GenState, SubmittedCandidate } from "./generation.ts";
 import { DiagnosticList } from "./Diagnostics.tsx";
 import { isBool, oneOf, usePersistentState } from "./settings.ts";
@@ -52,6 +53,10 @@ export function TaskPanel(props: {
   onClearHistory: () => void;
   hasArtifact: boolean;
   onShareDebug: () => Promise<{ debugId: string; environment: string }>;
+  expert: boolean;
+  onExample: (e: { kind: "ai"; example: AiExample } | { kind: "ref"; file: string; task: string }) => void;
+  /** Incremented to bring the prompt box into view and focus it. */
+  promptFocus: number;
 }) {
   const draft = useState(loadDraft)[0];
   const [source, setSource] = usePersistentState<"task" | "custom">("generateSource", draft?.description.trim() ? "custom" : "task", oneOf("task", "custom"));
@@ -72,7 +77,15 @@ export function TaskPanel(props: {
   const [consent, setConsent] = useState(false);
   const [withPrompts, setWithPrompts] = usePersistentState("exportWithPrompts", false, isBool);
   const live = !!props.config?.liveGeneration;
-  const task = source === "custom" ? null : TASK_BY_ID.get(taskId) ?? null;
+  // The simple view always writes its own prompt; curated tasks live in the expert view.
+  const effSource = props.expert ? source : "custom";
+  const task = effSource === "custom" ? null : TASK_BY_ID.get(taskId) ?? null;
+  const promptRef = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    if (!props.promptFocus) return;
+    promptRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+    promptRef.current?.focus({ preventScroll: true });
+  }, [props.promptFocus]);
   const allowed = props.config?.allowedFeatures ?? 15;
   const editAsCustom = () => {
     if (!task) return;
@@ -90,8 +103,32 @@ export function TaskPanel(props: {
   const b = props.config?.budget;
   return (
     <section className="panel" aria-label="Task">
-      <h2>Program</h2>
-      <details open>
+      <h2>{props.expert ? "Program" : "1. Choose a program"}</h2>
+      {!props.expert && (
+        <div className="examples">
+          <p className="examples-lead">Written by the AI, byte by byte:</p>
+          <ul className="ai-examples">
+            {AI_EXAMPLES.slice(0, 1).map((e) => (
+              <li key={e.file}>
+                <button className="ai-example" onClick={() => props.onExample({ kind: "ai", example: e })}>
+                  <span className="ai-example-title">▶ {e.title}</span>
+                  <span className="ai-example-prompt">“{e.prompt}”</span>
+                  <span className="ai-example-meta">{e.bytes.toLocaleString()} bytes · written by {e.provenance.requestedModel} in {e.counters.turns} turns · controls: {e.controls}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+          <p className="examples-lead">Reference programs, made by our own tools for comparison (not by the AI):</p>
+          <ul className="ref-examples">
+            {REFERENCE_EXAMPLES.map((r) => (
+              <li key={r.file}>
+                <button className="link" onClick={() => props.onExample({ kind: "ref", file: r.file, task: r.task })}>{r.title}</button> <span className="muted small">{r.about}{r.controls ? ` (${r.controls})` : ""}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {props.expert && <details open>
         <summary>Run a bundled fixture</summary>
         <p className="muted small">Bundled fixtures are specification- or tool-created bytes — not model output.</p>
         <ul className="fixtures">
@@ -99,15 +136,17 @@ export function TaskPanel(props: {
             <li key={f.file}><button className="link" onClick={() => props.onFixture(f.file, f.task)}>{f.file}</button> <span className="muted small">{f.bytes} B · {f.provenance.kind === "specification-fixture" ? "PRD fixture" : "tool-created"}</span></li>
           ))}
         </ul>
-      </details>
+      </details>}
 
-      <h3>Generate with OpenAI</h3>
+      <h3>{props.expert ? "Generate with OpenAI" : "…or ask the AI to write one"}</h3>
       {!live && <p className="notice">Live generation is unavailable here{props.config?.liveReason ? `: ${props.config.liveReason}` : props.configError ? `: ${props.configError}` : ""}. Fixtures and saved artifacts still run in your browser.</p>}
-      <div className="segmented" role="radiogroup" aria-label="What to generate">
-        <button role="radio" aria-checked={source === "task"} className={source === "task" ? "on" : ""} onClick={() => setSource("task")}>Pick a task</button>
-        <button role="radio" aria-checked={source === "custom"} className={source === "custom" ? "on" : ""} onClick={() => setSource("custom")}>Write your own</button>
-      </div>
-      {source === "task" ? (
+      {props.expert && (
+        <div className="segmented" role="radiogroup" aria-label="What to generate">
+          <button role="radio" aria-checked={source === "task"} className={source === "task" ? "on" : ""} onClick={() => setSource("task")}>Pick a task</button>
+          <button role="radio" aria-checked={source === "custom"} className={source === "custom" ? "on" : ""} onClick={() => setSource("custom")}>Write your own</button>
+        </div>
+      )}
+      {effSource === "task" ? (
         <div className="taskbox">
           <label className="field">
             <span>task</span>
@@ -128,9 +167,11 @@ export function TaskPanel(props: {
         <div className="taskbox">
           <label className="field">
             <span>your prompt</span>
-            <textarea className="custom-prompt" rows={9} maxLength={MAX_DESCRIPTION} value={description} onChange={(e) => setDescription(e.target.value)} placeholder={"Describe the program. For example:\nReturn the sum of the decimal digits of n.\nor: Draw a bouncing square; Left and Right move it; return the number of bounces when Escape is pressed."} />
+            <textarea ref={promptRef} className="custom-prompt" rows={props.expert ? 9 : 5} maxLength={MAX_DESCRIPTION} value={description} onChange={(e) => setDescription(e.target.value)} placeholder={"Describe the program. For example:\nReturn the sum of the decimal digits of n.\nor: Draw a bouncing square; Left and Right move it; return the number of bounces when Escape is pressed."} />
           </label>
           <p className="muted small counter">{description.length.toLocaleString()} / {MAX_DESCRIPTION.toLocaleString()}</p>
+          <details className="program-settings" open={props.expert}>
+          <summary>Program settings: inputs, result, devices</summary>
           <fieldset>
             <legend>entry function</legend>
             <div className="row wrap">
@@ -155,16 +196,18 @@ export function TaskPanel(props: {
               <label key={bit} className="check"><input type="checkbox" checked={(features & bit) !== 0} onChange={(e) => setFeatures(e.target.checked ? features | bit : features & ~bit)} /> {name}</label>
             ))}
           </fieldset>
+          </details>
           <p className="muted small">Your own prompts have no reference answer to test against: a program that validates and runs is labelled “executed; intent not independently verified”. Run it in the machine panel to see what it does.</p>
         </div>
       )}
-      <div className="row wrap">
+      {props.expert && <div className="row wrap">
         <label className="check"><input type="checkbox" checked={requireClaims} onChange={(e) => setRequireClaims(e.target.checked)} /> require record claims (annotated)</label>
         <label className="field"><span>output mode</span>
           <select value={mode} onChange={(e) => setMode(e.target.value as "tools" | "raw-hex")}><option value="tools">Literal bytes · checker-assisted loop</option><option value="raw-hex">Raw hex (research profile)</option></select>
         </label>
-      </div>
-      {b && <p className="small muted">Budget per session: {b.maxTurns} turns · {b.maxChecks} checks · {b.maxSubmissions} submissions · {b.maxOutputTokensPerSession.toLocaleString()} output tokens · {Math.round(b.maxWallClockMs / 60000)} min. Model: {props.config?.profiles[0]?.label ?? "not configured"}{source === "custom" && props.config?.profiles[0]?.openTaskReasoningEffort && props.config.profiles[0].openTaskReasoningEffort !== props.config.profiles[0].reasoningEffort ? `; your own prompts use ${props.config.profiles[0].openTaskReasoningEffort} reasoning` : ""}.</p>}
+      </div>}
+      {b && !props.expert && <p className="small muted">The AI ({props.config?.profiles[0]?.model ?? "not configured"}) works in a loop: it drafts, the checker points out mistakes, it fixes them. This can take a few minutes.</p>}
+      {b && props.expert && <p className="small muted">Budget per session: {b.maxTurns} turns · {b.maxChecks} checks · {b.maxSubmissions} submissions · {b.maxOutputTokensPerSession.toLocaleString()} output tokens · {Math.round(b.maxWallClockMs / 60000)} min. Model: {props.config?.profiles[0]?.label ?? "not configured"}{effSource === "custom" && props.config?.profiles[0]?.openTaskReasoningEffort && props.config.profiles[0].openTaskReasoningEffort !== props.config.profiles[0].reasoningEffort ? `; your own prompts use ${props.config.profiles[0].openTaskReasoningEffort} reasoning` : ""}.</p>}
       <label className="check consent"><input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} /> I understand my task text and any failing test results are sent through this site's Cloudflare-hosted server to OpenAI, and that each session (task text, the model's drafts and submissions, loop events) is archived privately on that server for debugging. Runtime inputs are not sent unless I press “Share for debugging”.</label>
       <div className="row">
         <button className="primary" disabled={!live || !consent || busy || (!task && !description.trim())} onClick={() => props.onGenerate(request())}>Generate</button>
@@ -172,6 +215,18 @@ export function TaskPanel(props: {
       </div>
       <GenerationView gen={props.gen} onSelect={props.onSelectSubmission} onShareDebug={props.onShareDebug} />
 
+      {!props.expert ? (
+        props.history.length > 0 && (
+          <details className="your-programs">
+            <summary>Your programs ({Math.min(props.history.length, 30)})</summary>
+            <ul className="history">
+              {props.history.slice(0, 30).map((h) => (
+                <li key={h.sha256}><button className="link" onClick={() => props.onSelectHistory(h)}>{h.name}</button> <span className="muted small">{h.provenance.kind === "model-generated" ? "written by the AI" : h.provenance.kind === "bundled-fixture" ? "reference program" : "imported"}</span></li>
+              ))}
+            </ul>
+          </details>
+        )
+      ) : (<>
       <h3>Artifacts</h3>
       <div className="row wrap">
         <label className="button">Import…<input type="file" accept=".json,.anma,.hex,.txt" hidden onChange={(e) => e.target.files?.[0] && props.onImport(e.target.files[0])} /></label>
@@ -188,6 +243,7 @@ export function TaskPanel(props: {
         </ul>
       )}
       <button className="danger" onClick={props.onClearHistory}>Clear local history</button>
+      </>)}
     </section>
   );
 }

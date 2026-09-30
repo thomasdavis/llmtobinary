@@ -9,10 +9,12 @@ product
 web
 
 ## Users
-Everyone who will judge the idea, often all at once on a big screen: skeptical engineers (CPU, compiler, and systems people who will check every claim), researchers and reviewers weighing it as a contribution, and a general demo audience at talks or in videos. It must read from across a room and survive expert questions afterwards.
+Curious newcomers first: people who have heard that AI might write software, including software engineers who have never looked below source code. They need the idea explained in plain language before any machinery. Then the experts who will judge the claim (CPU, compiler and systems people, researchers, reviewers), often at talks or on a big screen, one switch away in the expert view. It must convince a newcomer in a minute and survive an expert's questions afterwards.
 
 ## Product Purpose
 llmtobinary shows that a language model can write literal executable bytes for a virtual instruction set, and that the machine, not the model, manages storage: the same bytes run with fewer fast-value slots and produce the same result with visibly more backing-store traffic. The chip view makes that machinery physically legible, as a floorplan of the hardware a real implementation would need, lit only by events the machine actually executed. Success is an expert watching it and finding nothing faked.
+
+The simple view sells the idea: an AI could write machine code directly, with no source code or compiler, for a processor designed for that (ANMA-1), which would have to be manufactured to exist as a chip. The explainer tells that story step by step; the page then shows an AI-written program's bytes in plain English and runs it. The expert view keeps the full instrument.
 
 ## Positioning
 The model names values; the hardware decides where they live. Every light on the chip is a real event.

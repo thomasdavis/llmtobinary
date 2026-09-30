@@ -386,7 +386,7 @@ function ChipTime({ view, fast }: { view: MachineView; fast: boolean }) {
       {perFrame !== null ? (
         <p className="chip-time-big">
           {fmtMs(perFrame / ticksPerMs)} per frame · ≈{Math.round((1000 * ticksPerMs) / perFrame).toLocaleString()} fps
-          {browserFps !== null && <span className="chip-time-sim"> (this browser's simulator: {browserFps.toFixed(1)} fps)</span>}
+          {browserFps !== null && <span className="chip-time-sim">this browser's simulator: {browserFps.toFixed(1)} fps</span>}
         </p>
       ) : (
         <p className="chip-time-big">{fmtMs(ticks / ticksPerMs)} for this run so far</p>
