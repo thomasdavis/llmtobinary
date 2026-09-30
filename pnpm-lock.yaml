@@ -556,12 +556,18 @@ importers:
       '@llmtobinary/research':
         specifier: workspace:*
         version: link:../../packages/research
+      '@llmtobinary/spec':
+        specifier: workspace:*
+        version: link:../../packages/spec
       '@llmtobinary/tasks':
         specifier: workspace:*
         version: link:../../packages/tasks
       '@llmtobinary/validate':
         specifier: workspace:*
         version: link:../../packages/validate
+      '@llmtobinary/verify':
+        specifier: workspace:*
+        version: link:../../packages/verify
 
 packages:
 

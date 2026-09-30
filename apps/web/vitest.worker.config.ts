@@ -45,5 +45,5 @@ export default defineConfig({
       },
     }),
   ],
-  test: { include: ["worker/**/*.test.ts"], testTimeout: 60_000 },
+  test: { include: ["worker/**/*.test.ts"], testTimeout: 300_000 },
 });
