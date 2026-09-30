@@ -14,6 +14,7 @@ import { ChipDriver } from "./driver.ts";
 import { ANMA_PLAN, ANMR_PLAN } from "./geometry.ts";
 import { describe } from "./units.ts";
 import "./chip.css";
+import { loadSetting, saveSetting, usePersistentState } from "../settings.ts";
 
 const SPEEDS = [
   { label: "4 ticks/s", mode: "event" as const, rate: 4 },
@@ -54,9 +55,10 @@ async function sha256(b: Uint8Array): Promise<string> {
 function readParams(): { source: Source; F: number; compare: boolean; R: number; x: string | null } {
   const q = new URLSearchParams(location.search);
   const sha = q.get("sha");
-  const file = q.get("fixture");
+  // URL parameters win (shared links); otherwise the visitor's remembered choices apply.
+  const file = q.get("fixture") ?? loadSetting<string>("chipPageFixture", "upstream-capstone-40.anma", (v) => typeof v === "string");
   const fixture = FIXTURES.find((f) => f.file === file) ?? FIXTURES.find((f) => f.file === "upstream-capstone-40.anma")!;
-  const F = Number(q.get("F"));
+  const F = q.has("F") ? Number(q.get("F")) : loadSetting("chipPageF", 8, (v) => F_CHOICES.includes(v as number));
   const R = Number(q.get("R"));
   return {
     source: sha && /^[0-9a-f]{64}$/.test(sha) ? { kind: "artifact", sha } : { kind: "fixture", file: fixture.file, task: fixture.task },
@@ -86,7 +88,11 @@ export function ChipPage() {
   const [F, setF] = useState(initial.F);
   const [compare, setCompare] = useState(initial.compare);
   const [R, setR] = useState(initial.R);
-  const [speed, setSpeed] = useState(1);
+  const [speed, setSpeed] = usePersistentState("chipPageClock", 1, (v) => Number.isInteger(v) && (v as number) >= 0 && (v as number) < SPEEDS.length);
+  useEffect(() => saveSetting("chipPageF", F), [F]);
+  useEffect(() => {
+    if (source.kind === "fixture") saveSetting("chipPageFixture", source.file);
+  }, [source]);
   const [playing, setPlaying] = useState(false);
   const [loadState, setLoadState] = useState<"loading" | "ready" | "error">("loading");
   const [loadError, setLoadError] = useState<string | null>(null);

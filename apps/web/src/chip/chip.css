@@ -312,6 +312,14 @@ body.chip-body {
   padding: 6px 8px;
 }
 .livechip-counters { font-size: 12px; align-self: start; }
+.chip-time { border: 1px solid var(--chip-rule); border-radius: 6px; padding: 8px 10px; background: var(--chip-panel); }
+.chip-time-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.chip-time-head h3 { margin: 0; }
+.chip-time-head select { font: 12px var(--mono); color: var(--chip-ink); background: var(--chip-bg); border: 1px solid var(--chip-unit-edge); border-radius: 4px; padding: 2px 4px; }
+.chip-time-big { margin: 6px 0 2px; font: 600 14px var(--mono); color: var(--chip-signal); }
+.chip-time-sim { font-weight: 400; color: var(--chip-ink-2); font-size: 12px; }
+.chip-time-note { margin: 0; font-size: 11.5px; color: var(--chip-ink-3); }
+.livechip .chip-check.is-disabled { opacity: 0.6; }
 .livechip-legend { margin: 0; font-size: 11.5px; color: var(--chip-ink-3); display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; grid-column: 1 / -1; }
 .lg-signal, .lg-spill { display: inline-block; width: 0.7em; height: 0.7em; }
 .lg-signal { border-radius: 50%; background: var(--chip-signal); }

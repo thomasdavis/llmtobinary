@@ -62,6 +62,9 @@ export class Devices {
   private lastQueuedTick: bigint | null = null;
   private latchedMask = 0;
   private effectHasher = new Sha256();
+  /** Canonical effect lines are ASCII; they are written here and hashed in chunks (same byte stream). */
+  private effBuf = new Uint8Array(1 << 16);
+  private effLen = 0;
   private effectCount = 0;
   private retained: Effect[] = [];
   private pendingWork = 0;
@@ -108,7 +111,9 @@ export class Devices {
       args: args.map((a) => a.toString(10)),
       result: result === null ? null : typeof result === "boolean" ? String(result) : result.toString(10),
     };
-    this.effectHasher.update(new TextEncoder().encode(`${e.seq}:${e.importId}:${e.args.join(",")}:${e.result ?? ""}\n`));
+    const line = `${e.seq}:${e.importId}:${e.args.join(",")}:${e.result ?? ""}\n`;
+    if (this.effLen + line.length > this.effBuf.length) this.flushEffects();
+    for (let i = 0; i < line.length; i++) this.effBuf[this.effLen++] = line.charCodeAt(i);
     this.effectCount++;
     if (this.retained.length < EFFECTS_RETAINED) this.retained.push(e);
   }
@@ -244,7 +249,13 @@ export class Devices {
   }
 
   /** SHA-256 over the canonical serialization of every effect so far (does not disturb the running hash). */
+  private flushEffects(): void {
+    if (this.effLen) this.effectHasher.update(this.effBuf.subarray(0, this.effLen));
+    this.effLen = 0;
+  }
+
   effectsHash(): string {
+    this.flushEffects();
     const clone = Object.assign(Object.create(Object.getPrototypeOf(this.effectHasher)), this.effectHasher) as Sha256;
     // deep-copy internal typed arrays so digest() does not mutate the live hasher
     for (const k of Object.keys(clone) as (keyof Sha256)[]) {

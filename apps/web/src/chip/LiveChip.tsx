@@ -17,6 +17,8 @@ import { Die, litUnits, type ActiveEvent, type Glow } from "./Die.tsx";
 import { ANMA_PLAN } from "./geometry.ts";
 import { ChipViewModel } from "./viewmodel.ts";
 import "./chip.css";
+import { isBool, oneOf, usePersistentState } from "../settings.ts";
+import type { EngineKind } from "../worker-protocol.ts";
 
 const SPEEDS: { label: string; rate: number | null }[] = [
   { label: "Full speed", rate: null },
@@ -65,11 +67,12 @@ function useReducedMotion(): boolean {
   return r;
 }
 
-export function LiveChip(props: { artifact: LoadedArtifact; view: MachineView; machine: MachineClient; F: number; interactive: boolean; hasFramebuffer: boolean; controls: LiveChipControls }) {
+export function LiveChip(props: { artifact: LoadedArtifact; view: MachineView; machine: MachineClient; F: number; engine: EngineKind; interactive: boolean; hasFramebuffer: boolean; controls: LiveChipControls }) {
   const { artifact, view, machine, controls } = props;
   const reducedMotion = useReducedMotion();
-  const [speed, setSpeed] = useState(0);
-  const [lights, setLights] = useState(true);
+  const [speed, setSpeed] = usePersistentState("chipSpeed", 0, (v) => Number.isInteger(v) && (v as number) >= 0 && (v as number) < SPEEDS.length);
+  const [lights, setLights] = usePersistentState("chipLights", true, isBool);
+  const fast = props.engine === "fast";
   const [expanded, setExpanded] = useState(false);
   const [, setFrame] = useState(0);
   const rootRef = useRef<HTMLElement>(null);
@@ -83,6 +86,13 @@ export function LiveChip(props: { artifact: LoadedArtifact; view: MachineView; m
   const adopt = useCallback(
     (s: MachineSnapshot) => {
       const g = eng.current;
+      if (s.engine === "fast") {
+        // The fast engine does not simulate storage: the die stays as it was, only time moves.
+        g.t = g.bufferedTo = s.counters.modeledTicks;
+        g.queue = [];
+        g.synced = true;
+        return;
+      }
       if (g.vm.cells.length !== s.slots.length) g.vm = new ChipViewModel("ANMA-1", s.slots.length);
       g.vm.loadState({ cells: s.slots.map((c) => ({ value: c.value, payload: c.payload })), memOccupied: s.backing.occupied, rec: s.position?.recordIndex ?? null, text: s.position ? textOf(s.position.recordIndex) : "", depth: s.position ? s.position.depth + 1 : 1, counters: s.counters as unknown as Record<string, number>, latches: s.latches });
       g.t = g.bufferedTo = s.counters.modeledTicks;
@@ -94,11 +104,11 @@ export function LiveChip(props: { artifact: LoadedArtifact; view: MachineView; m
 
   // Watch the machine while this panel is mounted; the speed also slows the machine itself.
   useEffect(() => {
-    const rate = SPEEDS[speed]!.rate;
+    const rate = fast ? null : SPEEDS[speed]!.rate;
     machine.setRate(rate);
-    // Instrumentation costs time: with lights off the machine runs without an event listener.
-    machine.setWatch(!lights ? "off" : rate === null ? "heat" : "events");
-  }, [machine, speed, lights]);
+    // Instrumentation costs time: with lights off (or the fast engine) the machine runs without a listener.
+    machine.setWatch(fast || !lights ? "off" : rate === null ? "heat" : "events");
+  }, [machine, speed, lights, fast]);
   useEffect(
     () => () => {
       machine.setWatch("off");
@@ -252,21 +262,23 @@ export function LiveChip(props: { artifact: LoadedArtifact; view: MachineView; m
       <div className="livechip-head">
         <h3>Chip</h3>
         <p className="livechip-note">Every light is a microstep this run executed. Modeled floorplan, not silicon.</p>
-        <label className="chip-field livechip-speed">
-          <span>Speed</span>
-          <select value={speed} onChange={(e) => setSpeed(Number(e.target.value))}>
-            {SPEEDS.map((s, i) => <option key={s.label} value={i}>{s.label}</option>)}
-          </select>
-        </label>
-        <label className="chip-check livechip-lights" title="Turn off to run faster: the chip stops listening to the machine">
-          <input type="checkbox" checked={lights} onChange={(e) => setLights(e.target.checked)} />
+        {!fast && (
+          <label className="chip-field livechip-speed">
+            <span>Speed</span>
+            <select value={speed} onChange={(e) => setSpeed(Number(e.target.value))}>
+              {SPEEDS.map((s, i) => <option key={s.label} value={i}>{s.label}</option>)}
+            </select>
+          </label>
+        )}
+        <label className={`chip-check livechip-lights${fast ? " is-disabled" : ""}`} title={fast ? "The fast engine does not simulate the chip's storage; switch to Exact to watch the lights" : "Turn off to run faster: the chip stops listening to the machine"}>
+          <input type="checkbox" checked={lights && !fast} disabled={fast} onChange={(e) => setLights(e.target.checked)} />
           <span>Lights</span>
         </label>
         {expanded && (
           <div className="chip-transport" role="toolbar" aria-label="Execution controls">
             <button className="chip-btn is-primary" onClick={controls.run} disabled={!controls.canRun || running}>Run</button>
             <button className="chip-btn" onClick={view.status === "paused" ? controls.resume : controls.pause} disabled={!running && view.status !== "paused"}>{view.status === "paused" ? "Continue" : "Pause"}</button>
-            <button className="chip-btn" onClick={controls.step} disabled={!(view.status === "paused" || view.status === "ready")}>Step</button>
+            <button className="chip-btn" onClick={controls.step} disabled={fast || !(view.status === "paused" || view.status === "ready")}>Step</button>
             <button className="chip-btn" onClick={controls.stop} disabled={!running && view.status !== "paused"}>Stop</button>
           </div>
         )}
@@ -280,7 +292,7 @@ export function LiveChip(props: { artifact: LoadedArtifact; view: MachineView; m
           <p className="livechip-status">
             <span>{`state ${view.status}`}</span>
             <span>{g.vm.rec !== null ? `record ${g.vm.rec} ${g.vm.text}` : c.instructions ? "" : "arguments installed"}</span>
-            <span>{!lights ? "lights off: running without instrumentation" : rate === null ? (running ? "full speed: units glow by activity" : "") : `slowed to ${rate.toLocaleString()} instr/s`}</span>
+            <span>{fast ? "fast engine: the lights need the exact engine" : !lights ? "lights off: running without instrumentation" : rate === null ? (running ? "full speed: units glow by activity" : "") : `slowed to ${rate.toLocaleString()} instr/s`}</span>
           </p>
         </div>
         <aside className="livechip-devices" aria-label="Devices">
@@ -297,13 +309,22 @@ export function LiveChip(props: { artifact: LoadedArtifact; view: MachineView; m
             <h3>Terminal</h3>
             <pre className="livechip-terminal" aria-label="Terminal output">{view.terminal || " "}</pre>
           </div>
-          <dl className="rail-counters livechip-counters">
-            <dt>Instructions</dt><dd>{c.instructions.toLocaleString()}</dd>
-            <dt>Modeled ticks</dt><dd>{c.ticks.toLocaleString()}</dd>
-            <dt>Fast-slot hits</dt><dd>{c.hits.toLocaleString()}</dd>
-            <dt>Backing reads / writes</dt><dd>{`${c.backingReads.toLocaleString()} / ${c.backingWrites.toLocaleString()}`}</dd>
-            <dt>Evictions</dt><dd>{c.evictions.toLocaleString()}</dd>
-          </dl>
+          <ChipTime view={view} fast={fast} />
+          {fast ? (
+            <dl className="rail-counters livechip-counters">
+              <dt>Instructions</dt><dd>{(view.snapshot?.counters.executedInstructions ?? 0).toLocaleString()}</dd>
+              <dt>Modeled ticks (lower bound)</dt><dd>{(view.snapshot?.counters.modeledTicks ?? 0).toLocaleString()}</dd>
+              <dt>Fast slots, backing</dt><dd className="muted">not simulated</dd>
+            </dl>
+          ) : (
+            <dl className="rail-counters livechip-counters">
+              <dt>Instructions</dt><dd>{c.instructions.toLocaleString()}</dd>
+              <dt>Modeled ticks</dt><dd>{c.ticks.toLocaleString()}</dd>
+              <dt>Fast-slot hits</dt><dd>{c.hits.toLocaleString()}</dd>
+              <dt>Backing reads / writes</dt><dd>{`${c.backingReads.toLocaleString()} / ${c.backingWrites.toLocaleString()}`}</dd>
+              <dt>Evictions</dt><dd>{c.evictions.toLocaleString()}</dd>
+            </dl>
+          )}
           <p className="livechip-legend">
             <span className="lg-signal" aria-hidden="true" /> datapath <span className="lg-spill" aria-hidden="true" /> backing traffic · ticks are {COST_MODEL_ID}, not cycles
           </p>
@@ -322,3 +343,56 @@ function activeAt(g: Engine): ActiveEvent[] {
   }
   return out.reverse();
 }
+
+const CLOCKS: { mhz: number; label: string }[] = [
+  { mhz: 100, label: "100 MHz (FPGA prototype)" },
+  { mhz: 1000, label: "1 GHz" },
+  { mhz: 3000, label: "3 GHz" },
+];
+
+/**
+ * What the run would cost on a physical ANMA chip: modeled ticks (anma-cost/1, 1 tick = 1 cycle)
+ * per presented frame at a chosen clock, next to the frame rate this browser's simulator achieves.
+ */
+function ChipTime({ view, fast }: { view: MachineView; fast: boolean }) {
+  const [mhz, setMhz] = usePersistentState("chipClockMHz", 1000, oneOf(100, 1000, 3000));
+  const samples = useRef<{ at: number; frames: number; ticks: number }[]>([]);
+  const ticks = view.snapshot?.counters.modeledTicks ?? 0;
+  const frames = view.framesPresented;
+  const s = samples.current;
+  const last = s[s.length - 1];
+  if (!last || frames < last.frames || ticks < last.ticks) samples.current = [{ at: performance.now(), frames, ticks }];
+  else if (frames !== last.frames) {
+    s.push({ at: performance.now(), frames, ticks });
+    while (s.length > 2 && s[s.length - 1]!.at - s[0]!.at > 2000) s.shift();
+  }
+  const cur = samples.current;
+  const first = cur[0]!;
+  const end = cur[cur.length - 1]!;
+  const df = end.frames - first.frames;
+  const perFrame = df > 0 ? (end.ticks - first.ticks) / df : frames > 0 ? ticks / frames : null;
+  const browserFps = df > 0 && end.at > first.at ? (df * 1000) / (end.at - first.at) : null;
+  const ticksPerMs = mhz * 1000;
+  const fmtMs = (ms: number) => (ms >= 1 ? `${ms.toFixed(2)} ms` : `${(ms * 1000).toFixed(1)} µs`);
+  if (!view.snapshot) return null;
+  return (
+    <div className="chip-time">
+      <div className="chip-time-head">
+        <h3>On an ANMA chip</h3>
+        <select aria-label="Chip clock" value={mhz} onChange={(e) => setMhz(Number(e.target.value))}>
+          {CLOCKS.map((c) => <option key={c.mhz} value={c.mhz}>{c.label}</option>)}
+        </select>
+      </div>
+      {perFrame !== null ? (
+        <p className="chip-time-big">
+          {fmtMs(perFrame / ticksPerMs)} per frame · ≈{Math.round((1000 * ticksPerMs) / perFrame).toLocaleString()} fps
+          {browserFps !== null && <span className="chip-time-sim"> (this browser's simulator: {browserFps.toFixed(1)} fps)</span>}
+        </p>
+      ) : (
+        <p className="chip-time-big">{fmtMs(ticks / ticksPerMs)} for this run so far</p>
+      )}
+      <p className="chip-time-note">Modeled with {COST_MODEL_ID} (1 tick = 1 cycle), not measured{fast ? "; a lower bound, because the fast engine does not simulate storage stalls" : ""}.</p>
+    </div>
+  );
+}
+

@@ -3,10 +3,12 @@ import { formatGuestValue } from "@llmtobinary/devices";
 import type { EntryInput } from "@llmtobinary/protocol";
 import type { LoadedArtifact } from "./artifact.ts";
 import type { MachineClient, MachineView } from "./machine-client.ts";
-import type { CompareRow } from "./worker-protocol.ts";
+import type { CompareRow, EngineKind } from "./worker-protocol.ts";
 import { LiveChip } from "./chip/LiveChip.tsx";
 
 export const F_CHOICES = [1, 4, 8, 16, 32, 64];
+/** Counters the fast engine reports exactly (the rest describe storage it does not simulate). */
+const FAST_COUNTERS = new Set(["executedInstructions", "peakFrames", "heapBytes", "hostCalls"]);
 
 const COUNTER_LABELS: [string, string][] = [
   ["executedInstructions", "executed guest instructions"],
@@ -54,6 +56,10 @@ export function MachinePanel(props: {
   machine: MachineClient;
   F: number;
   setF: (f: number) => void;
+  engine: EngineKind;
+  setEngine: (e: EngineKind) => void;
+  tickRate: number;
+  setTickRate: (r: number) => void;
   inputTexts: string[];
   setInputTexts: (t: string[]) => void;
   onLoadRun: (replay?: boolean) => void;
@@ -68,6 +74,7 @@ export function MachinePanel(props: {
   const interactive = !!a && (a.module?.features ?? 0) & Feature.INPUT;
   const s = view.snapshot;
   const running = view.status === "running" || view.status === "waiting-input";
+  const fast = props.engine === "fast";
   return (
     <section className="panel" aria-label="Machine">
       <h2>Machine</h2>
@@ -86,17 +93,32 @@ export function MachinePanel(props: {
                 )}
               </label>
             ))}
+            <div className="field">
+              <span>engine</span>
+              <div className="segmented tight" role="radiogroup" aria-label="Engine">
+                <button role="radio" aria-checked={!fast} className={!fast ? "on" : ""} onClick={() => props.setEngine("exact")} title="Interpreter with the full storage model: chip lights, Step, trace, exact modeled ticks">Exact</button>
+                <button role="radio" aria-checked={fast} className={fast ? "on" : ""} onClick={() => props.setEngine("fast")} title="The same bytes translated to WebAssembly: identical results, much faster; storage (slots, backing) is not simulated">Fast</button>
+              </div>
+            </div>
             <label className="field">
               <span>fast slots F</span>
-              <select value={F} onChange={(e) => props.setF(Number(e.target.value))}>{F_CHOICES.map((f) => <option key={f} value={f}>{f}{f === 1 ? " (edge test)" : ""}</option>)}</select>
+              <select value={F} disabled={fast} title={fast ? "The fast engine does not simulate fast slots" : ""} onChange={(e) => props.setF(Number(e.target.value))}>{F_CHOICES.map((f) => <option key={f} value={f}>{f}{f === 1 ? " (edge test)" : ""}</option>)}</select>
             </label>
+            {interactive ? (
+              <label className="field">
+                <span>ticks per second</span>
+                <select value={props.tickRate} onChange={(e) => props.setTickRate(Number(e.target.value))} title="How often input ticks are offered; never faster than the program consumes them">
+                  {[20, 30, 60].map((r) => <option key={r} value={r}>{r}</option>)}
+                </select>
+              </label>
+            ) : null}
           </div>
           {parsed.error && <p className="error" role="alert">{parsed.error}</p>}
           <div className="row controls" role="toolbar" aria-label="Execution controls">
             <button onClick={() => props.onLoadRun(false)} disabled={!!parsed.error || running}>▶ Run</button>
             <button onClick={() => machine.pause()} disabled={!running}>❚❚ Pause</button>
             <button onClick={() => (view.status === "paused" ? machine.run() : null)} disabled={view.status !== "paused" && view.status !== "ready"}>▶ Continue</button>
-            <button onClick={() => machine.step()} disabled={!(view.status === "paused" || view.status === "ready")}>↦ Step</button>
+            <button onClick={() => machine.step()} disabled={fast || !(view.status === "paused" || view.status === "ready")} title={fast ? "Stepping one instruction needs the exact engine" : ""}>↦ Step</button>
             <button onClick={() => machine.stop()} disabled={!running && view.status !== "paused"}>■ Stop execution</button>
             <button onClick={() => machine.hardReset()}>⟲ Reset machine</button>
             {interactive ? <button onClick={() => props.onLoadRun(true)} disabled={!view.ticks.length || running} title="Rerun with the recorded tick events">⟳ Replay ticks ({view.ticks.length})</button> : null}
@@ -108,11 +130,13 @@ export function MachinePanel(props: {
             {view.result?.trap && <> · <span className="error">trap {view.result.trap.code}: {view.result.trap.message}</span></>}
             {view.error && <> · <span className="error">{view.error}</span></>}
           </p>
+          {fast && <p className="muted small engine-note">Fast engine: the AI's binary translated to WebAssembly, binary to binary, like an emulator. Results are identical to the exact engine; the chip's storage (fast slots, backing) is not simulated, so lights, Step and storage counters need Exact.</p>}
           <LiveChip
             artifact={a}
             view={view}
             machine={machine}
             F={F}
+            engine={props.engine}
             interactive={!!interactive}
             hasFramebuffer={(a.module.features & Feature.FRAMEBUFFER) !== 0}
             controls={{ run: () => props.onLoadRun(false), pause: () => machine.pause(), resume: () => machine.run(), step: () => machine.step(), stop: () => machine.stop(), canRun: !parsed.error }}
@@ -137,7 +161,12 @@ export function MachinePanel(props: {
           <details open>
             <summary>Counters (modeled; not CPU cycles, power, or native speed)</summary>
             <table className="counters"><tbody>
-              {COUNTER_LABELS.map(([k, label]) => <tr key={k}><td>{label}</td><td className="num">{s ? Math.round(Number((s.counters as unknown as Record<string, number>)[k] ?? 0)).toLocaleString() : "—"}</td></tr>)}
+              {COUNTER_LABELS.map(([k, label]) => (
+                <tr key={k}>
+                  <td>{label}</td>
+                  <td className="num">{!s ? "—" : s.engine === "fast" && !FAST_COUNTERS.has(k) ? <span className="muted">{k === "hostWallTimeMs" ? "not measured" : "not simulated (fast)"}</span> : Math.round(Number((s.counters as unknown as Record<string, number>)[k] ?? 0)).toLocaleString()}</td>
+                </tr>
+              ))}
             </tbody></table>
           </details>
           <details>

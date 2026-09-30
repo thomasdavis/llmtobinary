@@ -58,6 +58,14 @@ Legend: **verified** = automated tests in this repo pass · **live** = exercised
 
 - **live** Session debug archive: every session is archived to R2 (`llmtobinary-debug`, `-staging`) after each attempt, on lost-attempt recovery, and before purge. **Share for debugging** adds the browser record and yields `llmtobinary debug <env> <id>`; `scripts/debug-session.mjs` fetches and summarizes it. The consent text discloses the archive. Verified live on staging.
 
+## Engines and chip time (PRD 14B)
+- **live** Fast engine: ANMA-1 translated to WebAssembly (`packages/runtime/src/fast/`: a hand-rolled Wasm encoder, the translator, and FastMachine).
+  - Differential tests (`packages/runtime/test/fast.test.ts`, 35 tests) show exact agreement with the reference engine on every fixture, both model-generated Mario programs, edge cases and 300 random ALU programs. Modeled ticks equal the exact engine's whenever nothing spills.
+  - On the generated Mario: 24 ms/frame against 234 ms/frame exact in Node; 26 fps in headless Chromium on the shared host.
+- **live** Engine switch (Exact · Fast); chip-time readout (modeled ms/frame and fps at 100 MHz / 1 GHz / 3 GHz, next to the simulator's measured fps); tick rate 20/30/60, paced to the program.
+- **live** Settings remembered across visits (`apps/web/src/settings.ts`).
+- **live** Effects hashing writes ASCII effect lines into a reusable buffer and hashes in chunks. The byte stream and hash are unchanged (tested), and it is faster for both engines.
+
 ## Chip view (PRD 14A)
 - **live** `/chip`: a modeled floorplan driven only by executed micro-events (`onEvent` on the finite machine and on ANMR-1), with declared `anma-cost/1` modeled ticks, a logic analyzer, heat mode, step instruction/microstep, trace export, and deep links. The ANMA-1 vs ANMR-1 capstone compare is implemented but hidden (`SHOW_ANMR_COMPARE`).
 - **live** Live chip in the machine panel: instruments the panel's own run (`setEventSink` on the running machine), with speeds from full down to 2 instr/s. It has the terminal and framebuffer beside the die, live keys, and full screen with its own controls.

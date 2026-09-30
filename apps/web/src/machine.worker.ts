@@ -5,7 +5,7 @@
 
 import { validateBytes, type Module } from "@llmtobinary/validate";
 import { INTERACTIVE_RUN_LIMITS } from "@llmtobinary/spec";
-import { createFiniteMachine, type FiniteMachine } from "@llmtobinary/runtime";
+import { createFastMachine, createFiniteMachine, type FastMachine, type FiniteMachine } from "@llmtobinary/runtime";
 import { runTaskTests, redactForModel, TASK_BY_ID } from "@llmtobinary/tasks";
 import { parseAnnotations } from "@llmtobinary/annotations";
 import { capstoneWitness, runInvariance } from "@llmtobinary/research";
@@ -20,7 +20,7 @@ const CHUNK = 20_000;
 const SLICE_MS = 30;
 const SNAPSHOT_MS = 100;
 
-let machine: FiniteMachine | null = null;
+let machine: FiniteMachine | FastMachine | null = null;
 let runId = -1;
 let running = false;
 let lastSnap = 0;
@@ -167,7 +167,8 @@ self.onmessage = (ev: MessageEvent<ToMachine | ToChip>) => {
         running = false;
         lastFrames = -1;
         const module = validated(copy(m.bytes), m.allowedFeatures);
-        machine = createFiniteMachine(module, m.inputs, { config: m.config, allowedFeatures: m.allowedFeatures, ticks: m.ticks, limits: INTERACTIVE_RUN_LIMITS });
+        const opts = { config: m.config, allowedFeatures: m.allowedFeatures, ticks: m.ticks, limits: INTERACTIVE_RUN_LIMITS };
+        machine = m.engine === "fast" ? createFastMachine(module, m.inputs, opts) : createFiniteMachine(module, m.inputs, opts);
         setWatch(watch);
         post({ type: "loaded", runId });
         sendState(true);

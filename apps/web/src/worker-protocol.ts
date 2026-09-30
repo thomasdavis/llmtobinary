@@ -4,8 +4,11 @@
 
 import type { ChipUnit, EntryInput, MachineConfig, MachineSnapshot, MicroEvent, RunResult, TestReport, TickEvent } from "@llmtobinary/protocol";
 
+/** "exact": the finite-machine interpreter (storage simulated). "fast": the WebAssembly translation. */
+export type EngineKind = "exact" | "fast";
+
 export type ToMachine =
-  | { type: "load"; runId: number; bytes: ArrayBuffer; inputs: EntryInput[]; config: MachineConfig; allowedFeatures: number; ticks: TickEvent[] }
+  | { type: "load"; runId: number; bytes: ArrayBuffer; inputs: EntryInput[]; config: MachineConfig; allowedFeatures: number; ticks: TickEvent[]; engine?: EngineKind }
   | { type: "run"; runId: number }
   | { type: "pause"; runId: number }
   | { type: "step"; runId: number }

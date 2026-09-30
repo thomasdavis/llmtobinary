@@ -35,6 +35,7 @@ import type {
 
 export { bindInputs, InputError } from "@llmtobinary/devices";
 export { COST_MODEL_ID, LATENCY, LATENCY_TABLE, aluTicks } from "./cost.ts";
+export { FastMachine, compileFast, createFastMachine, runFast } from "./fast/engine.ts";
 
 export const POLICY_ID = "fifo-v1" as const;
 /** Modeled bytes of directory metadata per live logical value (location, type, readiness, use count). */

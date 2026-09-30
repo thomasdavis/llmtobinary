@@ -10,10 +10,11 @@ import { loadFixture } from "./fixtures.ts";
 import { GenerationController, type GenState, type SubmittedCandidate } from "./generation.ts";
 import { Inspector, type VerificationState } from "./Inspector.tsx";
 import { verify } from "./verify-client.ts";
-import { MachinePanel, parseEntryInputs } from "./Machine.tsx";
+import { F_CHOICES, MachinePanel, parseEntryInputs } from "./Machine.tsx";
+import { oneOf, usePersistentState } from "./settings.ts";
 import { MachineClient, type MachineView } from "./machine-client.ts";
 import { TaskPanel } from "./TaskPanel.tsx";
-import type { CompareRow } from "./worker-protocol.ts";
+import type { CompareRow, EngineKind } from "./worker-protocol.ts";
 
 const ALL_FEATURES = 15;
 
@@ -38,11 +39,16 @@ export function App() {
   const [history, setHistory] = useState<ArtifactRecord[]>([]);
   const [artifact, setArtifact] = useState<LoadedArtifact | null>(null);
   const [selected, setSelected] = useState<number | null>(null);
-  const [F, setF] = useState(16);
+  const [F, setF] = usePersistentState("fastSlots", 16, oneOf(...F_CHOICES));
+  const [engine, setEngine] = usePersistentState<EngineKind>("engine", "exact", oneOf("exact", "fast"));
+  const [tickRate, setTickRate] = usePersistentState("tickRate", 30, oneOf(20, 30, 60));
   const [inputTexts, setInputTexts] = useState<string[]>([]);
   const [compare, setCompare] = useState<{ rows: CompareRow[]; semanticAgreement: boolean; missingBackingActivity: number[]; resourceLimited: number[] } | null>(null);
   const [comparing, setComparing] = useState(false);
-  const [tab, setTab] = useState<"program" | "executable" | "machine">("program");
+  const [tab, setTab] = usePersistentState<"program" | "executable" | "machine">("mobileTab", "program", oneOf("program", "executable", "machine"));
+  useEffect(() => {
+    machine.setTickRate(tickRate);
+  }, [machine, tickRate]);
   const [notice, setNotice] = useState<string | null>(null);
   const [verification, setVerification] = useState<VerificationState | null>(null);
   const [lastRun, setLastRun] = useState<{ inputs: ReturnType<typeof parseEntryInputs>["inputs"]; F: number } | null>(null);
@@ -128,14 +134,14 @@ export function App() {
     void store.putRun({ runId: crypto.randomUUID(), sha256: artifact.record.sha256, at: Date.now(), config: r.config ?? { fastSlots: lastRun.F, policy: "fifo-v1", trace: true }, inputs: lastRun.inputs, ticks: view.ticks, result: { status: r.status, returnValue: r.returnValue, terminalBase64: btoa(s), effectsHash: r.effectsHash, effectCount: r.effectCount, framebufferHash: r.framebufferHash, trap: r.trap, counters: r.counters, traceTruncated: r.traceTruncated } }).catch(() => undefined);
   }, [view.result]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const loadRun = (replay = false, f = F) => {
+  const loadRun = (replay = false, f = F, eng: EngineKind = engine) => {
     if (!artifact?.module) return;
     const p = parseEntryInputs(artifact, inputTexts);
     if (!p.inputs) return;
     const task = artifact.record.taskId ? TASK_BY_ID.get(artifact.record.taskId) : null;
     const interactive = (artifact.module.features & 8) !== 0;
     const replayTicks = replay ? [...view.ticks] : task?.visible[0]?.ticks && !interactive ? task.visible[0].ticks : undefined;
-    machine.load(artifact.record.bytes, p.inputs, { fastSlots: f, policy: "fifo-v1", trace: true }, task?.features ?? allowed, { interactive, ...(replayTicks ? { replayTicks } : {}) });
+    machine.load(artifact.record.bytes, p.inputs, { fastSlots: f, policy: "fifo-v1", trace: true }, task?.features ?? allowed, { interactive, engine: eng, ...(replayTicks ? { replayTicks } : {}) });
     machine.run();
     setLastRun({ inputs: p.inputs, F: f });
     setTab("machine");
@@ -144,6 +150,11 @@ export function App() {
   const changeF = (f: number) => {
     setF(f);
     if (lastRun) loadRun(false, f); // same immutable bytes, fresh machine
+  };
+
+  const changeEngine = (e: EngineKind) => {
+    setEngine(e);
+    if (lastRun) loadRun(false, F, e); // same bytes, other engine, fresh run
   };
 
   const onCompare = async () => {
@@ -289,11 +300,11 @@ export function App() {
           />
         </div>
         <div className="col col-machine">
-          <MachinePanel artifact={artifact} view={view} machine={machine} F={F} setF={changeF} inputTexts={inputTexts} setInputTexts={setInputTexts} onLoadRun={(replay) => loadRun(!!replay)} compare={compare} onCompare={() => void onCompare()} comparing={comparing} allowedFeatures={allowed} />
+          <MachinePanel artifact={artifact} view={view} machine={machine} F={F} setF={changeF} engine={engine} setEngine={changeEngine} tickRate={tickRate} setTickRate={setTickRate} inputTexts={inputTexts} setInputTexts={setInputTexts} onLoadRun={(replay) => loadRun(!!replay)} compare={compare} onCompare={() => void onCompare()} comparing={comparing} allowedFeatures={allowed} />
         </div>
       </main>
       <footer className="muted small">
-        A truthful claim: the model generates bytes; this TypeScript virtual machine executes them in your browser; the machine — not the model — manages storage. Not a native chip, not compiler-free, not a universal register limit.
+        A truthful claim: the model generates bytes; your browser runs them, either through this TypeScript virtual machine or translated binary-to-binary into WebAssembly (identical results); the machine — not the model — manages storage. Not a native chip, not compiler-free, not a universal register limit.
       </footer>
     </div>
   );

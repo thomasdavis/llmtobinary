@@ -3,7 +3,7 @@
 // and promise-based test/compare jobs.
 
 import type { EntryInput, MachineConfig, MachineSnapshot, RunResult, TestReport, TickEvent } from "@llmtobinary/protocol";
-import type { ChipBatch, CompareRow, FromMachine, ToMachine, WatchMode } from "./worker-protocol.ts";
+import type { ChipBatch, CompareRow, EngineKind, FromMachine, ToMachine, WatchMode } from "./worker-protocol.ts";
 
 /** One live-chip delivery: the executed microsteps (or activity) since the last one, plus the snapshot taken with them. */
 export interface ChipDelivery {
@@ -17,12 +17,14 @@ export interface MachineView {
   snapshot: MachineSnapshot | null;
   terminal: string;
   frame: Uint8ClampedArray | null;
+  /** Frames the program has presented (display.present) in this run. */
+  framesPresented: number;
   result: RunResult | null;
   error: string | null;
   ticks: TickEvent[];
 }
 
-const TICK_MS = 50;
+
 const STOP_GRACE_MS = 400;
 
 export class MachineClient {
@@ -34,13 +36,15 @@ export class MachineClient {
   private tickNo = 0;
   private stopTimer: ReturnType<typeof setTimeout> | null = null;
   keys = 0;
-  view: MachineView = { status: "empty", snapshot: null, terminal: "", frame: null, result: null, error: null, ticks: [] };
+  view: MachineView = { status: "empty", snapshot: null, terminal: "", frame: null, framesPresented: 0, result: null, error: null, ticks: [] };
   private listeners = new Set<(v: MachineView) => void>();
   private interactive = false;
   private chipListeners = new Set<(d: ChipDelivery) => void>();
   private watchMode: WatchMode = "off";
   /** Instructions per second while slowed for watching; null = full speed. */
   rate: number | null = null;
+  /** Input ticks per second offered to interactive programs (paced: never faster than the program). */
+  tickRate = 30;
   private replayTicks: TickEvent[] = [];
 
   constructor() {
@@ -114,29 +118,29 @@ export class MachineClient {
         this.update({ status: "empty", error: m.message });
         break;
       case "state":
-        this.update({ status: m.snapshot.status, snapshot: m.snapshot, terminal: m.terminal, ...(m.frame ? { frame: m.frame } : {}) });
+        this.update({ status: m.snapshot.status, snapshot: m.snapshot, terminal: m.terminal, framesPresented: m.framesPresented, ...(m.frame ? { frame: m.frame } : {}) });
         this.emitChip(m.chip ?? null, m.snapshot);
         break;
       case "done":
         if (this.stopTimer) clearTimeout(this.stopTimer);
         this.stopTicks();
-        this.update({ status: m.result.status, snapshot: m.snapshot, terminal: m.terminal, result: m.result, ...(m.frame ? { frame: m.frame } : {}) });
+        this.update({ status: m.result.status, snapshot: m.snapshot, terminal: m.terminal, result: m.result, framesPresented: m.result.framesPresented, ...(m.frame ? { frame: m.frame } : {}) });
         this.emitChip(m.chip ?? null, m.snapshot);
         break;
     }
   }
 
   /** Load an immutable artifact (a COPY of its bytes is transferred). Changing F reloads the same bytes. */
-  load(bytes: Uint8Array, inputs: EntryInput[], config: MachineConfig, allowedFeatures: number, opts: { interactive: boolean; replayTicks?: TickEvent[] }): void {
+  load(bytes: Uint8Array, inputs: EntryInput[], config: MachineConfig, allowedFeatures: number, opts: { interactive: boolean; replayTicks?: TickEvent[]; engine?: EngineKind }): void {
     this.runId++;
     this.stopTicks();
     this.interactive = opts.interactive;
     this.replayTicks = opts.replayTicks ?? [];
     this.tickNo = this.replayTicks.length ? Number(this.replayTicks[this.replayTicks.length - 1]!.tick) : 0;
     const copy = bytes.slice().buffer;
-    this.update({ status: "validating", snapshot: null, terminal: "", frame: null, result: null, error: null, ticks: [...this.replayTicks] });
+    this.update({ status: "validating", snapshot: null, terminal: "", frame: null, framesPresented: 0, result: null, error: null, ticks: [...this.replayTicks] });
     this.emitChip(null, null);
-    this.send({ type: "load", runId: this.runId, bytes: copy, inputs, config, allowedFeatures, ticks: this.replayTicks }, [copy]);
+    this.send({ type: "load", runId: this.runId, bytes: copy, inputs, config, allowedFeatures, ticks: this.replayTicks, engine: opts.engine ?? "exact" }, [copy]);
   }
 
   run(): void {
@@ -173,7 +177,13 @@ export class MachineClient {
     this.jobs.clear();
     this.worker = this.spawn();
     this.runId++;
-    this.update({ status: reason ? "cancelled" : "empty", snapshot: reason ? this.view.snapshot : null, result: null, error: reason, ...(reason ? {} : { terminal: "", frame: null, ticks: [] }) });
+    this.update({ status: reason ? "cancelled" : "empty", snapshot: reason ? this.view.snapshot : null, result: null, error: reason, ...(reason ? {} : { terminal: "", frame: null, framesPresented: 0, ticks: [] }) });
+  }
+
+  /** Change the offered tick rate; an interactive run in progress switches immediately. */
+  setTickRate(perSecond: number): void {
+    this.tickRate = perSecond;
+    if (this.tickTimer) this.startTicks();
   }
 
   private startTicks(): void {
@@ -187,7 +197,7 @@ export class MachineClient {
       this.view.ticks.push(event); // recorded for exact replay
       this.send({ type: "tick", runId: this.runId, event });
       this.view.status = "running"; // until the worker reports waiting again
-    }, TICK_MS);
+    }, Math.round(1000 / this.tickRate));
   }
 
   private stopTicks(): void {

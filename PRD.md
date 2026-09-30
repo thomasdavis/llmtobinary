@@ -874,6 +874,37 @@ The chip view (`/chip`) shows a **modeled floorplan** of an ANMA-1 machine: inst
 
 The chip view uses the Worker isolation, fuel and limits of Section 14. It runs in its own machine-worker instance.
 
+## 14B. Engines: exact interpretation and binary translation
+
+The browser can run the same validated bytes on either of two engines. The visitor chooses with **Engine: Exact · Fast**, and the choice is remembered.
+
+- **Exact:** the finite-machine interpreter (Sections 11–12). It simulates storage (fast slots, backing, eviction), feeds the chip view's lights, allows single-instruction Step and the trace, and reports exact modeled ticks.
+- **Fast:** the ANMA-1 bytes are **translated to WebAssembly** when the program loads, and the browser compiles that to native code. This is binary translation, as in emulators such as QEMU or Rosetta 2: binary in, binary out. No source code is produced or read at any point, and nothing is added to or removed from the model's program.
+  - The translation cuts each block into resumable segments: before every `input.wait_tick` and after every `CALL`.
+  - Frames live in linear memory.
+  - Host and heap operations call the same device and heap implementations the interpreters use.
+
+**Equivalence obligation (must).** For any valid module, input and recorded ticks, the fast engine must match the reference engine exactly on:
+
+- status, return value, trap code, message and record;
+- terminal bytes, effects hash and count, framebuffer hash, frames presented;
+- executed instructions, heap bytes and host calls.
+
+This is enforced by differential tests over:
+
+- every bundled fixture, on its visible and holdout cases;
+- unedited model-generated programs;
+- targeted edge cases (division by zero, shift/rotate counts at or above 64, simultaneous edge binding, the frame limit, heap bounds, calls, unit returns, `wait_tick` mid-block);
+- a randomized ALU property test.
+
+Instruction-fuel exhaustion is checked at segment boundaries in the fast engine, so it may stop at a different instruction; task tests therefore run on the exact engines. The fast engine does not simulate storage, so its storage counters are shown as "not simulated". Its modeled ticks are the `anma-cost/1` total with every operand read treated as a fast-slot hit. That is a lower bound, and tests show it equals the exact engine's ticks whenever that run had no misses or evictions.
+
+**Chip time (modeled).** The live chip panel converts modeled ticks into time on a hypothetical physical ANMA chip at a chosen clock: 100 MHz (FPGA prototype), 1 GHz or 3 GHz, with 1 tick = 1 cycle. It shows time per presented frame and frames per second, next to the frame rate the browser's simulator actually achieves. The page labels these figures "modeled, not measured"; with the fast engine it also labels them a lower bound. It is not a claim about any real processor.
+
+**Input pacing.** Interactive programs are offered ticks at 20, 30 or 60 per second (default 30), but a tick is sent only when the program is waiting for one. Key presses therefore apply to the next frame, and the recorded ticks replay exactly.
+
+**Remembered settings.** The visitor's choices are kept in this browser's storage and restored on the next visit: engine, F, tick rate, chip speed, lights and clock, generation source, task and output options, the prompt draft, and chip-page options. Storage failures fall back to defaults. The consent checkbox is never remembered.
+
 ## 15. Independent validation, annotations, and correctness
 
 ### 15.1 Validator

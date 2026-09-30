@@ -89,7 +89,8 @@ export interface MachineConfig {
 }
 
 export interface RunResult {
-  engine: "reference" | "finite";
+  /** "fast": the WebAssembly translation (architecturally identical; storage not simulated). */
+  engine: "reference" | "finite" | "fast";
   status: "halted" | "trapped" | "cancelled";
   returnValue: GuestValue | null;
   /** Exact terminal bytes (UTF-8/ASCII as written by the guest). */
@@ -363,6 +364,8 @@ export interface MachineSnapshot {
   lastMicrosteps: string[];
   trace: { seq: number; text: string }[];
   traceTruncated: boolean;
+  /** Which engine produced the snapshot; "fast" does not simulate storage (slots, backing). */
+  engine?: "exact" | "fast";
 }
 
 // ---------------------------------------------------------------------------

@@ -7,6 +7,7 @@ import type { Config } from "./api.ts";
 import { FIXTURES } from "./fixtures.ts";
 import type { GenState, SubmittedCandidate } from "./generation.ts";
 import { DiagnosticList } from "./Diagnostics.tsx";
+import { isBool, oneOf, usePersistentState } from "./settings.ts";
 
 const MAX_DESCRIPTION = 16_000;
 const MAX_INPUTS = 8;
@@ -53,8 +54,8 @@ export function TaskPanel(props: {
   onShareDebug: () => Promise<{ debugId: string; environment: string }>;
 }) {
   const draft = useState(loadDraft)[0];
-  const [source, setSource] = useState<"task" | "custom">(draft?.description.trim() ? "custom" : "task");
-  const [taskId, setTaskId] = useState<string>("square-plus-two");
+  const [source, setSource] = usePersistentState<"task" | "custom">("generateSource", draft?.description.trim() ? "custom" : "task", oneOf("task", "custom"));
+  const [taskId, setTaskId] = usePersistentState<string>("taskId", "square-plus-two", (v) => typeof v === "string" && TASK_BY_ID.has(v));
   const [description, setDescription] = useState(draft?.description ?? "");
   const [params, setParams] = useState<("u64" | "bool")[]>(draft?.params ?? ["u64"]);
   const [returns, setReturns] = useState<"unit" | "u64" | "bool">(draft?.returns ?? "u64");
@@ -66,10 +67,10 @@ export function TaskPanel(props: {
       /* storage unavailable: the draft just is not remembered */
     }
   }, [description, params, returns, features]);
-  const [requireClaims, setRequireClaims] = useState(false);
-  const [mode, setMode] = useState<"tools" | "raw-hex">("tools");
+  const [requireClaims, setRequireClaims] = usePersistentState("requireClaims", false, isBool);
+  const [mode, setMode] = usePersistentState<"tools" | "raw-hex">("outputMode", "tools", oneOf("tools", "raw-hex"));
   const [consent, setConsent] = useState(false);
-  const [withPrompts, setWithPrompts] = useState(false);
+  const [withPrompts, setWithPrompts] = usePersistentState("exportWithPrompts", false, isBool);
   const live = !!props.config?.liveGeneration;
   const task = source === "custom" ? null : TASK_BY_ID.get(taskId) ?? null;
   const allowed = props.config?.allowedFeatures ?? 15;
