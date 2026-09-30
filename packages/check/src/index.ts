@@ -56,9 +56,12 @@ export function checkTaskRequirements(module: Module, task: TaskRequirements): D
   for (const r of module.records) if (r.op === Op.HOST) used.add(IMPORTS[r.b]?.name ?? "");
   const calls = [...used].filter(Boolean).sort();
   const callsText = calls.length ? calls.join(", ") : "no host imports";
-  if ((task.effects.includes("framebuffer") || task.effects.includes("frames")) && !used.has("display.present")) {
+  const draws = used.has("display.clear") || used.has("display.pixel");
+  if ((task.effects.includes("framebuffer") || task.effects.includes("frames") || draws) && !used.has("display.present")) {
     out.push(diag("ANMA-K-002", {
-      message: "The task's tests compare what the program draws, but this executable never calls display.present, so no frame is ever shown and the final framebuffer stays blank (every pixel 0x00000000).",
+      message: draws
+        ? "This executable draws but never calls display.present, so nothing it draws is ever shown: the visitor sees an empty screen. Present each finished frame with display.present."
+        : "The task's tests compare what the program draws, but this executable never calls display.present, so no frame is ever shown and the final framebuffer stays blank (every pixel 0x00000000).",
       found: `calls: ${callsText}; declared features 0x${module.features.toString(16)}`,
       expected: "drawing with display.* imports and a display.present call for each frame (the FRAMEBUFFER feature, 0x4, must be declared)",
       stage: Stage.TASK,

@@ -6,7 +6,7 @@ import { IMPORTS, OPS, SPEC_ID, TYPE_CLAIM_NAMES, TYPE_NAMES, UNIT_SENTINEL, typ
 import { CATALOG_VERSION, renderRuleCatalog } from "@llmtobinary/diagnostics";
 import { renderSpecGrammar } from "@llmtobinary/annotations";
 
-export const PROMPT_VERSION = "llmtobinary-prompt/2";
+export const PROMPT_VERSION = "llmtobinary-prompt/3";
 
 export const GENERATION_SYSTEM = `You write executable programs for ANMA-1, a virtual instruction set, as LITERAL BYTES.
 
@@ -86,7 +86,7 @@ export function renderManual(): string {
     p(`- ${i.id} ${i.name}(${params}) -> ${TYPE_NAMES[i.result]}   [feature bit ${Math.log2(i.feature)} = ${i.feature}]`);
   }
   p("- print_u64 prints decimal digits with no newline. print_utf8 prints bytes [offset, offset+length) of the read-only data section (must be valid UTF-8).");
-  p("- Framebuffer is 256x144; colours are 0xRRGGBBAA in the low 32 bits; present publishes the frame.");
+  p("- Framebuffer is 256x144; colours are 0xRRGGBBAA in the low 32 bits. display.clear and display.pixel draw into a hidden working buffer; nothing is visible until display.present publishes it. Call display.present once for every finished frame (in an animation: draw, present, then wait for the next tick).");
   p("- Keys: 0 Left, 1 Right, 2 Up, 3 Down, 4 Space, 5 Enter, 6 Escape. wait_tick waits for the next tick event and returns its number; key_down reads the key state latched by the most recent tick.");
   p();
   p("7. Worked examples (not solutions to any task)");

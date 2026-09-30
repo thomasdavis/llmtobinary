@@ -107,7 +107,7 @@ Field roles: dest = defined value ID; src = value ID read; block/func = IDs; cou
 - 5 input.key_down(keyId: u64) -> bool   [feature bit 3 = 8]
 - 6 input.wait_tick() -> u64   [feature bit 3 = 8]
 - print_u64 prints decimal digits with no newline. print_utf8 prints bytes [offset, offset+length) of the read-only data section (must be valid UTF-8).
-- Framebuffer is 256x144; colours are 0xRRGGBBAA in the low 32 bits; present publishes the frame.
+- Framebuffer is 256x144; colours are 0xRRGGBBAA in the low 32 bits. display.clear and display.pixel draw into a hidden working buffer; nothing is visible until display.present publishes it. Call display.present once for every finished frame (in an animation: draw, present, then wait for the next tick).
 - Keys: 0 Left, 1 Right, 2 Up, 3 Down, 4 Space, 5 Enter, 6 Escape. wait_tick waits for the next tick event and returns its number; key_down reads the key state latched by the most recent tick.
 
 7. Worked examples (not solutions to any task)
@@ -203,6 +203,7 @@ ANMA-V-LIM-004  [RESOURCE_EXHAUSTED]  validation work limit exceeded  (see §14.
 ANMA-W-001  [ADVISORY, warning]  value is defined but never used  (see §11)
 ANMA-W-002  [ADVISORY, warning]  declared feature is never used  (see §10.1)
 ANMA-W-003  [ADVISORY, warning]  block is unreachable from block 0  (see §10.4)
+ANMA-W-004  [ADVISORY, warning]  the program draws to the framebuffer but never calls display.present, so no frame is ever shown  (see §13)
 ANMA-A-001  [ANNOTATION_INVALID]  annotations exceed a size limit or have the wrong shape  (see §15.3)
 ANMA-A-002  [ANNOTATION_INVALID]  annotation refers to a record, function, block, or parameter that does not exist  (see §15.3)
 ANMA-A-003  [ANNOTATION_INVALID]  record claim does not parse  (see §15.3)
@@ -240,4 +241,4 @@ ANMA-L-001  [LOOP_BUDGET_EXHAUSTED]  the generation loop budget is exhausted  (s
 ANMA-L-002  [LOOP_STALLED]  the loop is repeating the same candidate or the same errors  (see §7.6)
 ANMA-L-003  [CONTEXT_BUDGET_EXHAUSTED]  the loop context budget is exhausted  (see §7.6)
 
-Prompt llmtobinary-prompt/2; diagnostics anma-diagnostics/1.
+Prompt llmtobinary-prompt/3; diagnostics anma-diagnostics/1.

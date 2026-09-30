@@ -799,6 +799,18 @@ class Validator {
       if (unusedFeatures) {
         this.warn("ANMA-W-002", { message: `Declared feature${featureList(unusedFeatures).length > 1 ? "s" : ""} ${featureList(unusedFeatures).join(", ")} ${featureList(unusedFeatures).length > 1 ? "are" : "is"} never used.`, location: { byteOffset: 8, field: "header.word2" } });
       }
+      // Drawing is only visible once presented: display.clear/display.pixel with no display.present
+      // anywhere means the screen can never show anything.
+      const HOST_OP = 0x60;
+      const draws = this.recs.filter((r) => r.op === HOST_OP && (r.b === 2 || r.b === 3));
+      if (draws.length && !this.recs.some((r) => r.op === HOST_OP && r.b === 4)) {
+        this.warn("ANMA-W-004", {
+          message: `The program draws (${draws.length} display.clear/display.pixel call${draws.length === 1 ? "" : "s"}) but never calls display.present, so nothing it draws is ever shown.`,
+          location: recLoc(draws[0]!, "record.b", null, null),
+          found: "no HOST display.present record",
+          expected: "HOST _ display.present 0 after drawing each frame",
+        });
+      }
       for (const f of this.funcs) {
         const reach = new Set<number>([0]);
         const stack = [0];

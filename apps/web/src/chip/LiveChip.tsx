@@ -278,7 +278,15 @@ export function LiveChip(props: { artifact: LoadedArtifact; view: MachineView; m
           </p>
         </div>
         <aside className="livechip-devices" aria-label="Devices">
-          {props.hasFramebuffer && <Framebuffer frame={view.frame} interactive={props.interactive} machine={machine} autoFocus={expanded} />}
+          {props.hasFramebuffer && (
+            <Framebuffer
+              frame={view.frame}
+              interactive={props.interactive}
+              machine={machine}
+              autoFocus={expanded}
+              note={!view.frame && (view.snapshot?.counters.executedInstructions ?? 0) > 0 ? "Nothing shown yet: the program has not called display.present, so its drawing has not been published to the screen." : null}
+            />
+          )}
           <div>
             <h3>Terminal</h3>
             <pre className="livechip-terminal" aria-label="Terminal output">{view.terminal || " "}</pre>

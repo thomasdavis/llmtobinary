@@ -294,6 +294,7 @@ body.chip-body {
 .livechip-status span:empty { display: none; }
 .livechip-devices { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; align-content: start; min-width: 0; }
 .livechip-devices .fb { max-width: none; border-color: var(--chip-rule); }
+.livechip .fb-note { margin: 6px 0 0; color: var(--chip-ink); background: oklch(0.83 0.155 75 / 0.12); border: 1px solid oklch(0.83 0.155 75 / 0.45); border-radius: 4px; padding: 5px 8px; }
 .livechip-devices .fb:focus-visible { outline: 2px solid var(--chip-focus); outline-offset: 2px; }
 .livechip-terminal {
   margin: 0;

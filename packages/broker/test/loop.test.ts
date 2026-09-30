@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { mustValidate } from "@llmtobinary/validate";
+import { mustValidate, validateBytes } from "@llmtobinary/validate";
+import { ModuleBuilder } from "@llmtobinary/fixture-builder";
 import { runToCompletion } from "@llmtobinary/reference";
 import { parseHex, toHex } from "@llmtobinary/decode";
 import type { BrowserFeedback, CheckReport, LoopEvent } from "@llmtobinary/protocol";
@@ -105,6 +106,29 @@ describe("agentic loop", () => {
     expect(reply).toContain("submission\\\":\\\"rejected");
     expect(reply).toContain("ANMA-K-003");
     expect(reply).toContain("never calls a terminal.* import");
+  });
+
+  it("drawing without display.present: ANMA-W-004 when validating, an error in the loop even for open tasks", async () => {
+    // The shape of a live model's "snake": clear + pixels every tick, never presented.
+    const mb = new ModuleBuilder();
+    const f = mb.func([], "unit");
+    const b0 = f.block();
+    const loop = f.block();
+    b0.jump(loop, []);
+    loop.host("display.clear", [loop.const(0x101020ff)]);
+    loop.host("display.pixel", [loop.const(10), loop.const(10), loop.const(0x0000ffff)]);
+    loop.host("input.wait_tick", []);
+    loop.jump(loop, []);
+    const bytes = mb.build();
+    const v = validateBytes(bytes, { allowedFeatures: 0xf });
+    expect(v.ok).toBe(true); // legal and runnable when loaded or imported
+    expect(v.diagnostics.map((d) => d.rule)).toContain("ANMA-W-004");
+    const h = harness([{ kind: "submit", envelope: env(toHex(bytes)) }, { kind: "submit", envelope: env(sqHex) }]);
+    h.state.task = { taskId: null, description: "a snake that runs forever", params: [], returns: "unit", allowedFeatures: 0xc, requireClaims: false };
+    await runAttempt(h.state, { idempotencyKey: "k1", feedback: null }, h.deps);
+    const reply = JSON.stringify(h.model.requests[1]!.input);
+    expect(reply).toContain("submission\\\":\\\"rejected");
+    expect(reply).toContain("draws but never calls display.present");
   });
 
   it("outer loop: failing browser tests are sent back as untrusted data on the submit call", async () => {

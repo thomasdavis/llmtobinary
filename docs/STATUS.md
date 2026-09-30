@@ -40,6 +40,13 @@ Legend: **verified** = automated tests in this repo pass · **live** = exercised
 - **live** Programs that run until input ends them (or forever): a model example that claims no result/terminal text holds while the program waits for input (examples run with no ticks). A claimed result is reported as "never returned" with that reason, and open-task prompts that permit input say so. Found live: a visitor's "snake runs forever" prompt failed K-005 "did not finish", then stalled. Rerun on staging, it succeeds.
 - **live** Loop robustness: the server's `attempt.error` gets a real, stored sequence number (the browser dropped it before). When a stream ends early, the browser follows the attempt on the server until it finishes and shows the server's error text. The workerd Durable Object suite could not start under host load (pool startup timeout), so it has not been rerun for this change.
 
+- **live** Drawing without presenting:
+  - ANMA-W-004 (advisory) is raised when a program calls display.clear/pixel but never display.present.
+  - In the generation loop this is an error for every task, open ones included.
+  - The manual (prompt v3) says drawing goes to a hidden buffer until present.
+  - The framebuffer panel says when nothing has been presented.
+  - Found live: a model's "snake" drew 48 pixels a tick and never presented, so the screen stayed empty.
+
 ## Chip view (PRD 14A)
 - **live** `/chip`: a modeled floorplan driven only by executed micro-events (`onEvent` on the finite machine and on ANMR-1), with declared `anma-cost/1` modeled ticks, a logic analyzer, heat mode, step instruction/microstep, trace export, and deep links. The ANMA-1 vs ANMR-1 capstone compare is implemented but hidden (`SHOW_ANMR_COMPARE`).
 - **live** Live chip in the machine panel: instruments the panel's own run (`setEventSink` on the running machine), with speeds from full down to 2 instr/s. It has the terminal and framebuffer beside the die, live keys, and full screen with its own controls.

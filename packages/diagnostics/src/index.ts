@@ -157,6 +157,7 @@ export const RULES: readonly RuleInfo[] = [
   r("ANMA-W-001", "ADVISORY", "value is defined but never used", "§11", "warning"),
   r("ANMA-W-002", "ADVISORY", "declared feature is never used", "§10.1", "warning"),
   r("ANMA-W-003", "ADVISORY", "block is unreachable from block 0", "§10.4", "warning"),
+  r("ANMA-W-004", "ADVISORY", "the program draws to the framebuffer but never calls display.present, so no frame is ever shown", "§13", "warning"),
   // Annotations
   r("ANMA-A-001", "ANNOTATION_INVALID", "annotations exceed a size limit or have the wrong shape", "§15.3"),
   r("ANMA-A-002", "ANNOTATION_INVALID", "annotation refers to a record, function, block, or parameter that does not exist", "§15.3"),

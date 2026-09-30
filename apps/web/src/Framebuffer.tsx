@@ -5,7 +5,7 @@ import type { MachineClient } from "./machine-client.ts";
 const KEY_CODES: Record<string, number> = { ArrowLeft: 0, ArrowRight: 1, ArrowUp: 2, ArrowDown: 3, " ": 4, Enter: 5, Escape: 6 };
 
 /** The 256×144 framebuffer; when the program reads input, focusing it sends keys to the next tick. */
-export function Framebuffer({ frame, interactive, machine, autoFocus = false }: { frame: Uint8ClampedArray | null; interactive: boolean; machine: MachineClient; autoFocus?: boolean }) {
+export function Framebuffer({ frame, interactive, machine, autoFocus = false, note = null }: { frame: Uint8ClampedArray | null; interactive: boolean; machine: MachineClient; autoFocus?: boolean; note?: string | null }) {
   const ref = useRef<HTMLCanvasElement>(null);
   const [focused, setFocused] = useState(false);
   useEffect(() => {
@@ -34,6 +34,7 @@ export function Framebuffer({ frame, interactive, machine, autoFocus = false }: 
     <div className="fb-wrap">
       <h3>Framebuffer 256×144</h3>
       <canvas ref={ref} width={256} height={144} className="fb" tabIndex={interactive ? 0 : -1} aria-label={interactive ? `Framebuffer; focus to send keys ${KEYS.join(", ")}` : "Framebuffer"} onKeyDown={(e) => key(e, true)} onKeyUp={(e) => key(e, false)} onFocus={() => setFocused(true)} onBlur={() => { setFocused(false); machine.keys = 0; }} />
+      {note && <p className="fb-note small" role="status">{note}</p>}
       {interactive && <p className="muted small">{focused ? "Keys go to the next tick: ← → ↑ ↓ Space Enter Esc." : "Click the framebuffer to send keys. Ticks are recorded for exact replay."}</p>}
     </div>
   );
