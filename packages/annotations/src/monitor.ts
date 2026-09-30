@@ -8,7 +8,7 @@ import { Stage, diag, type Diagnostic } from "@llmtobinary/diagnostics";
 import type { EngineHooks, RuntimeValue } from "@llmtobinary/protocol";
 import type { ParsedAnnotations } from "./schema.ts";
 import { compileContracts } from "./contracts.ts";
-import { EvalError, evaluate, namesIn, type EvalBudget, type Expr } from "./spec-lang.ts";
+import { EvalError, evaluate, namesIn, type EvalBudget, type Expr, type ParseLimits } from "./spec-lang.ts";
 
 export interface ContractMonitor extends EngineHooks {
   diagnostics(): Diagnostic[];
@@ -27,8 +27,8 @@ function fmt(v: RuntimeValue | bigint | boolean | null | undefined): string {
   return `handle<${v.elem}>#${v.handle}`;
 }
 
-export function createContractMonitor(ann: ParsedAnnotations, module: Module, opts: { maxSteps?: number } = {}): ContractMonitor {
-  const compiled = compileContracts(ann, module);
+export function createContractMonitor(ann: ParsedAnnotations, module: Module, opts: { maxSteps?: number; parseLimits?: ParseLimits } = {}): ContractMonitor {
+  const compiled = compileContracts(ann, module, opts.parseLimits);
   const paramNames = new Map<number, Map<number, string>>();
   for (const p of ann.params) (paramNames.get(p.function) ?? paramNames.set(p.function, new Map()).get(p.function)!).set(p.index, p.name);
   const budget: EvalBudget = { steps: 0, max: opts.maxSteps ?? DEFAULT_LIMITS.contractSteps };

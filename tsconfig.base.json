@@ -26,6 +26,9 @@
       "@llmtobinary/fixture-builder": [
         "./tools/fixture-builder/src/index.ts"
       ],
+      "@llmtobinary/tasks/registry": [
+        "./packages/tasks/src/registry.ts"
+      ],
       "@llmtobinary/*": [
         "./packages/*/src/index.ts"
       ]

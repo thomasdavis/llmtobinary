@@ -35,6 +35,248 @@
         "upstream": "skelpo/llm-to-native-binary@b79649eb9e1d46e6c35d0d2053d19547e9aadd90 (mathematical workload only; not a redistributed Mach-O binary)",
         "modelOutput": false
       }
+    },
+    {
+      "file": "hello.anma",
+      "task": "hello",
+      "bytes": 190,
+      "sha256": "2d399715ef59e41485b5bb6802033cf934ff64503179235b5bdeb4836ed2be59",
+      "provenance": {
+        "kind": "tool-created-fixture",
+        "origin": "tools/fixture-builder (fixture-builder/1): data section + print_utf8",
+        "modelOutput": false
+      }
+    },
+    {
+      "file": "fizzbuzz.anma",
+      "task": "fizzbuzz",
+      "bytes": 2041,
+      "sha256": "d4562d635e2f649de1aabf92bf3e2e70e5d70643bed16d2449343f6057630947",
+      "provenance": {
+        "kind": "tool-created-fixture",
+        "origin": "tools/fixture-builder (fixture-builder/1): branches, loops, urem, exact text",
+        "modelOutput": false
+      }
+    },
+    {
+      "file": "fibonacci.anma",
+      "task": "fibonacci",
+      "bytes": 560,
+      "sha256": "c1b1a6f49e44a918f39e8510cdb784ca5cb3e6dd00e89d61e7cc2381be5c091a",
+      "provenance": {
+        "kind": "tool-created-fixture",
+        "origin": "tools/fixture-builder (fixture-builder/1): recursive calls",
+        "modelOutput": false
+      }
+    },
+    {
+      "file": "checkerboard.anma",
+      "task": "checkerboard",
+      "bytes": 864,
+      "sha256": "859ff044a63a4030109710025852a31e29e0779d353365190b670a67bd1935cb",
+      "provenance": {
+        "kind": "tool-created-fixture",
+        "origin": "tools/fixture-builder (fixture-builder/1): guest-driven pixels",
+        "modelOutput": false
+      }
+    },
+    {
+      "file": "ball-paddle.anma",
+      "task": "ball-paddle",
+      "bytes": 5008,
+      "sha256": "d87054b75358754cdbd3a671962ed6f783669794bdda8491be2440cd19b7b64a",
+      "provenance": {
+        "kind": "tool-created-fixture",
+        "origin": "tools/fixture-builder (fixture-builder/1): interactive ticks + keys",
+        "modelOutput": false
+      }
+    },
+    {
+      "file": "capstone-k8.anma",
+      "task": "capstone-k8",
+      "bytes": 656,
+      "sha256": "5cbb9eda9afe21d7e00c36e296ce3071f0301c7c88c7835230346f66d10df935",
+      "provenance": {
+        "kind": "tool-created-fixture",
+        "origin": "tools/fixture-builder (fixture-builder/1): generalized capstone, stride 17",
+        "modelOutput": false
+      }
+    },
+    {
+      "file": "capstone-k128.anma",
+      "task": "capstone-k128",
+      "bytes": 8336,
+      "sha256": "c7ecd52a343dfaee303a5c721935645e0b01db15bb00d459479068b3f3a3ad30",
+      "provenance": {
+        "kind": "tool-created-fixture",
+        "origin": "tools/fixture-builder (fixture-builder/1): generalized capstone, stride 17",
+        "modelOutput": false
+      }
+    },
+    {
+      "file": "capstone-k256.anma",
+      "task": "capstone-k256",
+      "bytes": 16528,
+      "sha256": "4eae6ab198008f3a12ceb490a4e75ed5374d3791117f8c7b3bc0d964c1631c98",
+      "provenance": {
+        "kind": "tool-created-fixture",
+        "origin": "tools/fixture-builder (fixture-builder/1): research-scale generalized capstone, stride 17",
+        "modelOutput": false
+      }
+    },
+    {
+      "file": "capstone-k1024.anma",
+      "task": "capstone-k1024",
+      "bytes": 65680,
+      "sha256": "5693b248ca5c000b0e63646e760b3b832feb1725cf6b142d9ebb26b8e2dcc4cb",
+      "provenance": {
+        "kind": "tool-created-fixture",
+        "origin": "tools/fixture-builder (fixture-builder/1): research-scale generalized capstone, stride 17",
+        "modelOutput": false
+      }
+    },
+    {
+      "file": "ring-mix-k2.anma",
+      "task": "ring-mix-k2",
+      "bytes": 688,
+      "sha256": "f4063f23495b178355a4b57f01033381925c011dd175e9bf48176361d4a94e3a",
+      "provenance": {
+        "kind": "tool-created-fixture",
+        "origin": "tools/fixture-builder (fixture-builder/1): upstream ring-mix workload (research)",
+        "modelOutput": false
+      }
+    },
+    {
+      "file": "ring-mix-k4.anma",
+      "task": "ring-mix-k4",
+      "bytes": 1040,
+      "sha256": "1590a3e86cfa4da110d13398c367a591fa910ca1078a9e1305d39a553b8881fd",
+      "provenance": {
+        "kind": "tool-created-fixture",
+        "origin": "tools/fixture-builder (fixture-builder/1): upstream ring-mix workload (research)",
+        "modelOutput": false
+      }
+    },
+    {
+      "file": "ring-mix-k8.anma",
+      "task": "ring-mix-k8",
+      "bytes": 1744,
+      "sha256": "baa21297ab98cc96d5d9b3c63fe77939ff9f2e3c2e51f64a486f20b864da7133",
+      "provenance": {
+        "kind": "tool-created-fixture",
+        "origin": "tools/fixture-builder (fixture-builder/1): upstream ring-mix workload (research)",
+        "modelOutput": false
+      }
+    },
+    {
+      "file": "ring-mix-k12.anma",
+      "task": "ring-mix-k12",
+      "bytes": 2448,
+      "sha256": "f140301c3d7bc88df3851eb2593a5f6347c33830c7816f89d6994bb22aee4d3b",
+      "provenance": {
+        "kind": "tool-created-fixture",
+        "origin": "tools/fixture-builder (fixture-builder/1): upstream ring-mix workload (research)",
+        "modelOutput": false
+      }
+    },
+    {
+      "file": "ring-mix-k16.anma",
+      "task": "ring-mix-k16",
+      "bytes": 3152,
+      "sha256": "d92447656f5a297a63c9ff21222d5b44ea13f743d70b411bfa48ce2c6b57fcbe",
+      "provenance": {
+        "kind": "tool-created-fixture",
+        "origin": "tools/fixture-builder (fixture-builder/1): upstream ring-mix workload (research)",
+        "modelOutput": false
+      }
+    },
+    {
+      "file": "ring-mix-k20.anma",
+      "task": "ring-mix-k20",
+      "bytes": 3856,
+      "sha256": "450f7f2fc2513b3f1b104856d9587efb35582bf4ce759067bbd3f63acc058d86",
+      "provenance": {
+        "kind": "tool-created-fixture",
+        "origin": "tools/fixture-builder (fixture-builder/1): upstream ring-mix workload (research)",
+        "modelOutput": false
+      }
+    },
+    {
+      "file": "ring-mix-k24.anma",
+      "task": "ring-mix-k24",
+      "bytes": 4560,
+      "sha256": "bb806e678a8c452468c5d6aa966c23b393cd995c905dfa99b83d1df077d51103",
+      "provenance": {
+        "kind": "tool-created-fixture",
+        "origin": "tools/fixture-builder (fixture-builder/1): upstream ring-mix workload (research)",
+        "modelOutput": false
+      }
+    },
+    {
+      "file": "ring-mix-k28.anma",
+      "task": "ring-mix-k28",
+      "bytes": 5264,
+      "sha256": "78b7314cfd3f226426adaf5b8fdd761f38b7e5a74111307eae79bacae4258c54",
+      "provenance": {
+        "kind": "tool-created-fixture",
+        "origin": "tools/fixture-builder (fixture-builder/1): upstream ring-mix workload (research)",
+        "modelOutput": false
+      }
+    },
+    {
+      "file": "ring-mix-k32.anma",
+      "task": "ring-mix-k32",
+      "bytes": 5968,
+      "sha256": "f92f57b34a69211cf19e76e1b4698de5f84a957f7bfa93c90d8e469f3fda330f",
+      "provenance": {
+        "kind": "tool-created-fixture",
+        "origin": "tools/fixture-builder (fixture-builder/1): upstream ring-mix workload (research)",
+        "modelOutput": false
+      }
+    },
+    {
+      "file": "ring-mix-k40.anma",
+      "task": "ring-mix-k40",
+      "bytes": 7376,
+      "sha256": "dc441296872ad2d40d685666aeff16578f804b188fd60df1ce97ac30963f5f1a",
+      "provenance": {
+        "kind": "tool-created-fixture",
+        "origin": "tools/fixture-builder (fixture-builder/1): upstream ring-mix workload (research)",
+        "modelOutput": false
+      }
+    },
+    {
+      "file": "ring-mix-k48.anma",
+      "task": "ring-mix-k48",
+      "bytes": 8784,
+      "sha256": "774c1c6ea8115d3098e0e9abf0dd99da6317e8ae60c42ce58db44b946419a248",
+      "provenance": {
+        "kind": "tool-created-fixture",
+        "origin": "tools/fixture-builder (fixture-builder/1): upstream ring-mix workload (research)",
+        "modelOutput": false
+      }
+    },
+    {
+      "file": "ring-mix-k64.anma",
+      "task": "ring-mix-k64",
+      "bytes": 11600,
+      "sha256": "beafaa93820fe4ea2bfbf8c169849716fd50da6d29c0110a0e663470428f40dd",
+      "provenance": {
+        "kind": "tool-created-fixture",
+        "origin": "tools/fixture-builder (fixture-builder/1): upstream ring-mix workload (research)",
+        "modelOutput": false
+      }
+    },
+    {
+      "file": "ring-mix-k96.anma",
+      "task": "ring-mix-k96",
+      "bytes": 17232,
+      "sha256": "ff9acb59779082179a5efac1448e8471ea9a976fab29a2dfef74cbf180f4d304",
+      "provenance": {
+        "kind": "tool-created-fixture",
+        "origin": "tools/fixture-builder (fixture-builder/1): upstream ring-mix workload (research)",
+        "modelOutput": false
+      }
     }
   ]
 }

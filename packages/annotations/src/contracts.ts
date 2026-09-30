@@ -5,7 +5,7 @@ import { TypeTag, parseU64Decimal } from "@llmtobinary/spec";
 import type { Module } from "@llmtobinary/validate";
 import { Stage, diag, type Diagnostic } from "@llmtobinary/diagnostics";
 import type { ParsedAnnotations } from "./schema.ts";
-import { SpecError, parseSpec, typecheck, type Expr, type SpecType, type TypeEnv } from "./spec-lang.ts";
+import { SpecError, parseSpec, typecheck, type Expr, type ParseLimits, type SpecType, type TypeEnv } from "./spec-lang.ts";
 
 function specType(t: TypeTag): SpecType | "handle" | "unit" {
   return t === TypeTag.U64 ? "u64" : t === TypeTag.BOOL ? "bool" : t === TypeTag.UNIT ? "unit" : "handle";
@@ -46,10 +46,10 @@ export interface CompiledContracts {
   invariants: Map<string, { text: string; expr: Expr }[]>; // key "fn:block"
 }
 
-function compileOne(text: string, env: TypeEnv): { expr: Expr } | { error: string; kind: "parse" | "type" } {
+function compileOne(text: string, env: TypeEnv, limits?: ParseLimits): { expr: Expr } | { error: string; kind: "parse" | "type" } {
   let expr: Expr;
   try {
-    expr = parseSpec(text);
+    expr = limits ? parseSpec(text, limits) : parseSpec(text);
   } catch (e) {
     const se = e as SpecError;
     return { error: `${se.message} (at character ${se.pos})`, kind: "parse" };
@@ -65,25 +65,26 @@ function compileOne(text: string, env: TypeEnv): { expr: Expr } | { error: strin
 }
 
 /** Compile every well-formed contract/invariant; ill-formed ones are reported by checkContracts. */
-export function compileContracts(ann: ParsedAnnotations, module: Module): CompiledContracts {
+/** `limits` overrides model-annotation parse bounds for trusted task-author contracts. */
+export function compileContracts(ann: ParsedAnnotations, module: Module, limits?: ParseLimits): CompiledContracts {
   const out: CompiledContracts = { requires: new Map(), ensures: new Map(), invariants: new Map() };
   for (const c of ann.contracts) {
     const f = module.functions[c.function];
     if (!f) continue;
     const names = functionNames(ann, module, c.function);
     if (c.requires !== null) {
-      const r = compileOne(c.requires, { names, result: null });
+      const r = compileOne(c.requires, { names, result: null }, limits);
       if ("expr" in r) (out.requires.get(c.function) ?? out.requires.set(c.function, []).get(c.function)!).push({ text: c.requires, expr: r.expr });
     }
     if (c.ensures !== null) {
-      const r = compileOne(c.ensures, { names, result: specType(f.ret) });
+      const r = compileOne(c.ensures, { names, result: specType(f.ret) }, limits);
       if ("expr" in r) (out.ensures.get(c.function) ?? out.ensures.set(c.function, []).get(c.function)!).push({ text: c.ensures, expr: r.expr });
     }
   }
   for (const inv of ann.invariants) {
     const b = module.functions[inv.function]?.blocks[inv.block];
     if (!b) continue;
-    const r = compileOne(inv.expr, { names: blockNames(ann, module, inv.function, inv.block), result: null });
+    const r = compileOne(inv.expr, { names: blockNames(ann, module, inv.function, inv.block), result: null }, limits);
     const key = `${inv.function}:${inv.block}`;
     if ("expr" in r) (out.invariants.get(key) ?? out.invariants.set(key, []).get(key)!).push({ text: inv.expr, expr: r.expr });
   }

@@ -7,7 +7,7 @@
   "exports": { ".": "./src/index.ts" },
   "scripts": {
     "typecheck": "tsc --noEmit -p .",
-    "build-fixtures": "node --experimental-strip-types --no-warnings src/build-fixtures.ts"
+    "build-fixtures": "node --experimental-transform-types --no-warnings src/build-fixtures.ts"
   },
   "dependencies": {
     "@llmtobinary/spec": "workspace:*",

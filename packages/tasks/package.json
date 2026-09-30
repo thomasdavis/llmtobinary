@@ -4,20 +4,19 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./registry": "./src/registry.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit -p ."
   },
   "dependencies": {
     "@llmtobinary/spec": "workspace:*",
-    "@llmtobinary/decode": "workspace:*",
     "@llmtobinary/validate": "workspace:*",
+    "@llmtobinary/diagnostics": "workspace:*",
     "@llmtobinary/reference": "workspace:*",
     "@llmtobinary/devices": "workspace:*",
-    "@llmtobinary/protocol": "workspace:*",
-    "@llmtobinary/diagnostics": "workspace:*",
     "@llmtobinary/annotations": "workspace:*",
-    "@llmtobinary/check": "workspace:*"
+    "@llmtobinary/protocol": "workspace:*"
   }
 }
