@@ -3,7 +3,7 @@
    the only signal, so the die sits on graphite; amber carries datapath events, a cool blue carries
    only backing/spill traffic (the cost of limited fast storage). Everything else stays quiet. */
 
-html.chip-root {
+html.chip-root, .chip-scope {
   --chip-bg: oklch(0.165 0.006 250);
   --chip-panel: oklch(0.195 0.007 250);
   --chip-die: oklch(0.205 0.008 250);
@@ -27,6 +27,7 @@ html.chip-root {
   background: var(--chip-bg);
   color-scheme: dark;
 }
+.chip-scope { color: var(--chip-ink); }
 
 body.chip-body {
   background: var(--chip-bg);
@@ -105,7 +106,7 @@ body.chip-body {
 .chip-btn.is-primary { background: var(--chip-signal); color: oklch(0.2 0.02 70); border-color: var(--chip-signal); font-weight: 650; min-width: 5.5em; }
 .chip-btn.is-primary:hover:not(:disabled) { background: oklch(0.87 0.14 78); border-color: oklch(0.87 0.14 78); }
 .chip-btn.is-quiet { background: transparent; }
-.chip-page :is(button, select, input, a):focus-visible { outline: 2px solid var(--chip-focus); outline-offset: 2px; }
+:is(.chip-page, .chip-scope) :is(button, select, input, a, canvas):focus-visible { outline: 2px solid var(--chip-focus); outline-offset: 2px; }
 .chip-speed select { min-width: 11em; }
 
 .chip-error {
@@ -268,3 +269,74 @@ body.chip-body {
 @media (prefers-reduced-motion: reduce) {
   .chip-btn { transition: none; }
 }
+
+/* ---------- live chip (inside the machine panel) ---------- */
+.livechip {
+  container-type: inline-size;
+  border-radius: 8px;
+  padding: 10px 12px 12px;
+  margin: 10px 0 12px;
+  font: 13px/1.45 var(--sans);
+}
+.livechip h3 { margin: 0 0 4px; font-size: 13px; font-weight: 650; color: var(--chip-ink); }
+.livechip .muted { color: var(--chip-ink-3); }
+.livechip-head { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 12px; }
+.livechip-head > h3 { margin: 0; font-size: 15px; align-self: center; }
+.livechip-note { margin: 0; flex: 1 1 14em; color: var(--chip-ink-3); font-size: 12px; align-self: center; }
+.livechip-speed { font-size: 11.5px; }
+.livechip-speed select { font-size: 12.5px; padding: 3px 6px; }
+.livechip .chip-btn { font-size: 12.5px; padding: 4px 10px; }
+.livechip-body { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; margin-top: 10px; }
+.livechip-stage { min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.livechip .die-svg { max-height: none; }
+.livechip-status { margin: 0; display: flex; flex-wrap: wrap; gap: 2px 14px; font: 12px var(--mono); color: var(--chip-ink-2); }
+.livechip-status span:empty { display: none; }
+.livechip-devices { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; align-content: start; min-width: 0; }
+.livechip-devices .fb { max-width: none; border-color: var(--chip-rule); }
+.livechip-devices .fb:focus-visible { outline: 2px solid var(--chip-focus); outline-offset: 2px; }
+.livechip-terminal {
+  margin: 0;
+  min-height: 5.5em;
+  max-height: 14em;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: 12.5px var(--mono);
+  color: var(--chip-ink);
+  background: var(--chip-panel);
+  border: 1px solid var(--chip-rule);
+  border-radius: 4px;
+  padding: 6px 8px;
+}
+.livechip-counters { font-size: 12px; align-self: start; }
+.livechip-legend { margin: 0; font-size: 11.5px; color: var(--chip-ink-3); display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; grid-column: 1 / -1; }
+.lg-signal, .lg-spill { display: inline-block; width: 0.7em; height: 0.7em; }
+.lg-signal { border-radius: 50%; background: var(--chip-signal); }
+.lg-spill { background: var(--chip-spill); transform: rotate(45deg) scale(0.85); margin-left: 6px; }
+
+/* Wide enough (a wide panel or full screen): devices sit beside the die. */
+@container (min-width: 760px) {
+  .livechip-body { grid-template-columns: minmax(0, 1fr) minmax(240px, 32%); align-items: start; }
+  .livechip-devices { grid-template-columns: minmax(0, 1fr); }
+}
+
+.livechip.is-expanded, .livechip:fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  margin: 0;
+  border-radius: 0;
+  overflow: auto;
+  padding: clamp(10px, 1.4vw, 28px);
+  font-size: clamp(13px, 0.35vw + 9px, 18px);
+}
+.livechip.is-expanded .livechip-head > h3 { font-size: 1.3em; }
+.livechip.is-expanded .livechip-note { font-size: 0.9em; }
+.livechip.is-expanded .chip-btn { font-size: 0.95em; padding: 0.4em 0.9em; }
+.livechip.is-expanded .livechip-speed select { font-size: 0.95em; }
+.livechip.is-expanded .livechip-status { font-size: 0.85em; }
+.livechip.is-expanded .livechip-terminal { font-size: 0.9em; max-height: 30vh; }
+.livechip.is-expanded .livechip-counters { font-size: 0.9em; }
+.livechip.is-expanded .die-svg { max-height: calc(100vh - 7em); }
+.livechip.is-expanded .analyzer { font-size: 12px; }
+.livechip::backdrop { background: var(--chip-bg); }

@@ -33,9 +33,10 @@ Legend: **verified** = automated tests in this repo pass · **live** = exercised
 - **not yet** The Section 18.6 study itself (runner implemented in `tools/research-cli/src/trials.ts`; it refuses to run without an approved budget).
 
 ## Chip view (PRD 14A)
-- **live** `/chip`: a modeled floorplan driven only by executed micro-events (`onEvent` on the finite machine and on ANMR-1), with declared `anma-cost/1` modeled ticks, a logic analyzer, heat mode, step instruction/microstep, trace export, and deep links. ANMA-1 vs ANMR-1 capstone compare runs on one clock.
+- **live** `/chip`: a modeled floorplan driven only by executed micro-events (`onEvent` on the finite machine and on ANMR-1), with declared `anma-cost/1` modeled ticks, a logic analyzer, heat mode, step instruction/microstep, trace export, and deep links. The ANMA-1 vs ANMR-1 capstone compare is implemented but hidden (`SHOW_ANMR_COMPARE`).
+- **live** Live chip in the machine panel: instruments the panel's own run (`setEventSink` on the running machine), with speeds from full down to 2 instr/s. It has the terminal and framebuffer beside the die, live keys, and full screen with its own controls.
 - **verified** Unit tests: attaching the event listener never changes counters; the event timeline is gap-free and sums to `modeledTicks`; the replayed view state equals the engine state after every instruction (F = 1/4/8/64 and ANMR-1).
-- **verified** Browser checks (`tests/e2e/chip-e2e.mjs`, Chromium against staging): step and play advance; the capstone finishes in heat mode; compare returns identical values (ANMA F=8 vs ANMR R=8); no packets under reduced motion; no horizontal scroll at 390 px; no page errors.
+- **verified** Browser checks (`tests/e2e/chip-e2e.mjs`, Chromium against staging): step and play advance; the capstone finishes in heat mode; the compare stays hidden; the live chip lights for slowed and full-speed runs, and pong plays in full screen with the framebuffer beside the die; no packets under reduced motion; no horizontal scroll at 390 px; no page errors.
 
 ## Not yet / deviations
 - **Browser coverage:** headless Chromium and Firefox 142 pass the full E2E against production (live generation E2E on Chromium/staging). WebKit is not yet run: it needs system libraries (GStreamer, libvpx, …) that would require apt installs on this shared host; the deploy workflow runs the E2E on Chromium, Firefox, and WebKit with `playwright-core install --with-deps`.

@@ -1,13 +1,12 @@
-import { useEffect, useRef, useState } from "react";
-import { Feature, KEYS, TypeTag, parseU64Decimal } from "@llmtobinary/spec";
+import { Feature, TypeTag, parseU64Decimal } from "@llmtobinary/spec";
 import { formatGuestValue } from "@llmtobinary/devices";
 import type { EntryInput } from "@llmtobinary/protocol";
 import type { LoadedArtifact } from "./artifact.ts";
 import type { MachineClient, MachineView } from "./machine-client.ts";
 import type { CompareRow } from "./worker-protocol.ts";
+import { LiveChip } from "./chip/LiveChip.tsx";
 
 export const F_CHOICES = [1, 4, 8, 16, 32, 64];
-const KEY_CODES: Record<string, number> = { ArrowLeft: 0, ArrowRight: 1, ArrowUp: 2, ArrowDown: 3, " ": 4, Enter: 5, Escape: 6 };
 
 const COUNTER_LABELS: [string, string][] = [
   ["executedInstructions", "executed guest instructions"],
@@ -72,12 +71,6 @@ export function MachinePanel(props: {
   return (
     <section className="panel" aria-label="Machine">
       <h2>Machine</h2>
-      {a?.module && (
-        <p className="small">
-          <a href={`/chip?sha=${a.record.sha256}&F=${Math.min(64, F)}${props.inputTexts[0] ? `&x=${encodeURIComponent(props.inputTexts[0])}` : ""}`}>Open in chip view</a>
-          <span className="muted"> · watch every microstep light up a modeled floorplan</span>
-        </p>
-      )}
       {!a?.module ? <p className="muted">A valid executable is required to run.</p> : (
         <>
           <div className="row wrap">
@@ -115,12 +108,17 @@ export function MachinePanel(props: {
             {view.result?.trap && <> · <span className="error">trap {view.result.trap.code}: {view.result.trap.message}</span></>}
             {view.error && <> · <span className="error">{view.error}</span></>}
           </p>
-          <div className="grid2">
-            <div>
-              <h3>Terminal</h3>
-              <pre className="terminal" aria-label="Terminal output">{view.terminal || " "}</pre>
-              {(a.module.features & Feature.FRAMEBUFFER) !== 0 && <Framebuffer frame={view.frame} interactive={!!interactive} machine={machine} />}
-            </div>
+          <LiveChip
+            artifact={a}
+            view={view}
+            machine={machine}
+            F={F}
+            interactive={!!interactive}
+            hasFramebuffer={(a.module.features & Feature.FRAMEBUFFER) !== 0}
+            controls={{ run: () => props.onLoadRun(false), pause: () => machine.pause(), resume: () => machine.run(), step: () => machine.step(), stop: () => machine.stop(), canRun: !parsed.error }}
+          />
+          <details className="machine-text">
+            <summary>Machine state as text (slots, latches, backing, frames)</summary>
             <div>
               <h3>Fast slots (F = {s?.config.fastSlots ?? F}, {s?.config.policy ?? "fifo-v1"})</h3>
               <div className="slots">
@@ -135,7 +133,7 @@ export function MachinePanel(props: {
               {s && s.backing.sample.length > 0 && <details><summary>backing sample</summary><ul className="mono small">{s.backing.sample.slice(0, 32).map((b) => <li key={b.entry}>[{b.entry}] {b.value} = {b.payload}</li>)}</ul></details>}
               {s && <details><summary>frames ({s.frames.length})</summary><ul className="mono small">{s.frames.map((f, i) => <li key={i}>fn{f.functionId} block{f.blockId} activation {f.blockActivation} · {f.liveValues} live</li>)}</ul></details>}
             </div>
-          </div>
+          </details>
           <details open>
             <summary>Counters (modeled; not CPU cycles, power, or native speed)</summary>
             <table className="counters"><tbody>
@@ -166,35 +164,5 @@ export function MachinePanel(props: {
         </>
       )}
     </section>
-  );
-}
-
-function Framebuffer({ frame, interactive, machine }: { frame: Uint8ClampedArray | null; interactive: boolean; machine: MachineClient }) {
-  const ref = useRef<HTMLCanvasElement>(null);
-  const [focused, setFocused] = useState(false);
-  useEffect(() => {
-    const c = ref.current;
-    if (!c) return;
-    const ctx = c.getContext("2d")!;
-    if (!frame) {
-      ctx.clearRect(0, 0, 256, 144);
-      return;
-    }
-    const buf = new Uint8ClampedArray(frame.length);
-    buf.set(frame);
-    ctx.putImageData(new ImageData(buf, 256, 144), 0, 0);
-  }, [frame]);
-  const key = (e: React.KeyboardEvent, down: boolean) => {
-    const k = KEY_CODES[e.key];
-    if (k === undefined) return;
-    e.preventDefault();
-    machine.keys = down ? machine.keys | (1 << k) : machine.keys & ~(1 << k);
-  };
-  return (
-    <div>
-      <h3>Framebuffer 256×144</h3>
-      <canvas ref={ref} width={256} height={144} className="fb" tabIndex={interactive ? 0 : -1} aria-label={interactive ? `Framebuffer; focus to send keys ${KEYS.join(", ")}` : "Framebuffer"} onKeyDown={(e) => key(e, true)} onKeyUp={(e) => key(e, false)} onFocus={() => setFocused(true)} onBlur={() => { setFocused(false); machine.keys = 0; }} />
-      {interactive && <p className="muted small">{focused ? "Keys go to the next tick: ← → ↑ ↓ Space Enter Esc." : "Click the framebuffer to send keys. Ticks are recorded for exact replay."}</p>}
-    </div>
   );
 }

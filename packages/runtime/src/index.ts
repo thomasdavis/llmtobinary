@@ -144,7 +144,7 @@ export class FiniteMachine implements Engine {
   private readonly tracing: boolean;
   private startedAt = 0;
   /** Chip-view listener (null when nobody is watching: no event objects are built). */
-  private readonly ev: ((e: MicroEvent) => void) | null;
+  private ev: ((e: MicroEvent) => void) | null;
 
   constructor(
     readonly module: Module,
@@ -449,6 +449,11 @@ export class FiniteMachine implements Engine {
     if (!f) return null;
     const rec = f.pc < f.block.instrs.length ? f.block.instrs[f.pc]!.rec : f.block.term.rec;
     return { functionId: f.fn.id, blockId: f.block.id, recordIndex: rec, depth: this.frames.length - 1 };
+  }
+
+  /** Attach or detach the micro-event listener between instructions (never changes execution). */
+  setEventSink(fn: ((e: MicroEvent) => void) | null): void {
+    this.ev = fn;
   }
 
   pushTick(event: TickEvent): void {

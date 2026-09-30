@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { mustValidate } from "@llmtobinary/validate";
 import { TASK_BY_ID } from "@llmtobinary/tasks";
 import type { MicroEvent } from "@llmtobinary/protocol";
-import { runFinite, COST_MODEL_ID, LATENCY } from "../src/index.ts";
+import { createFiniteMachine, runFinite, COST_MODEL_ID, LATENCY } from "../src/index.ts";
 
 const root = new URL("../../../fixtures/", import.meta.url);
 const mod = (name: string) => mustValidate(new Uint8Array(readFileSync(new URL(name, root))));
@@ -55,5 +55,21 @@ describe(`chip instrumentation (${COST_MODEL_ID})`, () => {
     expect(watched.framebufferHash).toBe(plain.framebufferHash);
     expect({ ...watched.counters, hostWallTimeMs: 0 }).toEqual({ ...plain.counters, hostWallTimeMs: 0 });
     expect(events.some((e) => e.u === "host" && e.name === "display.clear" && e.ticks > LATENCY.host)).toBe(true);
+  });
+
+  it("attaching and detaching the listener mid-run changes nothing and sees whole instructions", () => {
+    const m = createFiniteMachine(mod("upstream-capstone-40.anma"), [u("7")], { config: { fastSlots: 4 } });
+    const seen: MicroEvent[] = [];
+    let n = 0;
+    while (m.status !== "halted" && m.status !== "trapped") {
+      m.setEventSink(n % 3 === 1 ? (e) => seen.push(e) : null);
+      m.step();
+      n++;
+    }
+    const plain = runFinite(mod("upstream-capstone-40.anma"), [u("7")], { config: { fastSlots: 4 } });
+    const r = m.result();
+    expect(r.returnValue).toEqual(plain.returnValue);
+    expect({ ...r.counters, hostWallTimeMs: 0 }).toEqual({ ...plain.counters, hostWallTimeMs: 0 });
+    expect(seen.filter((e) => e.u === "fetch").length).toBe(Math.floor((n + 1) / 3));
   });
 });

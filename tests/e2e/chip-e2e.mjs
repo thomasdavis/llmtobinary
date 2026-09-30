@@ -82,22 +82,11 @@ const num = (s) => Number(String(s).replace(/[^0-9]/g, ""));
   await ctx.close();
 }
 
-// 2. Compare ANMA F=8 vs ANMR R=8 on one clock.
+// 2. The ANMA-1 vs ANMR-1 compare is hidden (kept in code), even with ?compare=1.
 {
-  const { ctx, page, errors } = await open({ width: 1920, height: 1080 }, "/chip?fixture=upstream-capstone-40.anma&F=8&compare=1&R=8&x=7");
-  ok((await page.locator(".die-svg").count()) === 2, "compare renders two dies");
-  await page.getByRole("combobox", { name: "Clock" }).selectOption({ label: "120 ticks/s" });
-  await page.getByRole("button", { name: "Play" }).click();
-  await page.waitForTimeout(4000);
-  await shot(page, "04-compare");
-  await page.getByRole("combobox", { name: "Clock" }).selectOption({ label: "Heat · 50k instr/s" });
-  await page.waitForFunction(() => document.querySelectorAll(".rail-result").length === 2, null, { timeout: 30_000 });
-  const results = await page.locator(".rail-result").allTextContents();
-  ok(results.length === 2 && results[0] === results[1], `ANMA and ANMR agree (${results.join(" / ")})`);
-  const now = await page.locator(".rail-now").nth(1).textContent();
-  const cursor = await page.locator(".die-svg").nth(1).locator(".imem-row.is-current .imem-text").textContent();
-  ok(!!cursor && (now ?? "").includes(cursor.replace(/…$/, "")), `rail and IMEM cursor agree after heat mode (${now} / ${cursor})`);
-  await shot(page, "05-compare-done");
+  const { ctx, page, errors } = await open({ width: 1600, height: 1000 }, "/chip?fixture=upstream-capstone-40.anma&F=8&compare=1&R=8&x=7");
+  ok((await page.locator(".die-svg").count()) === 1, "compare is hidden: one die even with ?compare=1");
+  ok((await page.getByText("Compare with ANMR-1").count()) === 0, "no compare control");
   ok(errors.length === 0, `no page errors (${errors.join(" | ")})`);
   await ctx.close();
 }
@@ -121,6 +110,76 @@ const num = (s) => Number(String(s).replace(/[^0-9]/g, ""));
   await page.getByRole("button", { name: "Play" }).click();
   await page.waitForTimeout(3000);
   await shot(page, "07-phone");
+  ok(errors.length === 0, `no page errors (${errors.join(" | ")})`);
+  await ctx.close();
+}
+
+// 5. Live chip in the machine panel: it lights up for the panel's own run.
+{
+  const ctx = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
+  const page = await ctx.newPage();
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
+  await page.goto(base, { waitUntil: "networkidle" });
+  const live = page.locator("section.livechip");
+  const liveCount = async (label) => num(await live.locator(".rail-counters dt", { hasText: label }).first().locator("xpath=following-sibling::dd[1]").textContent());
+
+  // Slowed run: the machine itself runs at 10 instructions per second and every microstep is shown.
+  await page.getByRole("button", { name: "square-plus-two.anma" }).click();
+  await page.getByText(/✓ task-passed/).waitFor({ timeout: 60_000 });
+  await live.waitFor({ timeout: 10_000 });
+  await live.getByRole("combobox", { name: "Speed" }).selectOption({ label: "10 instr/s" });
+  await page.getByRole("button", { name: "▶ Run" }).click();
+  await page.waitForTimeout(1200);
+  const mid = await liveCount("Instructions");
+  ok(mid > 0 && (await live.locator(".unit-glow").count()) > 0, `slowed run lights the chip (${mid} instructions after 1.2 s)`);
+  await shot(page, "08-live-slow");
+  await page.getByText(/state: halted/).waitFor({ timeout: 30_000 });
+  await page.waitForTimeout(1500);
+  ok((await page.getByLabel("Terminal output").textContent()) === "146", "slowed run prints the same terminal output");
+  ok((await liveCount("Instructions")) >= mid, "chip counters reach the end of the run");
+
+  await live.getByRole("combobox", { name: "Speed" }).selectOption({ label: "Full speed" });
+
+  // Full speed: the chip adopts the machine's own state, including hardware evictions.
+  await page.getByRole("button", { name: "upstream-capstone-40.anma" }).click();
+  await page.getByText("d6e710f149bac62226ad57f9d3a2f4e4bf958cebbf3727994f0ec5477013e88a").waitFor();
+  await page.getByText(/✓ task-passed/).waitFor({ timeout: 60_000 });
+  await page.locator('label:has-text("fast slots F") select').selectOption("4");
+  await page.getByRole("button", { name: "▶ Run" }).click();
+  await page.getByText(/state: halted/).waitFor({ timeout: 30_000 });
+  ok((await liveCount("Evictions")) > 0, `full-speed capstone at F = 4 shows hardware evictions on the chip (${await liveCount("Evictions")})`);
+
+  // Pong at full speed with live keys: activity glow and the framebuffer beside the die in full screen.
+  await page.getByRole("button", { name: "ball-paddle.anma" }).click();
+  await page.getByText("d87054b75358754cdbd3a671962ed6f783669794bdda8491be2440cd19b7b64a").waitFor({ timeout: 30_000 });
+  await page.getByText(/✓ task-passed|✕ task-failed/).first().waitFor({ timeout: 60_000 });
+  await page.getByRole("button", { name: "▶ Run" }).click();
+  await page.getByText(/state: (running|waiting-input)/).first().waitFor({ timeout: 10_000 });
+  await live.getByRole("button", { name: "Full screen" }).click();
+  await page.locator("section.livechip.is-expanded").waitFor({ timeout: 5000 });
+  await page.locator("section.livechip canvas.fb").click();
+  for (let i = 0; i < 6; i++) await page.keyboard.press("ArrowRight");
+  await page.waitForTimeout(1200);
+  ok((await live.locator(".unit-glow").count()) > 0, "pong at full speed lights the chip");
+  const die = await live.locator(".die-svg").boundingBox();
+  const fb = await live.locator("canvas.fb").boundingBox();
+  ok(!!die && !!fb && fb.x > die.x + die.width - 2, `framebuffer sits beside the die in full screen (die right ${Math.round(die.x + die.width)}, fb left ${Math.round(fb.x)})`);
+  const lit = await page.evaluate(() => {
+    const c = document.querySelector("section.livechip canvas.fb");
+    const d = c.getContext("2d").getImageData(0, 0, 256, 144).data;
+    let n = 0;
+    for (let i = 3; i < d.length; i += 4) if (d[i] > 0) n++;
+    return n;
+  });
+  ok(lit > 0, `framebuffer shows the game (${lit} drawn pixels)`);
+  ok(await live.getByRole("button", { name: "Pause", exact: true }).isVisible(), "full screen carries its own controls");
+  await shot(page, "09-live-pong-fullscreen");
+  await live.getByRole("button", { name: "Exit full screen" }).click();
+  ok((await page.locator("section.livechip.is-expanded").count()) === 0, "exit full screen");
+  await page.getByRole("button", { name: "■ Stop execution" }).click();
+  await shot(page, "10-live-sidebar");
   ok(errors.length === 0, `no page errors (${errors.join(" | ")})`);
   await ctx.close();
 }

@@ -28,6 +28,8 @@ const R_CHOICES = [4, 8, 16, 32];
 const WINDOW_TICKS = 120;
 const CAPSTONE_SHA = "d6e710f149bac62226ad57f9d3a2f4e4bf958cebbf3727994f0ec5477013e88a";
 const ALLOWED = 15;
+/** The ANMA-1 vs ANMR-1 side-by-side is hidden for now (user, 2026-09-30); the code stays for later. */
+const SHOW_ANMR_COMPARE = false;
 
 type Source = { kind: "fixture"; file: string; task: string | null } | { kind: "artifact"; sha: string };
 
@@ -102,7 +104,7 @@ export function ChipPage() {
   playingRef.current = playing;
 
   const isCapstone = program?.sha === CAPSTONE_SHA || program?.taskId === "capstone-40";
-  const compareOn = compare && !!isCapstone;
+  const compareOn = SHOW_ANMR_COMPARE && compare && !!isCapstone;
   const trackIds = compareOn ? [1, 2] : [1];
 
   useEffect(() => {
@@ -371,13 +373,13 @@ export function ChipPage() {
     if (source.kind === "fixture") q.set("fixture", source.file);
     else q.set("sha", source.sha);
     q.set("F", String(F));
-    if (compare) {
+    if (compareOn) {
       q.set("compare", "1");
       q.set("R", String(R));
     }
     if (inputTexts[0]) q.set("x", inputTexts[0]);
     history.replaceState(null, "", `/chip?${q}`);
-  }, [source, F, compare, R, inputTexts]);
+  }, [source, F, compareOn, R, inputTexts]);
 
   const d = driverRef.current;
   const t = tRef.current;
@@ -425,10 +427,10 @@ export function ChipPage() {
             {F_CHOICES.map((f) => <option key={f} value={f}>{f}</option>)}
           </select>
         </label>
-        <label className={`chip-check${isCapstone ? "" : " is-disabled"}`} title={isCapstone ? "" : "The ANMR-1 register control exists for the forty-value capstone"}>
+        {SHOW_ANMR_COMPARE && <label className={`chip-check${isCapstone ? "" : " is-disabled"}`} title={isCapstone ? "" : "The ANMR-1 register control exists for the forty-value capstone"}>
           <input type="checkbox" checked={compareOn} disabled={!isCapstone} onChange={(e) => setCompare(e.target.checked)} />
           <span>Compare with ANMR-1</span>
-        </label>
+        </label>}
         {compareOn && (
           <label className="chip-field">
             <span>Registers R</span>

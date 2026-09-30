@@ -32,8 +32,8 @@ const LANE_H = 18;
 const LABEL_W = 132;
 const HEAD_H = 22;
 
-function css(name: string): string {
-  return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || "#999";
+function css(el: Element, name: string): string {
+  return getComputedStyle(el).getPropertyValue(name).trim() || "#999";
 }
 
 export function Analyzer({ tracks, windowTicks }: { tracks: AnalyzerTrack[]; windowTicks: number }) {
@@ -61,7 +61,7 @@ export function Analyzer({ tracks, windowTicks }: { tracks: AnalyzerTrack[]; win
     const ctx = c.getContext("2d")!;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, width, height);
-    const colors = { ink: css("--chip-ink-2"), dim: css("--chip-ink-3"), rule: css("--chip-rule"), signal: css("--chip-signal"), spill: css("--chip-spill"), cursor: css("--chip-ink") };
+    const colors = { ink: css(c, "--chip-ink-2"), dim: css(c, "--chip-ink-3"), rule: css(c, "--chip-rule"), signal: css(c, "--chip-signal"), spill: css(c, "--chip-spill"), cursor: css(c, "--chip-ink") };
     const plotW = width - LABEL_W - 12;
     let y0 = 4;
     for (const tr of tracks) {

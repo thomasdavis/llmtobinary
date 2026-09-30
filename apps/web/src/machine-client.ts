@@ -3,7 +3,14 @@
 // and promise-based test/compare jobs.
 
 import type { EntryInput, MachineConfig, MachineSnapshot, RunResult, TestReport, TickEvent } from "@llmtobinary/protocol";
-import type { CompareRow, FromMachine, ToMachine } from "./worker-protocol.ts";
+import type { ChipBatch, CompareRow, FromMachine, ToMachine, WatchMode } from "./worker-protocol.ts";
+
+/** One live-chip delivery: the executed microsteps (or activity) since the last one, plus the snapshot taken with them. */
+export interface ChipDelivery {
+  runId: number;
+  batch: ChipBatch | null;
+  snapshot: MachineSnapshot | null;
+}
 
 export interface MachineView {
   status: string;
@@ -30,6 +37,10 @@ export class MachineClient {
   view: MachineView = { status: "empty", snapshot: null, terminal: "", frame: null, result: null, error: null, ticks: [] };
   private listeners = new Set<(v: MachineView) => void>();
   private interactive = false;
+  private chipListeners = new Set<(d: ChipDelivery) => void>();
+  private watchMode: WatchMode = "off";
+  /** Instructions per second while slowed for watching; null = full speed. */
+  rate: number | null = null;
   private replayTicks: TickEvent[] = [];
 
   constructor() {
@@ -40,7 +51,35 @@ export class MachineClient {
     const w = new Worker(new URL("./machine.worker.ts", import.meta.url));
     w.onmessage = (ev: MessageEvent<FromMachine>) => this.onMessage(ev.data);
     w.onerror = (e) => this.update({ error: e.message || "machine worker error", status: "trapped" });
+    // A fresh worker inherits the page's watch mode and speed.
+    if (this.watchMode !== "off") w.postMessage({ type: "watch", mode: this.watchMode } satisfies ToMachine);
+    if (this.rate !== null) w.postMessage({ type: "rate", rate: this.rate } satisfies ToMachine);
     return w;
+  }
+
+  get currentRunId(): number {
+    return this.runId;
+  }
+
+  /** Live chip stream of the machine's own run (see WatchMode). */
+  subscribeChip(fn: (d: ChipDelivery) => void): () => void {
+    this.chipListeners.add(fn);
+    return () => this.chipListeners.delete(fn);
+  }
+
+  setWatch(mode: WatchMode): void {
+    this.watchMode = mode;
+    this.send({ type: "watch", mode });
+  }
+
+  /** Slow the run for watching (instructions per second), or null for full speed. Applies immediately. */
+  setRate(rate: number | null): void {
+    this.rate = rate;
+    this.send({ type: "rate", rate });
+  }
+
+  private emitChip(batch: ChipBatch | null, snapshot: MachineSnapshot | null): void {
+    for (const l of this.chipListeners) l({ runId: this.runId, batch, snapshot });
   }
 
   subscribe(fn: (v: MachineView) => void): () => void {
@@ -76,11 +115,13 @@ export class MachineClient {
         break;
       case "state":
         this.update({ status: m.snapshot.status, snapshot: m.snapshot, terminal: m.terminal, ...(m.frame ? { frame: m.frame } : {}) });
+        this.emitChip(m.chip ?? null, m.snapshot);
         break;
       case "done":
         if (this.stopTimer) clearTimeout(this.stopTimer);
         this.stopTicks();
         this.update({ status: m.result.status, snapshot: m.snapshot, terminal: m.terminal, result: m.result, ...(m.frame ? { frame: m.frame } : {}) });
+        this.emitChip(m.chip ?? null, m.snapshot);
         break;
     }
   }
@@ -94,6 +135,7 @@ export class MachineClient {
     this.tickNo = this.replayTicks.length ? Number(this.replayTicks[this.replayTicks.length - 1]!.tick) : 0;
     const copy = bytes.slice().buffer;
     this.update({ status: "validating", snapshot: null, terminal: "", frame: null, result: null, error: null, ticks: [...this.replayTicks] });
+    this.emitChip(null, null);
     this.send({ type: "load", runId: this.runId, bytes: copy, inputs, config, allowedFeatures, ticks: this.replayTicks }, [copy]);
   }
 
@@ -137,9 +179,13 @@ export class MachineClient {
   private startTicks(): void {
     this.stopTicks();
     this.tickTimer = setInterval(() => {
+      // Slowed for watching: only send the next tick once the program is waiting for it, so the
+      // queue never overflows and the recorded ticks replay exactly.
+      if (this.rate !== null && this.view.status !== "waiting-input") return;
       const event: TickEvent = { tick: String(++this.tickNo), keys: this.keys };
       this.view.ticks.push(event); // recorded for exact replay
       this.send({ type: "tick", runId: this.runId, event });
+      if (this.rate !== null) this.view.status = "running"; // until the worker reports waiting again
     }, TICK_MS);
   }
 

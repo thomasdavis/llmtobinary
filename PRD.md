@@ -10,7 +10,7 @@
 
 > **Change from 3.0:** the product is named **llmtobinary** and is hosted on **Cloudflare** using **Wrangler**. The Node inference broker becomes a Cloudflare Worker, session and budget state move to Durable Objects, and the static Vite build is served as Workers static assets from the same Worker and origin. The ISA, fixtures, prompts, schema, and experiment protocol are unchanged.
 >
-> **Change from 3.2 (additive):** a **chip view** (Section 14A) animates a modeled floorplan from the engine's own executed micro-events, with a declared latency model (`anma-cost/1`, "modeled ticks") and an ANMA-1 vs ANMR-1 compare. No ISA, fixture, prompt or protocol change.
+> **Change from 3.2 (additive):** a **chip view** (Section 14A) animates a modeled floorplan from the engine's own executed micro-events, with a declared latency model (`anma-cost/1`, "modeled ticks"), both as a full page and live inside the machine panel. No ISA, fixture, prompt or protocol change.
 >
 > **Change from 3.1:** generation is an **agentic loop**, not a single response plus three repairs. Models will often produce malformed bytes, so the loop keeps going until the candidate passes or a declared budget runs out. The model gets a static `check_candidate` tool that never executes anything and returns precise, model-oriented diagnostics (Section 7.7). Browser test results feed the next iteration. Submissions may carry **annotations and machine-checked contracts** (Section 15.3–15.5): record-level comments cross-checked against the decoded bytes, `requires`/`ensures`/invariant contracts checked at runtime, and, as a P2 tier, bit-vector SMT proofs. Annotations are a sidecar: ANMA-1 bytes, hashes, and fixtures are unchanged. The submission schema (7.2), request shape (7.3), repair rules (7.6), error classes (9), limits (14.1), trial conditions (18.6), manifest (19), acceptance tests (20), and milestones (21) change accordingly.
 
@@ -851,7 +851,17 @@ The chip view (`/chip`) shows a **modeled floorplan** of an ANMA-1 machine: inst
 - **Event clock:** 4, 12, 40 or 120 ticks per second, with step-instruction, step-microstep and reset, and a logic-analyzer strip with one lane per unit over a 120-tick window.
 - **Heat:** 2k or 50k instructions per second. Units glow by their share of executed microsteps; per-event traces pause. On return to the event clock, the view resynchronises from the engine's own reported state.
 
-**Compare:** available for the forty-value capstone only. It shows ANMA-1 at F fast slots next to the ANMR-1 register control at R ∈ {4, 8, 16, 32}, on one clock with the same input. The left die shows storage traffic placed by the hardware; the right die shows SAVE/RESTORE traffic the model wrote. Both must return the same value.
+**Live chip in the machine panel:** the same floorplan runs inside the machine panel and instruments the panel's **own** run, the one the Run and Step buttons drive, with the same live keyboard ticks. It is not a second copy of the machine.
+
+- A speed control slows the machine itself to 1,000, 100, 10 or 2 instructions per second.
+  - Slowed runs stream every executed microstep, replayed in order.
+  - Interactive programs get their next tick only once they are waiting for it, so the recorded ticks still replay exactly.
+- At full speed, the chip shows per-unit activity plus the latest microsteps and adopts the machine's reported state.
+- A single Step always streams its full microstep sequence.
+- The terminal and framebuffer sit beside the die: stacked under it in a narrow panel, beside it when wide or in full screen. A focused framebuffer sends keys, so interactive programs such as ball/paddle can be played while the chip lights.
+- Full screen uses the Fullscreen API where available and a fixed overlay otherwise. It carries its own Run, Pause, Step and Stop controls.
+
+**Compare (hidden):** the ANMA-1 vs ANMR-1 side-by-side described below is implemented but not shown (`SHOW_ANMR_COMPARE = false` in `ChipPage.tsx`). It is available for the forty-value capstone only. It shows ANMA-1 at F fast slots next to the ANMR-1 register control at R ∈ {4, 8, 16, 32}, on one clock with the same input. The left die shows storage traffic placed by the hardware; the right die shows SAVE/RESTORE traffic the model wrote. Both must return the same value.
 
 **Other controls:**
 

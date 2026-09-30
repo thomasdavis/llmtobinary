@@ -8,9 +8,10 @@ import { createFiniteMachine, type FiniteMachine } from "@llmtobinary/runtime";
 import { runTaskTests, redactForModel, TASK_BY_ID } from "@llmtobinary/tasks";
 import { parseAnnotations } from "@llmtobinary/annotations";
 import { capstoneWitness, runInvariance } from "@llmtobinary/research";
-import type { TickEvent } from "@llmtobinary/protocol";
-import type { CompareRow, FromChip, FromMachine, ToChip, ToMachine } from "./worker-protocol.ts";
+import type { MicroEvent, TickEvent } from "@llmtobinary/protocol";
+import type { ChipBatch, CompareRow, FromChip, FromMachine, ToChip, ToMachine, WatchMode } from "./worker-protocol.ts";
 import { handleChip } from "./chip/chip-worker.ts";
+import { isSpillTraffic, unitsOf } from "./chip/units.ts";
 
 declare const self: DedicatedWorkerGlobalScope;
 
@@ -23,6 +24,48 @@ let runId = -1;
 let running = false;
 let lastSnap = 0;
 let lastFrames = -1;
+/** A scheduled loop continuation exists (ticks must not start a second loop chain). */
+let scheduled = false;
+/** Instructions per second when slowed for watching; null = full speed. */
+let rate: number | null = null;
+let credit = 0;
+let lastSlice = 0;
+
+// Live chip instrumentation: the listener sees the SAME machine the panel runs.
+const MAX_BATCH_EVENTS = 4000;
+const HEAT_TAIL = 24;
+let watch: WatchMode = "off";
+let batch: ChipBatch = emptyBatch();
+
+function emptyBatch(): ChipBatch {
+  return { mode: watch === "events" ? "events" : "heat", events: [], dropped: 0, activity: {}, spill: 0 };
+}
+
+function sink(e: MicroEvent): void {
+  for (const u of unitsOf(e)) batch.activity[u] = (batch.activity[u] ?? 0) + 1;
+  if (isSpillTraffic(e)) batch.spill++;
+  if (watch === "events") {
+    if (batch.events.length < MAX_BATCH_EVENTS) batch.events.push(e);
+    else batch.dropped++;
+  } else {
+    batch.events.push(e);
+    if (batch.events.length > HEAT_TAIL * 8) batch.events.splice(0, batch.events.length - HEAT_TAIL);
+  }
+}
+
+function takeBatch(): ChipBatch | undefined {
+  if (watch === "off") return undefined;
+  const b = batch;
+  if (b.mode === "heat" && b.events.length > HEAT_TAIL) b.events = b.events.slice(-HEAT_TAIL);
+  batch = emptyBatch();
+  return b;
+}
+
+function setWatch(mode: WatchMode): void {
+  watch = mode;
+  batch = emptyBatch();
+  machine?.setEventSink(mode === "off" ? null : sink);
+}
 
 const post = (m: FromMachine, transfer: Transferable[] = []) => self.postMessage(m, transfer);
 
@@ -43,7 +86,8 @@ function sendState(force = false): void {
   const fp = machine.devices.framesPresented;
   const f = fp !== lastFrames ? frame() : null;
   lastFrames = fp;
-  post({ type: "state", runId, snapshot: machine.snapshot(), terminal: terminalText(), frame: f, framesPresented: fp }, f ? [f.buffer] : []);
+  const chip = takeBatch();
+  post({ type: "state", runId, snapshot: machine.snapshot(), terminal: terminalText(), frame: f, framesPresented: fp, ...(chip ? { chip } : {}) }, f ? [f.buffer] : []);
 }
 
 function finished(): boolean {
@@ -54,27 +98,46 @@ function finished(): boolean {
 function sendDone(): void {
   if (!machine) return;
   const f = frame();
-  post({ type: "done", runId, result: machine.result(), snapshot: machine.snapshot(), terminal: terminalText(), frame: f }, f ? [f.buffer] : []);
+  const chip = takeBatch();
+  post({ type: "done", runId, result: machine.result(), snapshot: machine.snapshot(), terminal: terminalText(), frame: f, ...(chip ? { chip } : {}) }, f ? [f.buffer] : []);
 }
 
 function loop(id: number): void {
+  scheduled = false;
   if (id !== runId || !machine || !running) return;
   const t0 = performance.now();
-  while (performance.now() - t0 < SLICE_MS) {
-    const s = machine.run(CHUNK);
-    if (s !== "paused") break;
+  if (rate !== null) {
+    // Slowed for watching: spend instruction credit earned at `rate` per second (bounded burst).
+    credit = Math.min(credit + ((t0 - lastSlice) * rate) / 1000, Math.max(1, rate / 5));
+    lastSlice = t0;
+    const n = Math.floor(credit);
+    if (n > 0) {
+      credit -= n;
+      machine.run(n);
+    }
+  } else {
+    while (performance.now() - t0 < SLICE_MS) {
+      const s = machine.run(CHUNK);
+      if (s !== "paused") break;
+    }
   }
   if (finished()) {
     running = false;
     sendDone();
     return;
   }
-  sendState();
   if (machine.status === "waiting-input") {
-    running = true; // resumed by the next tick message
-    return;
+    sendState(true); // the page paces its ticks on this status
+    return; // resumed by the next tick message
   }
-  setTimeout(() => loop(id), 0);
+  sendState();
+  schedule(id);
+}
+
+function schedule(id: number): void {
+  if (scheduled) return;
+  scheduled = true;
+  setTimeout(() => loop(id), rate !== null ? Math.max(16, Math.min(100, 1000 / rate)) : 0);
 }
 
 function copy(buf: ArrayBuffer): Uint8Array {
@@ -104,6 +167,7 @@ self.onmessage = (ev: MessageEvent<ToMachine | ToChip>) => {
         lastFrames = -1;
         const module = validated(copy(m.bytes), m.allowedFeatures);
         machine = createFiniteMachine(module, m.inputs, { config: m.config, allowedFeatures: m.allowedFeatures, ticks: m.ticks });
+        setWatch(watch);
         post({ type: "loaded", runId });
         sendState(true);
         return;
@@ -111,7 +175,9 @@ self.onmessage = (ev: MessageEvent<ToMachine | ToChip>) => {
       case "run":
         if (m.runId !== runId || !machine || finished()) return;
         running = true;
-        loop(runId);
+        credit = 1;
+        lastSlice = performance.now();
+        if (!scheduled) loop(runId); // else the pending continuation resumes it
         return;
       case "pause":
         if (m.runId !== runId) return;
@@ -121,9 +187,15 @@ self.onmessage = (ev: MessageEvent<ToMachine | ToChip>) => {
       case "step":
         if (m.runId !== runId || !machine || finished()) return;
         running = false;
-        machine.step();
-        if (finished()) sendDone();
-        else sendState(true);
+        {
+          // A single step always streams its full microstep sequence so the chip can animate it.
+          const prev = watch;
+          if (prev === "heat") setWatch("events");
+          machine.step();
+          if (finished()) sendDone();
+          else sendState(true);
+          if (prev === "heat") setWatch(prev);
+        }
         return;
       case "stop":
         if (m.runId !== runId || !machine) return;
@@ -138,7 +210,15 @@ self.onmessage = (ev: MessageEvent<ToMachine | ToChip>) => {
         } catch {
           return; // out-of-order or full queue: the event is dropped, never half-applied
         }
-        if (running && machine.status !== "running") loop(runId);
+        if (running && !scheduled) schedule(runId);
+        return;
+      case "watch":
+        setWatch(m.mode);
+        return;
+      case "rate":
+        rate = m.rate !== null && m.rate > 0 ? m.rate : null;
+        credit = 1;
+        lastSlice = performance.now();
         return;
       case "test": {
         const bytes = copy(m.bytes);

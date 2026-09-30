@@ -65,7 +65,7 @@ Live generation is enabled per environment by `LIVE_GENERATION_ENABLED`, `OPENAI
 
 ## Chip view
 
-`/chip` shows a modeled floorplan of the machine: fetch/decode, value directory, fast slots, latches, ALU, backing SRAM, staging, stack and I/O. Units light up as the engine executes each microstep. Every light is an event the engine actually emitted. Time is in **modeled ticks** from the declared cost model `anma-cost/1`, not measured cycles. For the forty-value capstone, **Compare with ANMR-1** runs the model-managed-register control next to it on the same clock. The machine panel links to it via "Open in chip view".
+`/chip` shows a modeled floorplan of the machine: fetch/decode, value directory, fast slots, latches, ALU, backing SRAM, staging, stack and I/O. Units light up as the engine executes each microstep. Every light is an event the engine actually emitted. Time is in **modeled ticks** from the declared cost model `anma-cost/1`, not measured cycles. The same chip also runs **live in the machine panel**. It lights up for the run you start there. The speed control slows the machine down to 2 instructions per second, the terminal and framebuffer sit beside the die, and **Full screen** has its own controls. You can play ball/paddle and watch the chip at the same time.
 
 ## What this does and does not show
 

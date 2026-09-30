@@ -11,6 +11,8 @@ export type ToMachine =
   | { type: "step"; runId: number }
   | { type: "stop"; runId: number }
   | { type: "tick"; runId: number; event: TickEvent }
+  | { type: "watch"; mode: WatchMode }
+  | { type: "rate"; rate: number | null }
   | { type: "test"; jobId: number; bytes: ArrayBuffer; taskId: string | null; annotations: unknown; claims: { checked: number; matched: number } | null; allowedFeatures: number }
   | { type: "compare"; jobId: number; bytes: ArrayBuffer; inputs: EntryInput[]; Fs: number[]; ticks: TickEvent[]; allowedFeatures: number };
 
@@ -31,11 +33,26 @@ export interface CompareRow {
   peakLiveValues: number;
 }
 
+/**
+ * Live chip instrumentation of the machine panel's own run. "events" streams every microstep the
+ * run executed (bounded; `dropped` > 0 means the page must resynchronize from the snapshot);
+ * "heat" sends per-unit activity counts plus only the latest microsteps.
+ */
+export type WatchMode = "off" | "heat" | "events";
+
+export interface ChipBatch {
+  mode: "heat" | "events";
+  events: MicroEvent[];
+  dropped: number;
+  activity: Partial<Record<ChipUnit, number>>;
+  spill: number;
+}
+
 export type FromMachine =
   | { type: "loaded"; runId: number }
   | { type: "load-error"; runId: number; message: string }
-  | { type: "state"; runId: number; snapshot: MachineSnapshot; terminal: string; frame: Uint8ClampedArray | null; framesPresented: number }
-  | { type: "done"; runId: number; result: RunResult; snapshot: MachineSnapshot; terminal: string; frame: Uint8ClampedArray | null }
+  | { type: "state"; runId: number; snapshot: MachineSnapshot; terminal: string; frame: Uint8ClampedArray | null; framesPresented: number; chip?: ChipBatch }
+  | { type: "done"; runId: number; result: RunResult; snapshot: MachineSnapshot; terminal: string; frame: Uint8ClampedArray | null; chip?: ChipBatch }
   | { type: "test-result"; jobId: number; report: TestReport; modelReport: TestReport; witness: unknown }
   | { type: "compare-result"; jobId: number; rows: CompareRow[]; reference: { returnValue: string; terminalSha256: string; effectsHash: string; framebufferHash: string | null; status: string }; semanticAgreement: boolean; missingBackingActivity: number[]; resourceLimited: number[] }
   | { type: "job-error"; jobId: number; message: string };
