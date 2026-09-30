@@ -353,14 +353,24 @@ export async function runAttempt(state: SessionState, req: AttemptRequest, deps:
       state.items.push({ role: "user", content: "Call check_candidate or submit_candidate with one complete candidate." });
       continue;
     }
-    if (call.name === CHECK_TOOL) {
+    // A submission that fails the static check is rejected server-side and answered like a check:
+    // it never reaches the browser and does not spend a submission (the browser still re-validates
+    // every submission it does receive).
+    let rejectedSubmission = false;
+    if (call.name === SUBMIT_TOOL) {
+      const pre = isAnmr ? await checkAnmrCandidate({ envelopeText: call.arguments }) : await checkCandidate({ envelopeText: call.arguments }, { allowedFeatures: deps.allowedFeatures });
+      if (pre.report.ok) return submit(call.arguments, call.callId);
+      rejectedSubmission = true;
+    }
+    if (call.name === CHECK_TOOL || rejectedSubmission) {
       c.checks++;
       const out = isAnmr ? await checkAnmrCandidate({ envelopeText: call.arguments }) : await checkCandidate({ envelopeText: call.arguments }, { allowedFeatures: deps.allowedFeatures });
       const cand: Candidate = { attemptId: attempt.attemptId, kind: "check", seq: state.candidates.length, rawText: call.arguments, sha256: out.report.sha256, byteLength: out.report.byteLength };
       state.candidates.push(cand);
       await emit({ type: "check.requested", candidate: cand });
       await emit({ type: "check.result", candidateSeq: cand.seq, report: out.report });
-      state.items.push({ type: "function_call_output", call_id: call.callId, output: reportForModel(out.report) });
+      const body = reportForModel(out.report);
+      state.items.push({ type: "function_call_output", call_id: call.callId, output: rejectedSubmission ? `{"submission":"rejected: the candidate fails the static check below; fix every error and submit a complete new file","report":${body}}` : body });
       state.checkOutputs.push({ index: state.items.length - 1, summary: checkSummary(c.checks, out.report) });
       const sig = ruleSignature(out.report);
       state.recentCheckSignatures.push(sig);
@@ -371,7 +381,6 @@ export async function runAttempt(state: SessionState, req: AttemptRequest, deps:
       if (c.checks >= b.maxChecks) return stop("budget-exhausted", `ANMA-L-001: the check budget (${b.maxChecks}) is used up`);
       continue;
     }
-    if (call.name === SUBMIT_TOOL) return submit(call.arguments, call.callId);
     state.items.push({ type: "function_call_output", call_id: call.callId, output: JSON.stringify({ error: `unknown tool ${call.name}` }) });
   }
 

@@ -226,7 +226,7 @@ const TASK_LIST: TaskSpec[] = [
   },
   {
     id: "ball-paddle",
-    version: 1,
+    version: 2,
     title: "Moving ball / keyboard paddle",
     tier: "public",
     prompt: [
@@ -234,7 +234,7 @@ const TASK_LIST: TaskSpec[] = [
       "Each tick: call input.wait_tick. If key 6 (Escape) is down, return score immediately.",
       "Paddle: if Left (key 0) is down and px >= 4, px -= 4; then if Right (key 1) is down and px <= 228, px += 4.",
       "Ball: nx = bx + dx; if nx == 0 or nx == 254, dx = -dx. ny = by + dy.",
-      "If ny == 140: if px <= nx < px + 24, set dy = -1 and score += 1; otherwise reset the ball to (128, 20) with dy = 1 (dx unchanged). Else if ny == 0, set dy = 1.",
+      "If ny == 140: if px <= nx < px + 24 (using the already-updated px), set dy = -1, score += 1 and move the ball to (bx, by) = (nx, ny); otherwise reset the ball to (bx, by) = (128, 20) with dy = 1 (dx keeps its updated value). Otherwise move the ball to (bx, by) = (nx, ny), and if ny == 0 set dy = 1.",
       "Draw: display.clear(0x000000ff); paddle pixels (px+i, 142) and (px+i, 143) for i = 0..23 in 0xffffffff; ball pixels (bx,by),(bx+1,by),(bx,by+1),(bx+1,by+1) in 0xffd166ff using the new position; display.present.",
       "n += 1; after 600 ticks return score. Return one complete ANMA-1 executable.",
     ].join("\n"),

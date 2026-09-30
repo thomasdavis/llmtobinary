@@ -81,6 +81,19 @@ describe("the runner catches wrong programs", () => {
       expect(JSON.stringify(c)).not.toMatch(/18446744073709551615|4294967295/);
     }
   });
+  it("framebuffer mismatches get pixel-level diagnostics (count, bounding box, first pixel)", () => {
+    const b = bytes("checkerboard.anma");
+    const dv = new DataView(b.buffer);
+    for (let off = 32; off + 16 <= b.length; off += 16) {
+      if (dv.getUint32(off, true) === 0x10 && dv.getUint32(off + 8, true) === 4 && dv.getUint32(off + 12, true) === 0) dv.setUint32(off + 8, 3, true); // cells of 8 instead of 16
+    }
+    const r = runTaskTests(mustValidate(b), TASK_BY_ID.get("checkerboard")!);
+    const d = r.diagnostics.find((x) => x.rule === "ANMA-K-002")!;
+    expect(d.message).toMatch(/differs from the task oracle in \d+ of 36864 pixels/);
+    expect(d.found).toMatch(/^first difference at \(x=\d+, y=\d+\): your pixel is 0x[0-9a-f]{8}$/);
+    expect(d.derived).toMatch(/differences span x \d+\.\.\d+, y \d+\.\.\d+/);
+  });
+
   it("signature mismatch stops early", () => {
     const r = runTaskTests(mod("return-42.anma"), task);
     expect(r.diagnostics[0]!.rule).toBe("ANMA-K-003");

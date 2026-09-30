@@ -115,12 +115,60 @@ function compare(task: TaskSpec, c: TestCase, kind: "visible" | "holdout", r: Ru
     }
   }
   if (task.effects.includes("framebuffer") && want.framebufferHash && r.framebufferHash !== want.framebufferHash) {
-    return { ...base, passed: false, diagnostic: diag("ANMA-K-002", { message: `${c.name}: the final framebuffer differs from the task oracle.`, found: `framebuffer sha256 ${r.framebufferHash}`, expected: `framebuffer sha256 ${want.framebufferHash}`, stage: Stage.TASK }) };
+    const d = pixelDiff(r.finalFramebuffer ?? null, want.framebuffer ?? null);
+    return {
+      ...base,
+      passed: false,
+      diagnostic: diag("ANMA-K-002", {
+        message: `${c.name}: the final framebuffer differs from the task oracle${d ? ` in ${d.count} of 36864 pixels` : ""}.`,
+        found: d ? `first difference at (x=${d.x}, y=${d.y}): your pixel is ${d.got}` : `framebuffer sha256 ${r.framebufferHash}`,
+        expected: d ? `pixel (x=${d.x}, y=${d.y}) is ${d.want}` : `framebuffer sha256 ${want.framebufferHash}`,
+        derived: d ? `differences span x ${d.x0}..${d.x1}, y ${d.y0}..${d.y1}. ${d.summary}` : null,
+        stage: Stage.TASK,
+      }),
+    };
   }
   if (task.effects.includes("frames") && want.framesPresented !== undefined && r.framesPresented !== want.framesPresented) {
     return { ...base, passed: false, diagnostic: diag("ANMA-K-002", { message: `${c.name}: presented ${r.framesPresented} frames; the oracle presents ${want.framesPresented}.`, found: String(r.framesPresented), expected: String(want.framesPresented), stage: Stage.TASK }) };
   }
   return { ...base, passed: true, diagnostic: null };
+}
+
+const W = 256;
+const H = 144;
+const hexColour = (fb: Uint8Array, i: number) => `0x${[fb[i]!, fb[i + 1]!, fb[i + 2]!, fb[i + 3]!].map((b) => b.toString(16).padStart(2, "0")).join("")}`;
+
+/** Pixel-level comparison of two 256x144 RGBA framebuffers (facts only; never a corrected image). */
+export function pixelDiff(got: Uint8Array | null, want: Uint8Array | null): { count: number; x: number; y: number; got: string; want: string; x0: number; x1: number; y0: number; y1: number; summary: string } | null {
+  if (!got || !want || got.length !== want.length) return null;
+  let count = 0;
+  let first = -1;
+  let x0 = W, x1 = -1, y0 = H, y1 = -1;
+  let extra = 0;
+  let missing = 0;
+  const bg = hexColour(want, 0);
+  for (let p = 0; p < W * H; p++) {
+    const i = p * 4;
+    if (got[i] === want[i] && got[i + 1] === want[i + 1] && got[i + 2] === want[i + 2] && got[i + 3] === want[i + 3]) continue;
+    count++;
+    if (first < 0) first = p;
+    const x = p % W;
+    const y = Math.floor(p / W);
+    x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y);
+    if (hexColour(want, i) === bg) extra++;
+    else missing++;
+  }
+  if (first < 0) return null;
+  const i = first * 4;
+  return {
+    count,
+    x: first % W,
+    y: Math.floor(first / W),
+    got: hexColour(got, i),
+    want: hexColour(want, i),
+    x0, x1, y0, y1,
+    summary: `${missing} expected non-background pixel(s) are missing or wrong; ${extra} pixel(s) are drawn where the oracle has background ${bg}.`,
+  };
 }
 
 function signatureMismatch(task: TaskSpec, module: Module): Diagnostic | null {

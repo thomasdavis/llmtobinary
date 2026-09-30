@@ -98,6 +98,8 @@ export interface RunResult {
   effectsTruncated: boolean;
   effectsHash: string;
   framebufferHash: string | null;
+  /** Final authoritative framebuffer (256x144 RGBA) when the program declares the framebuffer feature. */
+  finalFramebuffer?: Uint8Array | null;
   framesPresented: number;
   trap: Trap | null;
   counters: Partial<MachineCounters>;

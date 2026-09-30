@@ -12,6 +12,8 @@ export interface OracleOutcome {
   result: string;
   terminal: string;
   framebufferHash?: string;
+  /** Expected final framebuffer, for pixel-level diagnostics. */
+  framebuffer?: Uint8Array;
   framesPresented?: number;
   /** True when the program is expected to still be waiting for input (never in curated tests). */
   waiting?: boolean;
@@ -81,7 +83,7 @@ export function checkerboardFramebuffer(): Uint8Array {
 export function ballPaddleOracle(ticks: readonly TickEvent[]): OracleOutcome {
   const fb = new Uint8Array(W * H * 4);
   let bx = 128, by = 20, dx = 1, dy = 1, px = 116, score = 0, n = 0, frames = 0;
-  const done = () => ({ result: String(score), terminal: "", framebufferHash: sha256HexSync(fb), framesPresented: frames });
+  const done = () => ({ result: String(score), terminal: "", framebufferHash: sha256HexSync(fb), framebuffer: fb.slice(), framesPresented: frames });
   for (const t of ticks) {
     const keys = t.keys;
     if ((keys >> 6) & 1) return done();
@@ -131,7 +133,10 @@ export function oracleFor(task: TaskSpec, c: TestCase): OracleOutcome {
   if (id === "hello") return { result: "unit", terminal: "Hello, world!\n" };
   if (id === "fizzbuzz") return { result: "unit", terminal: fizzbuzzOracle(arg(0)) };
   if (id === "fibonacci") return { result: fibOracle(arg(0)).toString(), terminal: "" };
-  if (id === "checkerboard") return { result: "unit", terminal: "", framebufferHash: sha256HexSync(checkerboardFramebuffer()), framesPresented: 1 };
+  if (id === "checkerboard") {
+    const fb = checkerboardFramebuffer();
+    return { result: "unit", terminal: "", framebufferHash: sha256HexSync(fb), framebuffer: fb, framesPresented: 1 };
+  }
   if (id === "ball-paddle") return ballPaddleOracle(c.ticks ?? []);
   if (id === "capstone-40" || id === "capstone-40-unrestricted") return { result: capstoneOracle(arg(0)).toString(), terminal: "" };
   let m = /^capstone-k(\d+)$/.exec(id);

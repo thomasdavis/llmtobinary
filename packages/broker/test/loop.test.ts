@@ -84,8 +84,20 @@ describe("agentic loop", () => {
     expect(new Set(seqs).size).toBe(seqs.length);
   });
 
-  it("outer loop: failing browser tests are sent back as untrusted data on the submit call", async () => {
+  it("statically invalid submissions are rejected server-side, answered like a check, and never reach the browser", async () => {
     const h = harness([{ kind: "submit", envelope: env(badHex) }, { kind: "submit", envelope: env(sqHex) }]);
+    const a = await runAttempt(h.state, { idempotencyKey: "k1", feedback: null }, h.deps);
+    expect(a.status).toBe("awaiting-feedback");
+    expect(h.state.counters.submissions).toBe(1);
+    expect(h.state.counters.checks).toBe(1);
+    const subs = h.events.filter((e) => e.type === "candidate.submitted") as Extract<LoopEvent, { type: "candidate.submitted" }>[];
+    expect(subs.map((e) => e.candidate.sha256)).toEqual(["d3f7f9e0446680bd1f5d20534d2a413df893e891f7e78f26f37cbe75b48405c1"]);
+    expect(JSON.stringify(h.model.requests[1]!.input)).toContain("submission\\\":\\\"rejected");
+  });
+
+  it("outer loop: failing browser tests are sent back as untrusted data on the submit call", async () => {
+    const wrongHex = sqHex.slice(0, (32 + 5 * 16) * 2) + "21" + sqHex.slice((32 + 5 * 16) * 2 + 2); // ADD -> SUB: valid bytes, wrong answer
+    const h = harness([{ kind: "submit", envelope: env(sqHex) }, { kind: "submit", envelope: env(wrongHex) }]);
     await runAttempt(h.state, { idempotencyKey: "k1", feedback: null }, h.deps);
     await runAttempt(h.state, { idempotencyKey: "k2", feedback: feedback("abc", false) }, h.deps);
     const input = h.model.requests[1]!.input as { type?: string; output?: string; call_id?: string }[];

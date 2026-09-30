@@ -244,6 +244,7 @@ export class ReferenceEngine implements Engine {
       effectsTruncated: eff.truncated,
       effectsHash: this.devices.effectsHash(),
       framebufferHash: this.devices.framebufferHash(),
+      finalFramebuffer: (this.module.features & 4) !== 0 ? this.devices.framebuffer.slice() : null,
       framesPresented: this.devices.framesPresented,
       trap: this.trap,
       counters: {
