@@ -75,6 +75,8 @@ export interface MachineCounters {
   heapAllocations: number;
   hostCalls: number;
   hostWallTimeMs: number;
+  /** Synthetic modeled ticks from the declared cost model (anma-cost/1). Not measured cycles. */
+  modeledTicks: number;
 }
 
 export interface MachineConfig {
@@ -317,6 +319,8 @@ export interface EngineOptions {
   /** Pre-recorded tick events for deterministic replay (Section 13). */
   ticks?: TickEvent[];
   hooks?: EngineHooks;
+  /** Chip-view instrumentation: receives every microstep. Never alters counters or results. */
+  onEvent?: (e: MicroEvent) => void;
 }
 
 export interface Engine {
@@ -350,7 +354,7 @@ export interface MachineSnapshot {
   config: MachineConfig;
   slots: SlotView[];
   latches: { A: string | null; B: string | null; R: string | null };
-  backing: { used: number; capacity: number; sample: { entry: number; value: string; payload: string }[] };
+  backing: { used: number; capacity: number; sample: { entry: number; value: string; payload: string }[]; highWater: number; occupied: number[] };
   staging: { usedBytes: number; capacityBytes: number };
   frames: { functionId: number; blockId: number; blockActivation: number; liveValues: number }[];
   liveValues: number;
@@ -360,3 +364,51 @@ export interface MachineSnapshot {
   trace: { seq: number; text: string }[];
   traceTruncated: boolean;
 }
+
+// ---------------------------------------------------------------------------
+// Micro-events and the modeled-tick cost model (chip view; PRD Sections 5.1, 12.4)
+
+/** Functional units of the modeled microarchitecture. */
+export type ChipUnit =
+  | "imem"
+  | "fetch"
+  | "decode"
+  | "directory"
+  | "slots"
+  | "latches"
+  | "alu"
+  | "backing"
+  | "staging"
+  | "stack"
+  | "heap"
+  | "io"
+  | "regfile" // ANMR-1 register file
+  | "spill"; // ANMR-1 spill memory
+
+/**
+ * One microstep, exactly as the machine performed it. `at` is the modeled tick at which it starts
+ * and `ticks` its declared latency from the versioned cost model; neither is a measured cycle.
+ */
+export type MicroEvent = { at: number; ticks: number } & (
+  | { u: "fetch"; rec: number; op: string; text: string }
+  | { u: "hit"; slot: number; latch: "A" | "B" | "R"; value: string; payload: string }
+  | { u: "miss"; entry: number; latch: "A" | "B" | "R"; value: string; payload: string }
+  | { u: "install"; slot: number; value: string }
+  | { u: "evict"; slot: number; entry: number; value: string }
+  | { u: "alu"; op: string; result: string }
+  | { u: "publish"; slot: number; value: string; payload: string }
+  | { u: "reclaim"; slot: number | null; entry: number | null; value: string }
+  | { u: "stage"; payload: string }
+  | { u: "heap"; kind: "alloc" | "load" | "store" }
+  | { u: "host"; name: string }
+  | { u: "branch"; target: number; taken: boolean | null }
+  | { u: "call"; fn: number }
+  | { u: "return"; fn: number }
+  // ANMR-1 register machine
+  | { u: "reg-read"; reg: number; payload: string }
+  | { u: "reg-write"; reg: number; payload: string }
+  | { u: "save"; reg: number; slot: number; payload: string }
+  | { u: "restore"; slot: number; reg: number; payload: string }
+);
+
+export type MicroEventKind = MicroEvent["u"];

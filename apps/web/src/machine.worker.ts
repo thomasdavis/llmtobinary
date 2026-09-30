@@ -9,7 +9,8 @@ import { runTaskTests, redactForModel, TASK_BY_ID } from "@llmtobinary/tasks";
 import { parseAnnotations } from "@llmtobinary/annotations";
 import { capstoneWitness, runInvariance } from "@llmtobinary/research";
 import type { TickEvent } from "@llmtobinary/protocol";
-import type { CompareRow, FromMachine, ToMachine } from "./worker-protocol.ts";
+import type { CompareRow, FromChip, FromMachine, ToChip, ToMachine } from "./worker-protocol.ts";
+import { handleChip } from "./chip/chip-worker.ts";
 
 declare const self: DedicatedWorkerGlobalScope;
 
@@ -89,8 +90,12 @@ function validated(bytes: Uint8Array, allowedFeatures: number): Module {
   return v.module;
 }
 
-self.onmessage = (ev: MessageEvent<ToMachine>) => {
-  const m = ev.data;
+self.onmessage = (ev: MessageEvent<ToMachine | ToChip>) => {
+  if (ev.data.type.startsWith("chip-")) {
+    handleChip(ev.data as ToChip, (r: FromChip) => self.postMessage(r));
+    return;
+  }
+  const m = ev.data as ToMachine;
   try {
     switch (m.type) {
       case "load": {

@@ -205,3 +205,20 @@ describe("machine-invariance track", () => {
     }
   });
 });
+
+describe("ANMR-1 stepping machine on the shared tick clock", () => {
+  it("events account for spills and ticks; results match the oracle", async () => {
+    const { LATENCY } = await import("@llmtobinary/runtime");
+    for (const R of [4, 8, 16, 32]) {
+      const v = validateAnmr(bytes(`anmr-capstone-r${R}.anmr`));
+      if (!v.ok) throw new Error();
+      const events: { u: string; ticks: number }[] = [];
+      const r = runAnmr(v.program, 7n, (e) => events.push(e));
+      expect(r.value).toBe(capstoneOracle(7n));
+      expect(events.filter((e) => e.u === "save").length).toBe(r.counters.saves);
+      expect(events.filter((e) => e.u === "restore").length).toBe(r.counters.restores);
+      expect(events.reduce((s, e) => s + e.ticks, 0)).toBe(r.counters.modeledTicks);
+      expect(r.counters.saves * LATENCY.save + r.counters.restores * LATENCY.restore).toBeLessThanOrEqual(r.counters.modeledTicks);
+    }
+  });
+});
