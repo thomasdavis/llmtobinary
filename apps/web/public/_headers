@@ -1,0 +1,8 @@
+# Security headers for static assets (PRD Section 8.6). The Worker sets matching headers on /api/*.
+# Same-origin scripts, workers, and fetches only; no unsafe-eval. The browser never contacts OpenAI.
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self'; worker-src 'self'; connect-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+  Cross-Origin-Opener-Policy: same-origin

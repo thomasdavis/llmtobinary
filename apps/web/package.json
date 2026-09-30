@@ -30,7 +30,8 @@
     "@llmtobinary/verify": "workspace:*",
     "openai": "7.25.0",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "@llmtobinary/research": "workspace:*"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "1.62.2",

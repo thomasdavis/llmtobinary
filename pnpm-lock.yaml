@@ -208,6 +208,9 @@ importers:
       '@llmtobinary/reference':
         specifier: workspace:*
         version: link:../../packages/reference
+      '@llmtobinary/research':
+        specifier: workspace:*
+        version: link:../../packages/research
       '@llmtobinary/runtime':
         specifier: workspace:*
         version: link:../../packages/runtime
@@ -311,9 +314,9 @@ importers:
       '@llmtobinary/spec':
         specifier: workspace:*
         version: link:../spec
-      '@llmtobinary/validate':
+      '@llmtobinary/tasks':
         specifier: workspace:*
-        version: link:../validate
+        version: link:../tasks
       openai:
         specifier: 7.25.0
         version: 7.25.0(undici@7.29.1)(ws@8.21.0)(zod@4.4.3)
@@ -401,9 +404,9 @@ importers:
 
   packages/research:
     dependencies:
-      '@llmtobinary/decode':
+      '@llmtobinary/devices':
         specifier: workspace:*
-        version: link:../decode
+        version: link:../devices
       '@llmtobinary/diagnostics':
         specifier: workspace:*
         version: link:../diagnostics
@@ -419,9 +422,6 @@ importers:
       '@llmtobinary/spec':
         specifier: workspace:*
         version: link:../spec
-      '@llmtobinary/tasks':
-        specifier: workspace:*
-        version: link:../tasks
       '@llmtobinary/validate':
         specifier: workspace:*
         version: link:../validate
@@ -454,12 +454,6 @@ importers:
       '@llmtobinary/annotations':
         specifier: workspace:*
         version: link:../annotations
-      '@llmtobinary/check':
-        specifier: workspace:*
-        version: link:../check
-      '@llmtobinary/decode':
-        specifier: workspace:*
-        version: link:../decode
       '@llmtobinary/devices':
         specifier: workspace:*
         version: link:../devices
