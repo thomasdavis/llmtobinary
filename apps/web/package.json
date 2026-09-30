@@ -5,13 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "node ../../scripts/prepare-z3-assets.mjs && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.worker.json",
     "types": "wrangler types --env-interface Env worker/worker-configuration.d.ts",
     "test:worker": "vitest run -c vitest.worker.config.ts",
-    "deploy": "vite build && wrangler deploy",
-    "deploy:staging": "CLOUDFLARE_ENV=staging vite build && wrangler deploy --env staging"
+    "deploy": "node ../../scripts/prepare-z3-assets.mjs && vite build && wrangler deploy",
+    "deploy:staging": "node ../../scripts/prepare-z3-assets.mjs && CLOUDFLARE_ENV=staging vite build && wrangler deploy"
   },
   "dependencies": {
     "@llmtobinary/annotations": "workspace:*",
@@ -31,7 +31,8 @@
     "openai": "7.25.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
-    "@llmtobinary/research": "workspace:*"
+    "@llmtobinary/research": "workspace:*",
+    "z3-solver": "5.2.0"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "1.62.2",

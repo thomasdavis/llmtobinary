@@ -72,6 +72,13 @@ await page.getByRole("button", { name: /Compare across F/ }).click();
 await page.getByText(/✓ identical return value, terminal bytes, effects, and framebuffer at every completed F/).waitFor({ timeout: 60_000 });
 ok(true, "same-binary comparison across F = 1/4/8/16/32/64 agrees");
 
+// T3 in the browser: cross-origin isolation + chunked z3 prove the task contract
+ok(await page.evaluate(() => self.crossOriginIsolated), "page is cross-origin isolated (COOP + COEP)");
+await page.getByText(/Formal verification \(T3/).click();
+await page.getByRole("button", { name: "Verify with z3" }).click();
+await page.locator("details.verify").getByText(/proved to meet|refuted|unproven|unavailable/).first().waitFor({ timeout: 240_000 });
+ok((await page.locator("details.verify").textContent()).includes("✓ proved to meet the task specification for all inputs (partial correctness)"), "T3 proves square-plus-two against its task contract in the browser");
+
 // Capstone: real backing traffic at F = 4
 await page.getByRole("button", { name: "upstream-capstone-40.anma" }).click();
 await page.getByText("d6e710f149bac62226ad57f9d3a2f4e4bf958cebbf3727994f0ec5477013e88a").waitFor();

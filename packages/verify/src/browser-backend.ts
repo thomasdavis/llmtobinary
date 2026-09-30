@@ -25,7 +25,13 @@ async function sha256Hex(b: Uint8Array<ArrayBuffer>): Promise<string> {
 
 let cached: Promise<SolverBackend> | null = null;
 
-export function browserZ3Backend(baseUrl: string): Promise<SolverBackend> {
+export type Z3Init = (overrides: object) => Promise<{ Z3: Z3LowLevel }>;
+
+/**
+ * @param init z3-solver's browser `init` (imported statically by the classic verifier worker, which
+ *   cannot code-split); `initZ3` is installed globally by importScripts of the solver script.
+ */
+export function browserZ3Backend(baseUrl: string, init: Z3Init): Promise<SolverBackend> {
   cached ??= (async () => {
     if (!(globalThis as { crossOriginIsolated?: boolean }).crossOriginIsolated) {
       throw new SolverUnavailable("this page is not cross-origin isolated, so SharedArrayBuffer (needed by z3's threads) is unavailable");
@@ -43,7 +49,6 @@ export function browserZ3Backend(baseUrl: string): Promise<SolverBackend> {
     }
     if (o !== manifest.wasmBytes || (await sha256Hex(wasm)) !== manifest.wasmSha256) throw new SolverUnavailable("solver wasm chunks do not match the manifest hash");
     importScripts(`${baseUrl}/${manifest.script}`);
-    const { init } = (await import("z3-solver")) as unknown as { init(overrides: object): Promise<{ Z3: Z3LowLevel }> };
     const { Z3 } = await init({ wasmBinary: wasm.buffer, mainScriptUrlOrBlob: `${baseUrl}/${manifest.script}`, locateFile: (p: string) => `${baseUrl}/${p}` });
     return backendFromZ3(Z3, "browser");
   })();

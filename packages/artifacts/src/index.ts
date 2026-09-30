@@ -197,7 +197,7 @@ export interface Manifest {
     loopTranscriptIncluded: boolean;
     reasoningCarried: boolean | null;
   };
-  validation: { ok: boolean; checker: string; taskId: string | null; testReport: TestReport | null; witness: unknown };
+  validation: { ok: boolean; checker: string; taskId: string | null; testReport: TestReport | null; witness: unknown; verification: unknown };
   runs: {
     config: MachineConfig;
     inputs: EntryInput[];
@@ -249,6 +249,8 @@ export interface ManifestInput {
   checker: string;
   testReport: TestReport | null;
   witness?: unknown;
+  /** T3 verification report (prover id, contract owner, outcomes). */
+  verification?: unknown;
   runs: { config: MachineConfig; inputs: EntryInput[]; ticks: TickEvent[]; result: RunResult }[];
 }
 
@@ -289,7 +291,7 @@ export async function buildManifest(m: ManifestInput): Promise<Manifest> {
       reasoningCarried: null,
       ...m.generation,
     },
-    validation: { ok: m.validationOk, checker: m.checker, taskId: a.taskId, testReport: m.testReport, witness: m.witness ?? null },
+    validation: { ok: m.validationOk, checker: m.checker, taskId: a.taskId, testReport: m.testReport, witness: m.witness ?? null, verification: m.verification ?? null },
     runs,
     manualEdits: false,
     assistedConstruction: a.provenance.kind === "model-generated" ? "checker-assisted loop: static diagnostics only; no bytes were produced or repaired by the application" : a.provenance.kind === "bundled-fixture" ? "developer/specification fixture (tool-created or specification bytes), not model output" : "imported file; claims unverified until rerun",

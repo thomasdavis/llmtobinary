@@ -29,10 +29,10 @@ Legend: **verified** = automated tests in this repo pass · **live** = exercised
 ## Milestone F — research
 - **verified** Capstone pressure witness (certificates; rejects streaming, rematerialization, wrong permutations, loops); machine-invariance harness; ANMR-1 validator/interpreter/witness with R=4/8/16/32 fixtures; ANMR-1 generation path in the broker/Worker (research control).
 - **verified** T3: QF_BV verification conditions + z3 (Node) prove return-42, square-plus-two and the exact capstone against task contracts; refute mutated variants with counterexamples confirmed by T2; loop invariants proved; non-inductive invariants flagged; timeouts are `unknown`, never `proved`. CLI: `tools/research-cli/src/verify.ts`.
+- **live** T3 in the browser: the page is cross-origin isolated (COOP + COEP `require-corp`, all assets same-origin); z3's 34 MB wasm is served as two hash-checked chunks under the 25 MiB per-file asset limit and loaded by a classic verifier worker (`'wasm-unsafe-eval'` for the trusted solver only). "Verify with z3" proves square-plus-two against its task contract in about 5 s in headless Chromium; the report is included in exported manifests.
 - **not yet** The Section 18.6 study itself (runner implemented in `tools/research-cli/src/trials.ts`; it refuses to run without an approved budget).
 
 ## Not yet / deviations
-- **Browser T3 not deployed.** z3's wasm is 34 MB (> 25 MiB Workers asset limit) and needs `SharedArrayBuffer` (cross-origin isolation) plus `'wasm-unsafe-eval'`. A chunked-asset browser backend exists (`packages/verify/src/browser-backend.ts`) but is not wired into the UI; T3 runs in Node.
 - **Browser coverage:** headless Chromium and Firefox 142 pass the full E2E against production (live generation E2E on Chromium/staging). WebKit is not yet run: it needs system libraries (GStreamer, libvpx, …) that would require apt installs on this shared host; the deploy workflow runs the E2E on Chromium, Firefox, and WebKit with `playwright-core install --with-deps`.
 - **Production live generation is off** (fixture mode) pending a spend decision; staging has live generation with `$0.50`/session and `$1.00`/day caps and conservative price ceilings (`$2`/`$10` per million tokens) that over-reserve.
 - **Compatibility date** pinned to 2026-08-20 (the newest date supported by the pinned test runtime).

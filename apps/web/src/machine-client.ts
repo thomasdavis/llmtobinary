@@ -37,7 +37,7 @@ export class MachineClient {
   }
 
   private spawn(): Worker {
-    const w = new Worker(new URL("./machine.worker.ts", import.meta.url), { type: "module" });
+    const w = new Worker(new URL("./machine.worker.ts", import.meta.url));
     w.onmessage = (ev: MessageEvent<FromMachine>) => this.onMessage(ev.data);
     w.onerror = (e) => this.update({ error: e.message || "machine worker error", status: "trapped" });
     return w;

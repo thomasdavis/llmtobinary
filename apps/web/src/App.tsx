@@ -8,7 +8,8 @@ import { getConfig, type Config } from "./api.ts";
 import { loadArtifact, type LoadedArtifact } from "./artifact.ts";
 import { loadFixture } from "./fixtures.ts";
 import { GenerationController, type GenState, type SubmittedCandidate } from "./generation.ts";
-import { Inspector } from "./Inspector.tsx";
+import { Inspector, type VerificationState } from "./Inspector.tsx";
+import { verify } from "./verify-client.ts";
 import { MachinePanel, parseEntryInputs } from "./Machine.tsx";
 import { MachineClient, type MachineView } from "./machine-client.ts";
 import { TaskPanel } from "./TaskPanel.tsx";
@@ -43,6 +44,7 @@ export function App() {
   const [comparing, setComparing] = useState(false);
   const [tab, setTab] = useState<"program" | "executable" | "machine">("program");
   const [notice, setNotice] = useState<string | null>(null);
+  const [verification, setVerification] = useState<VerificationState | null>(null);
   const [lastRun, setLastRun] = useState<{ inputs: ReturnType<typeof parseEntryInputs>["inputs"]; F: number } | null>(null);
 
   useEffect(() => machine.subscribe(setView), [machine]);
@@ -200,6 +202,7 @@ export function App() {
       checker: CHECKER_ID,
       testReport: artifact.test,
       witness: artifact.witness,
+      verification: verification?.sha === artifact.record.sha256 && verification.status === "done" ? verification.report : null,
       runs,
       ...(prov.kind === "model-generated"
         ? { generation: { sessionId: prov.sessionId, attemptIds: [prov.attemptId], requestedModel: prov.requestedModel, mode: prov.mode, promptVersion: prov.promptVersion, outcome: genState.sessionId === prov.sessionId ? genState.outcome : null, usage: genState.counters ? { outputTokens: genState.counters.outputTokens, inputTokens: genState.counters.inputTokens, unknownUsageTurns: genState.counters.unknownUsageTurns } : null, budgetPolicy: config?.pricePolicy ?? null, loopTranscriptIncluded: withPrompts, reasoningCarried: null, providerResponseIds: genState.events.filter((e) => e.type === "attempt.completed").flatMap((e) => (e as { responseIds: string[] }).responseIds) } }
@@ -246,7 +249,18 @@ export function App() {
           <TaskPanel config={config} configError={configError} gen={genState} history={history} onFixture={onFixture} onGenerate={(req: CreateSessionRequest) => void gen.start(req)} onCancel={() => void gen.cancel()} onSelectSubmission={(c) => void onSubmission(c)} onSelectHistory={(h) => void loadArtifact({ bytes: h.bytes, annotations: h.annotations, name: h.name, taskId: h.taskId, provenance: h.provenance, responseText: h.responseText, allowedFeatures: allowed }).then((a) => select(a))} onImport={(f) => void onImport(f)} onExport={(w) => void onExport(w)} onDownload={onDownload} onClearHistory={() => void onClearHistory()} hasArtifact={!!artifact} />
         </div>
         <div className="col col-executable">
-          <Inspector artifact={artifact} selected={selected} onSelect={setSelected} />
+          <Inspector
+            artifact={artifact}
+            selected={selected}
+            onSelect={setSelected}
+            verification={verification}
+            onVerify={() => {
+              if (!artifact) return;
+              const sha = artifact.record.sha256;
+              setVerification({ sha, status: "running" });
+              void verify(artifact.record.bytes, artifact.record.taskId, artifact.record.annotations).then((r) => setVerification(r.ok ? { sha, status: "done", report: r.report } : { sha, status: "unavailable", reason: r.unavailable }));
+            }}
+          />
         </div>
         <div className="col col-machine">
           <MachinePanel artifact={artifact} view={view} machine={machine} F={F} setF={changeF} inputTexts={inputTexts} setInputTexts={setInputTexts} onLoadRun={(replay) => loadRun(!!replay)} compare={compare} onCompare={() => void onCompare()} comparing={comparing} allowedFeatures={allowed} />

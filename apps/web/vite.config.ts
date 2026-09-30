@@ -16,7 +16,8 @@ const commit = (() => {
 export default defineConfig({
   plugins: [react(), cloudflare()],
   define: { __BUILD_COMMIT__: JSON.stringify(commit) },
-  worker: { format: "es" },
+  // Classic (IIFE) workers: the T3 verifier uses importScripts for the z3 solver script.
+  worker: { format: "iife" },
   // Fixtures stay separate same-origin files: the CSP (connect-src 'self') forbids fetching data: URLs.
   build: { target: "es2022", sourcemap: false, chunkSizeWarningLimit: 2000, assetsInlineLimit: (file) => (file.endsWith(".anma") ? false : undefined) },
 });

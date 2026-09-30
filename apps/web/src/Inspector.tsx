@@ -2,8 +2,12 @@ import { useMemo, useState } from "react";
 import { disassemble, describeHeader, recordBytesHex } from "@llmtobinary/decode";
 import { compareClaim } from "@llmtobinary/annotations";
 import { TYPE_NAMES, featureList } from "@llmtobinary/spec";
+import { TASK_BY_ID } from "@llmtobinary/tasks/registry";
 import type { LoadedArtifact } from "./artifact.ts";
 import { DiagnosticList } from "./Diagnostics.tsx";
+import type { VerificationReport } from "@llmtobinary/verify";
+
+export type VerificationState = { sha: string; status: "running" } | { sha: string; status: "done"; report: VerificationReport } | { sha: string; status: "unavailable"; reason: string };
 
 const MAX_ROWS = 2000;
 
@@ -17,7 +21,7 @@ function statusText(a: LoadedArtifact): string {
   return a.record.taskId ? "✓ valid (not yet tested)" : "✓ valid; intent not independently verified";
 }
 
-export function Inspector({ artifact, selected, onSelect }: { artifact: LoadedArtifact | null; selected: number | null; onSelect: (i: number | null) => void }) {
+export function Inspector({ artifact, selected, onSelect, verification, onVerify }: { artifact: LoadedArtifact | null; selected: number | null; onSelect: (i: number | null) => void; verification: VerificationState | null; onVerify: () => void }) {
   const [tab, setTab] = useState<"records" | "hex" | "values" | "diagnostics">("records");
   const a = artifact;
   const rows = useMemo(() => {
@@ -44,6 +48,7 @@ export function Inspector({ artifact, selected, onSelect }: { artifact: LoadedAr
         {a.decoded && <><dt>header</dt><dd><code>{describeHeader(a.decoded.header)}</code> ({featureList(a.decoded.header.features).join(", ") || "no devices"})</dd></>}
         {a.test && <><dt>verification</dt><dd>{a.test.tier === "T2" ? `held on ${a.test.cases.filter((c) => c.kind !== "contract" && c.kind !== "witness").length} executions (${a.test.contractOwner === "task" ? "task contract" : "model's contract"}) — evidence, not proof` : a.test.tier === "T1" ? "claims match bytes" : "tests only"}{held?.length ? "" : ""}</dd></>}
       </dl>
+      <Verification a={a} v={verification?.sha === a.record.sha256 ? verification : null} onVerify={onVerify} />
       <div role="tablist" className="tabs small">
         {(["records", "hex", "values", "diagnostics"] as const).map((t) => (
           <button key={t} role="tab" aria-selected={tab === t} className={tab === t ? "on" : ""} onClick={() => setTab(t)}>
@@ -128,5 +133,29 @@ function Values({ a }: { a: LoadedArtifact }) {
         </div>
       ))}
     </div>
+  );
+}
+
+function Verification({ a, v, onVerify }: { a: LoadedArtifact; v: VerificationState | null; onVerify: () => void }) {
+  const canTask = !!a.record.taskId && !!TASK_BY_ID.get(a.record.taskId)?.referenceContract;
+  const canModel = !!a.annotations?.contracts.length;
+  if (!a.module || (!canTask && !canModel)) return null;
+  return (
+    <details className="verify" open={!!v}>
+      <summary>Formal verification (T3, z3 in your browser) — {canTask ? "task reference contract" : "the model's own contract"}</summary>
+      <button onClick={onVerify} disabled={v?.status === "running"}>{v?.status === "running" ? "Verifying… (loading a 34 MB solver the first time)" : "Verify with z3"}</button>
+      {v?.status === "unavailable" && <p className="muted">T3 unavailable here: {v.reason}</p>}
+      {v?.status === "done" && (
+        <div>
+          <p><strong>{v.report.overall === "proved" ? "✓ " : v.report.overall === "refuted" ? "✕ " : "? "}{v.report.label}</strong></p>
+          <ul className="mono small">
+            {v.report.outcomes.map((o) => (
+              <li key={o.id}>{o.status === "proved" ? "✓" : o.status === "refuted" ? "✕" : "?"} {o.description}{o.counterexample ? ` — counterexample inputs ${o.counterexample.join(", ")}` : ""} <span className="muted">({o.ms} ms)</span></li>
+            ))}
+          </ul>
+          <p className="muted small">{v.report.prover} · {v.report.vcgen} · partial correctness only (termination is not proved).</p>
+        </div>
+      )}
+    </details>
   );
 }
