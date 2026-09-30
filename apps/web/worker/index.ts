@@ -73,6 +73,13 @@ function validateCreate(body: unknown, env: Env): CreateSessionRequest {
   if (t.returns !== "unit" && t.returns !== "u64" && t.returns !== "bool") throw new HttpError(400, "returns must be unit/u64/bool");
   if (!Number.isInteger(t.allowedFeatures) || (t.allowedFeatures & ~allowedFeatures(env)) !== 0) throw new HttpError(400, "allowedFeatures exceeds the host policy");
   if (typeof t.requireClaims !== "boolean") throw new HttpError(400, "requireClaims must be a boolean");
+  if (t.isa !== undefined && t.isa !== "ANMA-1" && t.isa !== "ANMR-1") throw new HttpError(400, "isa must be ANMA-1 or ANMR-1");
+  if (t.isa === "ANMR-1") {
+    const spec = t.taskId ? TASK_BY_ID.get(t.taskId) : null;
+    if (!spec?.pressure || b.mode !== "tools" || !Number.isInteger(t.registers) || t.registers! < 4 || t.registers! > 32) {
+      throw new HttpError(400, "ANMR-1 (research control) needs a capstone task, tools mode, and 4..32 registers");
+    }
+  }
   // Curated tasks use the registry's own feature set; clients cannot widen it.
   const task = t.taskId ? { ...t, description: null, allowedFeatures: TASK_BY_ID.get(t.taskId)!.features & t.allowedFeatures } : t;
   return { task, mode: b.mode, profile: "default" };

@@ -17,6 +17,7 @@
     "@llmtobinary/protocol": "workspace:*",
     "@llmtobinary/check": "workspace:*",
     "@llmtobinary/tasks": "workspace:*",
-    "openai": "7.25.0"
+    "openai": "7.25.0",
+    "@llmtobinary/anmr": "workspace:*"
   }
 }

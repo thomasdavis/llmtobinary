@@ -79,3 +79,18 @@ describe("misaligned drafts (stray bytes)", () => {
     expect(out.report.errors.length).toBeLessThanOrEqual(2);
   });
 });
+
+describe("PRD Section 17.2 reproduces exactly", () => {
+  it("the report printed in the PRD equals the checker's output", async () => {
+    const prd = readFileSync(new URL("../../../PRD.md", import.meta.url), "utf8");
+    const at = prd.indexOf("### 17.2 A malformed draft");
+    const block = prd.slice(prd.indexOf("```json", at) + 7, prd.indexOf("```", prd.indexOf("```json", at) + 7));
+    const printed = JSON.parse(block);
+    const bad = new Uint8Array([...sq.subarray(0, 144), ...sq.subarray(160)]);
+    const out = await checkCandidate({ envelope: { isa: "ANMA-1", hex: toHex(bad), annotations: { ...annotations, examples: [] } } });
+    expect(out.report.errors).toEqual(printed.errors);
+    expect(out.report.suppressed).toBe(printed.suppressed);
+    expect(out.report.sha256).toBe(printed.sha256);
+    expect(out.report.annotations).toEqual(printed.annotations);
+  });
+});

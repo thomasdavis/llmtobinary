@@ -9,7 +9,7 @@ import { validateBytes } from "@llmtobinary/validate";
 import { FIXTURES } from "./fixtures.ts";
 import { BUILDER_VERSION } from "./builder.ts";
 import { ANMR_REGISTER_COUNTS, anmrCapstone } from "./anmr.ts";
-import { validateAnmr } from "../../../packages/research/src/anmr.ts";
+import { validateAnmr } from "../../../packages/anmr/src/index.ts";
 
 const root = new URL("../../../fixtures/", import.meta.url);
 const check = process.argv.includes("--check");

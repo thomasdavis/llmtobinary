@@ -94,3 +94,17 @@ export const TOOLS = [
     parameters: candidateEnvelopeSchema as unknown as Record<string, unknown>,
   },
 ];
+
+/** ANMR-1 envelope (research control): same shape, no annotations. */
+export const anmrEnvelopeSchema = {
+  type: "object",
+  properties: { isa: { type: "string", enum: ["ANMR-1"] }, hex: { type: "string" }, annotations: { type: "null" } },
+  required: ["isa", "hex", "annotations"],
+  additionalProperties: false,
+} as const;
+
+export const ANMR_TOOLS = TOOLS.map((t) => ({
+  ...t,
+  description: t.description.replace(/ANMA-1/g, "ANMR-1").replace(" and cross-check its annotations", ""),
+  parameters: anmrEnvelopeSchema as unknown as Record<string, unknown>,
+}));

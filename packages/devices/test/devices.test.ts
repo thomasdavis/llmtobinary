@@ -11,7 +11,7 @@ describe("runtime trap rules", () => {
     expect(a.ok).toBe(true);
     const load = h.load("u64", { handle: 99, elem: "u64" }, 0n);
     expect(!load.ok && load.trap.rule).toBe("ANMA-R-003"); // INVALID_HANDLE (unreachable from validated guest code)
-    const oob = h.load("u64", (a as { value: never }).value, 5n);
+    const oob = h.load("u64", (a as unknown as { value: never }).value, 5n);
     expect(!oob.ok && oob.trap.rule).toBe("ANMA-R-002"); // BOUNDS
     const tooBig = new Heap({ heapPayloadBytes: 8 }).alloc("u64", 2n);
     expect(!tooBig.ok && tooBig.trap.rule).toBe("ANMA-R-005"); // RESOURCE_EXHAUSTED

@@ -1,0 +1,27 @@
+name: ci
+on:
+  push:
+  pull_request:
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # The repo .npmrc pins a store path for the development box; CI uses its own.
+      - run: pnpm install --frozen-lockfile --store-dir ~/.pnpm-store
+      - name: Normative spec is in sync with PRD Sections 10–13
+        run: node scripts/spec-hash.mjs --check
+      - name: Import graph (no engines/verifier/builders in the Worker; declared deps)
+        run: node scripts/check-deps.mjs
+      - name: Tool-created fixtures are up to date
+        run: node --experimental-transform-types --no-warnings tools/fixture-builder/src/build-fixtures.ts --check
+      - run: pnpm typecheck
+      - run: pnpm test
+      - name: Worker + Durable Objects in workerd (scripted fake model)
+        run: pnpm test:worker
+      - run: pnpm build

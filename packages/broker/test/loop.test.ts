@@ -197,6 +197,20 @@ describe("agentic loop", () => {
     expect(h.model.requests).toHaveLength(0);
   });
 
+  it("ANMR-1 research control: ANMR tools, manual, and checker", async () => {
+    const anmrHex = toHex(new Uint8Array(readFileSync(new URL("anmr-capstone-r8.anmr", root))));
+    const h = harness([{ kind: "check", envelope: { isa: "ANMR-1", hex: anmrHex.slice(0, 64), annotations: null } }, { kind: "submit", envelope: { isa: "ANMR-1", hex: anmrHex, annotations: null } }]);
+    h.state.task = { ...h.state.task, taskId: "capstone-40", isa: "ANMR-1", registers: 8 };
+    h.state.items = [{ role: "user", content: "task" }];
+    await runAttempt(h.state, { idempotencyKey: "k", feedback: null }, h.deps);
+    expect(h.model.requests[0]!.isa).toBe("ANMR-1");
+    expect(h.model.requests[0]!.instructions).toContain("R = 8 registers");
+    const chk = h.events.find((e) => e.type === "check.result") as Extract<LoopEvent, { type: "check.result" }>;
+    expect(chk.report.errors[0]!.rule).toBe("ANMR-V-002");
+    const sub = h.events.find((e) => e.type === "candidate.submitted") as Extract<LoopEvent, { type: "candidate.submitted" }>;
+    expect(sub.candidate.byteLength).toBe(anmrHex.length / 2);
+  });
+
   it("raw-hex profile: text output is the submission", async () => {
     const h = harness([{ kind: "text", text: sqHex }]);
     h.state.mode = "raw-hex";

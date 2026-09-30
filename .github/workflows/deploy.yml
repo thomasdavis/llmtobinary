@@ -1,0 +1,34 @@
+name: deploy
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+concurrency: deploy-${{ github.ref }}
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: pnpm install --frozen-lockfile --store-dir ~/.pnpm-store
+      # main -> llmtobinary-staging; tags v* -> llmtobinary (production).
+      # Secrets (OPENAI_API_KEY, SESSION_SIGNING_KEY) are set out-of-band with `wrangler secret put`.
+      - name: Build and deploy
+        working-directory: apps/web
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            npx vite build && npx wrangler deploy
+          else
+            CLOUDFLARE_ENV=staging npx vite build && npx wrangler deploy
+          fi
+      - name: Live route checks against the deployed Worker
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then URL="${{ vars.PRODUCTION_URL }}"; else URL="${{ vars.STAGING_URL }}"; fi
+          node scripts/live-test.mjs "$URL"

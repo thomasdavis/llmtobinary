@@ -179,6 +179,10 @@ export interface TaskRequest {
   /** Feature bits the visitor permits. */
   allowedFeatures: number;
   requireClaims: boolean;
+  /** Research only: generate for the matched register-control ISA (Section 18.5). Default ANMA-1. */
+  isa?: "ANMA-1" | "ANMR-1";
+  /** ANMR-1 architectural register count R (4..32). */
+  registers?: number;
 }
 
 export interface CreateSessionRequest {

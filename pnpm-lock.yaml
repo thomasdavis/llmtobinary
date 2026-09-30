@@ -267,6 +267,15 @@ importers:
         specifier: 4.144.0
         version: 4.144.0(@cloudflare/workers-types@5.20260930.1)(@types/node@22.20.4)
 
+  packages/anmr:
+    dependencies:
+      '@llmtobinary/diagnostics':
+        specifier: workspace:*
+        version: link:../diagnostics
+      '@llmtobinary/spec':
+        specifier: workspace:*
+        version: link:../spec
+
   packages/annotations:
     dependencies:
       '@llmtobinary/decode':
@@ -299,6 +308,9 @@ importers:
 
   packages/broker:
     dependencies:
+      '@llmtobinary/anmr':
+        specifier: workspace:*
+        version: link:../anmr
       '@llmtobinary/annotations':
         specifier: workspace:*
         version: link:../annotations
@@ -326,6 +338,9 @@ importers:
 
   packages/check:
     dependencies:
+      '@llmtobinary/anmr':
+        specifier: workspace:*
+        version: link:../anmr
       '@llmtobinary/annotations':
         specifier: workspace:*
         version: link:../annotations
@@ -407,6 +422,9 @@ importers:
 
   packages/research:
     dependencies:
+      '@llmtobinary/anmr':
+        specifier: workspace:*
+        version: link:../anmr
       '@llmtobinary/devices':
         specifier: workspace:*
         version: link:../devices
@@ -520,6 +538,27 @@ importers:
       '@llmtobinary/spec':
         specifier: workspace:*
         version: link:../../packages/spec
+      '@llmtobinary/validate':
+        specifier: workspace:*
+        version: link:../../packages/validate
+
+  tools/research-cli:
+    dependencies:
+      '@llmtobinary/annotations':
+        specifier: workspace:*
+        version: link:../../packages/annotations
+      '@llmtobinary/check':
+        specifier: workspace:*
+        version: link:../../packages/check
+      '@llmtobinary/protocol':
+        specifier: workspace:*
+        version: link:../../packages/protocol
+      '@llmtobinary/research':
+        specifier: workspace:*
+        version: link:../../packages/research
+      '@llmtobinary/tasks':
+        specifier: workspace:*
+        version: link:../../packages/tasks
       '@llmtobinary/validate':
         specifier: workspace:*
         version: link:../../packages/validate

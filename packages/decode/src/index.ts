@@ -145,7 +145,7 @@ export interface Envelope {
 export type EnvelopeResult = { ok: true; envelope: Envelope } | { ok: false; diagnostics: Diagnostic[] };
 
 /** Bounded, exact-key envelope parse. Accepts the JSON text of a submit/check call or the parsed object. */
-export function parseEnvelope(input: string | unknown, maxTextBytes: number = DEFAULT_LIMITS.modelResponseTextBytes): EnvelopeResult {
+export function parseEnvelope(input: string | unknown, maxTextBytes: number = DEFAULT_LIMITS.modelResponseTextBytes, expectedIsa: string = ISA_TAG): EnvelopeResult {
   let value: unknown = input;
   if (typeof input === "string") {
     const size = new TextEncoder().encode(input).length;
@@ -186,8 +186,8 @@ export function parseEnvelope(input: string | unknown, maxTextBytes: number = DE
       diagnostics: [diag("ANMA-T-006", { message: "The envelope has the wrong keys or value types.", found: problems.join("; "), expected: 'exactly the keys "isa", "hex", and "annotations"', stage: Stage.TRANSPORT })],
     };
   }
-  if (obj.isa !== ISA_TAG) {
-    return { ok: false, diagnostics: [diag("ANMA-T-007", { message: 'The "isa" tag must be "ANMA-1".', found: JSON.stringify(obj.isa), expected: '"ANMA-1"', stage: Stage.TRANSPORT })] };
+  if (obj.isa !== expectedIsa) {
+    return { ok: false, diagnostics: [diag("ANMA-T-007", { message: `The "isa" tag must be "${expectedIsa}".`, found: JSON.stringify(obj.isa), expected: JSON.stringify(expectedIsa), stage: Stage.TRANSPORT })] };
   }
   return { ok: true, envelope: { isa: ISA_TAG, hex: obj.hex as string, annotations: obj.annotations ?? null } };
 }

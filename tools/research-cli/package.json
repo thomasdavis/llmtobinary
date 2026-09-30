@@ -1,0 +1,19 @@
+{
+  "name": "@llmtobinary/research-cli",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Research trial runner (PRD Section 18.6). Spends money: refuses to run without explicit approval.",
+  "scripts": {
+    "typecheck": "tsc --noEmit -p .",
+    "trials": "node --experimental-transform-types --no-warnings src/trials.ts"
+  },
+  "dependencies": {
+    "@llmtobinary/check": "workspace:*",
+    "@llmtobinary/tasks": "workspace:*",
+    "@llmtobinary/research": "workspace:*",
+    "@llmtobinary/protocol": "workspace:*",
+    "@llmtobinary/validate": "workspace:*",
+    "@llmtobinary/annotations": "workspace:*"
+  }
+}

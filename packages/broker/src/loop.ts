@@ -3,13 +3,16 @@
 // Durable Object only persists and streams. Drafts passed to check_candidate are never candidates;
 // the server never edits, completes, pads, or re-encodes model bytes.
 
-import { checkCandidate, reportForModel } from "@llmtobinary/check";
+import { checkAnmrCandidate, checkCandidate, reportForModel } from "@llmtobinary/check";
 import { parseEnvelope, parseHex } from "@llmtobinary/decode";
 import { TASK_BY_ID, openTaskPromptText, taskPromptText } from "@llmtobinary/tasks/registry";
 import type { AttemptRequest, BrowserFeedback, Candidate, CheckReport, LoopBudget, LoopCounters, LoopEvent, OutputMode, StopOutcome, TaskRequest } from "@llmtobinary/protocol";
 import type { ModelClient, ModelEvent, ModelProfile, ModelUsage } from "./model.ts";
 import { CHECK_TOOL, SUBMIT_TOOL } from "./schema.ts";
-import { PROMPT_VERSION, generationInstructions } from "./prompts.ts";
+import { PROMPT_VERSION, anmrInstructions, generationInstructions } from "./prompts.ts";
+
+/** Spill slots offered in the ANMR-1 control (sufficient for every tested register count). */
+export const ANMR_SPILL_SLOTS = 64;
 
 export const LOOP_VERSION = "llmtobinary-loop/1";
 
@@ -92,6 +95,12 @@ export class LoopError extends Error {
 // ---------------------------------------------------------------------------
 
 export function taskText(task: TaskRequest): string {
+  if (task.isa === "ANMR-1") {
+    const spec = task.taskId ? TASK_BY_ID.get(task.taskId) : null;
+    const R = task.registers ?? 0;
+    if (!spec || !spec.pressure || !Number.isInteger(R) || R < 4 || R > 32) throw new LoopError("ANMR-1 sessions need a capstone task and 4..32 registers", 400);
+    return `${spec.prompt.replace(/ANMA-1 executable/g, "ANMR-1 program").replace(/its own ADD_U64/g, "its own ADD_U64 into a register")}\n\nWrite it for ANMR-1 with R = ${R} registers and S = ${ANMR_SPILL_SLOTS} spill slots; the input x is in r0 and RETURN names the register holding a.`;
+  }
   if (task.taskId) {
     const spec = TASK_BY_ID.get(task.taskId);
     if (!spec) throw new LoopError(`unknown task ${task.taskId}`, 400);
@@ -231,7 +240,8 @@ export async function runAttempt(state: SessionState, req: AttemptRequest, deps:
     if (state.counters.submissions >= state.budget.maxSubmissions) return stop("budget-exhausted", `ANMA-L-001: the submission budget (${state.budget.maxSubmissions}) is used up`);
   }
 
-  const instructions = generationInstructions();
+  const isAnmr = state.task.isa === "ANMR-1";
+  const instructions = isAnmr ? anmrInstructions(state.task.registers ?? 8, ANMR_SPILL_SLOTS) : generationInstructions();
   let retriedThisAttempt = false;
 
   // Inner loop.
@@ -276,7 +286,7 @@ export async function runAttempt(state: SessionState, req: AttemptRequest, deps:
     let failure: { code: string; message: string; retryable: boolean } | null = null;
     let incomplete: string | null = null;
     try {
-      for await (const ev of deps.model.turn({ profile: state.profile, instructions, input: state.items, mode: state.mode, maxOutputTokens: maxOut }, deps.signal)) {
+      for await (const ev of deps.model.turn({ profile: state.profile, instructions, input: state.items, mode: state.mode, maxOutputTokens: maxOut, isa: isAnmr ? "ANMR-1" : "ANMA-1" }, deps.signal)) {
         if (ev.type === "text.delta") await emit({ type: "model.text.delta", delta: ev.delta });
         else if (ev.type === "tool_args.delta") await emit({ type: "model.tool_args.delta", tool: ev.name === SUBMIT_TOOL ? SUBMIT_TOOL : CHECK_TOOL, delta: ev.delta });
         else if (ev.type === "completed") {
@@ -345,7 +355,7 @@ export async function runAttempt(state: SessionState, req: AttemptRequest, deps:
     }
     if (call.name === CHECK_TOOL) {
       c.checks++;
-      const out = await checkCandidate({ envelopeText: call.arguments }, { allowedFeatures: deps.allowedFeatures });
+      const out = isAnmr ? await checkAnmrCandidate({ envelopeText: call.arguments }) : await checkCandidate({ envelopeText: call.arguments }, { allowedFeatures: deps.allowedFeatures });
       const cand: Candidate = { attemptId: attempt.attemptId, kind: "check", seq: state.candidates.length, rawText: call.arguments, sha256: out.report.sha256, byteLength: out.report.byteLength };
       state.candidates.push(cand);
       await emit({ type: "check.requested", candidate: cand });
@@ -377,7 +387,7 @@ export async function runAttempt(state: SessionState, req: AttemptRequest, deps:
         len = h.bytes.length;
       }
     } else {
-      const env = parseEnvelope(rawText);
+      const env = parseEnvelope(rawText, undefined, state.task.isa === "ANMR-1" ? "ANMR-1" : "ANMA-1");
       if (env.ok) {
         const h = parseHex(env.envelope.hex);
         if (h.ok) {

@@ -9,6 +9,7 @@ import { validateBytes, type Module } from "@llmtobinary/validate";
 import { CATALOG_VERSION, assemble, jsonBytes, renderContext, type Diagnostic } from "@llmtobinary/diagnostics";
 import { canonicalJson, checkContracts, crossCheckClaims, parseAnnotations, type ParsedAnnotations } from "@llmtobinary/annotations";
 import type { AnnotationSummary, CheckReport } from "@llmtobinary/protocol";
+import { validateAnmr, type AnmrProgram } from "@llmtobinary/anmr";
 
 export interface CheckInput {
   /** JSON text of a check/submit call (or a response.json fixture). */
@@ -219,4 +220,36 @@ export async function checkCandidate(input: CheckInput, opts: CheckOptions = {})
 /** Render a report as compact text for the model's function_call_output (JSON is also acceptable). */
 export function reportForModel(report: CheckReport): string {
   return JSON.stringify(report);
+}
+
+// ---------------------------------------------------------------------------
+// ANMR-1 matched control (research, Section 18.5): the same static check for the register ISA.
+
+
+export async function checkAnmrCandidate(input: { envelopeText?: string; hex?: string }, opts: { maxCandidateBytes?: number } = {}): Promise<{ report: CheckReport; program: AnmrProgram | null; bytes: Uint8Array | null }> {
+  const report = baseReport();
+  const finish = (all: Diagnostic[]) => {
+    const a = assemble(all, { maxErrors: DEFAULT_LIMITS.diagnosticReportedErrors, maxBytes: DEFAULT_LIMITS.diagnosticReportBytes });
+    Object.assign(report, { errors: a.errors, warnings: a.warnings, suppressed: a.suppressed, omitted: a.omitted });
+  };
+  let hex = input.hex ?? "";
+  if (input.envelopeText !== undefined) {
+    const env = parseEnvelope(input.envelopeText, DEFAULT_LIMITS.modelResponseTextBytes, "ANMR-1");
+    if (!env.ok) {
+      finish(env.diagnostics);
+      return { report, program: null, bytes: null };
+    }
+    hex = env.envelope.hex;
+  }
+  const h = parseHex(hex, opts.maxCandidateBytes ?? DEFAULT_LIMITS.liveCandidateBytes);
+  if (!h.ok) {
+    finish(h.diagnostics);
+    return { report, program: null, bytes: null };
+  }
+  report.byteLength = h.bytes.length;
+  report.sha256 = await sha256Hex(h.bytes);
+  const v = validateAnmr(h.bytes);
+  finish(v.diagnostics);
+  report.ok = v.ok;
+  return { report, program: v.ok ? v.program : null, bytes: h.bytes };
 }

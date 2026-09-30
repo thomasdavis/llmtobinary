@@ -126,3 +126,23 @@ export function generationInstructions(): string {
 }
 
 export const RAW_HEX_ADDENDUM = `RAW-HEX RESEARCH PROFILE: there are no tools in this session. Reply with ONLY the hexadecimal digits of one complete ANMA-1 file (whitespace allowed) and nothing else. Diagnostics from the browser will follow as data.`;
+
+/** Instructions for the matched register-control condition (Section 18.5): equivalent working
+ * method and feedback policy; the model is told R and S because they are needed to write valid code. */
+export function anmrInstructions(R: number, S: number): string {
+  return [
+    GENERATION_SYSTEM.replace(/ANMA-1/g, "ANMR-1").replace(/Values are immutable logical values[^\n]*\n/, "You manage storage: registers r0..r" + (R - 1) + " are mutable, and values that do not fit must be saved to spill slots and restored explicitly.\n").replace(/\nAnnotations \(optional, recommended\)[\s\S]*?If you do not annotate, send "annotations": null\.\n/, "\nAlways send \"annotations\": null.\n"),
+    "",
+    `ANMR-1 MACHINE MANUAL (matched register control; R = ${R} registers, S = ${S} spill slots)`,
+    "1. File layout: 32-byte header of eight little-endian u32 words: 41 4e 4d 52 (\"ANMR\"), version 1, features 0, record count, data bytes 0, entry 0,",
+    `   word6 = R = ${R}, word7 = S = ${S}. Then 16-byte records [opcode, a, b, c] (little-endian u32 each). Length = 32 + 16*recordCount.`,
+    "2. Program: record 0 (FUNC fn0 1 u64) = [0x01,0,1,1]; record 1 (BLOCK block0 1 0) = [0x02,0,1,0]; record 2 (PARAM r0 u64 0) = [0x03,0,1,0]",
+    "   (the u64 input arrives in register r0); then instructions; the last instruction is RETURN; the final record is END_FUNC [0x04,0,0,0].",
+    "3. Instructions (fields name registers; all sources are read before the destination is written; arithmetic is modulo 2^64):",
+    "   0x10 CONST_U64 [rd, low32, high32]; 0x20 ADD_U64 / 0x21 SUB_U64 / 0x22 MUL_U64 / 0x27 XOR_U64 [rd, ra, rb];",
+    `   0x70 SAVE [rs, slot, 0] writes rs to spill slot 0..${S - 1}; 0x71 RESTORE [rd, slot, 0] reads an initialized slot; 0x43 RETURN [rs, 0, 0].`,
+    "   Reading an uninitialized register or restoring an unsaved slot traps. There is no hidden spilling or rematerialization.",
+    "",
+    renderRuleCatalog(),
+  ].join("\n");
+}

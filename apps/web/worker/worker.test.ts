@@ -1,8 +1,10 @@
-import { env, exports } from "cloudflare:workers";
+import { env as rawEnv, exports as rawExports } from "cloudflare:workers";
 import { describe, expect, it } from "vitest";
 
+const env = rawEnv as unknown as Env;
+const worker = (rawExports as unknown as { default: { fetch(r: Request): Promise<Response> } }).default;
 const ORIGIN = "https://example.com";
-const fetchApi = (path: string, init: RequestInit = {}) => exports.default.fetch(new Request(`${ORIGIN}${path}`, init));
+const fetchApi = (path: string, init: RequestInit = {}) => worker.fetch(new Request(`${ORIGIN}${path}`, init));
 const post = (path: string, body: unknown, headers: Record<string, string> = {}) =>
   fetchApi(path, { method: "POST", body: JSON.stringify(body), headers: { origin: ORIGIN, "content-type": "application/json", ...headers } });
 
@@ -108,7 +110,7 @@ describe("budget ledger", () => {
   it("is atomic under concurrent reservations", async () => {
     const stub = env.BUDGET_LEDGER.get(env.BUDGET_LEDGER.idFromName("atomic-test"));
     const results = await Promise.all(Array.from({ length: 20 }, (_, i) => stub.reserve(`s${i}`, `t${i}`, 0.4)));
-    expect(results.filter((r) => r.ok).length).toBe(12); // daily cap $5.00 / $0.40
+    expect(results.filter((r: { ok: boolean }) => r.ok).length).toBe(12); // daily cap $5.00 / $0.40
     const sum = await stub.summary();
     expect(sum.committedUsd).toBeCloseTo(4.8, 6);
     await stub.reconcile("t0", 0.1);

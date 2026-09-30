@@ -1030,39 +1030,73 @@ In this case the model's `ensures` is identical to the task's reference contract
 
 ### 17.2 A malformed draft and the diagnostic the model receives
 
-A typical first draft forgets the ARG record after HOST (deleting bytes 144–159) but keeps the header's record count of 10. The result is 176 bytes, SHA-256 `402eb506…cce6`. `check_candidate` returns this report (abridged; `context` shortened):
+A typical first draft forgets the ARG record after HOST (deleting bytes 144–159) but keeps the header's record count of 10. The result is 176 bytes, SHA-256 `402eb506…cce6`. `check_candidate` returns this report. It is the checker's actual output for that input, captured from `packages/check` and reproduced by its tests; only the listing is abridged here:
 
 ```json
 {
   "ok": false,
   "byteLength": 176,
+  "sha256": "402eb506b64f8dda3e5a9e6397abf73b8c8bad060b9e890643dee3443bb8cce6",
   "errors": [
     {
-      "rule": "ANMA-V-HDR-004", "severity": "error", "category": "LENGTH_MISMATCH",
+      "rule": "ANMA-V-HDR-004",
+      "severity": "error",
+      "category": "LENGTH_MISMATCH",
       "message": "File length does not match the header.",
-      "location": { "byteOffset": 12, "recordIndex": null, "field": "header.word3", "functionId": null, "blockId": null },
+      "location": {
+        "byteOffset": 12,
+        "recordIndex": null,
+        "field": "header.word3",
+        "functionId": null,
+        "blockId": null
+      },
       "found": "176 bytes; header word 3 (record count) = 10, word 4 (data bytes) = 0",
       "expected": "length = 32 + 16 * recordCount + dataBytes",
       "derived": "10 records need 192 bytes. 176 = 32 + 16*9, so the file holds 9 complete records: either one record is missing or the header count is wrong.",
-      "context": null, "claim": null, "manualRef": "§10.1"
+      "context": null,
+      "claim": null,
+      "manualRef": "§10.1"
     },
     {
-      "rule": "ANMA-V-ARG-001", "severity": "error", "category": "BAD_RECORD_GRAMMAR",
+      "rule": "ANMA-V-ARG-001",
+      "severity": "error",
+      "category": "BAD_RECORD_GRAMMAR",
       "message": "HOST declares 1 argument but is not followed by 1 ARG record.",
-      "location": { "byteOffset": 144, "recordIndex": 7, "field": "record.opcode", "functionId": 0, "blockId": 0 },
-      "found": "record 7 is 43 00 00 00 03 00 00 00 ... = RETURN v3",
+      "location": {
+        "byteOffset": 144,
+        "recordIndex": 7,
+        "field": "record.opcode",
+        "functionId": 0,
+        "blockId": 0
+      },
+      "found": "record 7 is (RETURN v3)",
       "expected": "record 7 must be ARG (opcode 0x44), because record 6 is HOST with argument count 1",
-      "derived": "If this ARG is added, the file will hold 10 records, which matches header word 3.",
-      "context": "  6 @128  60 00 00 00 ff ff ff ff 00 00 00 00 01 00 00 00  HOST _ import0 args=1   ; claim: (HOST _ terminal.print_u64 1)\n> 7 @144  43 00 00 00 03 00 00 00 00 00 00 00 00 00 00 00  RETURN v3             ; claim: (ARG v3)\n  8 @160  04 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  END_FUNC",
-      "claim": "(ARG v3)", "manualRef": "§10.4"
+      "derived": "If the missing record is added, the file will hold 10 records, which matches header word 3.",
+      "context": "  4 @96  10 00 00 00 02 00 00 00 02 00 00 00 00 00 00 00  (CONST_U64 v2 2)   ; claim: (CONST_U64 v2 2)\n  5 @112  20 00 00 00 03 00 00 00 01 00 00 00 02 00 00 00  (ADD_U64 v3 v1 v2)   ; claim: (ADD_U64 v3 v1 v2)\n  6 @128  60 00 00 00 ff ff ff ff 00 00 00 00 01 00 00 00  (HOST _ terminal.print_u64 1)   ; claim: (HOST _ terminal.print_u64 1)\n> 7 @144  43 00 00 00 03 00 00 00 00 00 00 00 00 00 00 00  (RETURN v3)   ; claim: (ARG v3)\n  8 @160  04 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (END_FUNC)   ; claim: (RETURN v3)",
+      "claim": "(ARG v3)",
+      "manualRef": "§10.4"
     }
   ],
-  "suppressed": 1,
-  "listing": "…bounded annotated disassembly of all 9 decodable records…"
+  "warnings": [],
+  "suppressed": 3,
+  "omitted": 0,
+  "listing": "…bounded annotated disassembly of all 9 decodable records…",
+  "listingTruncated": false,
+  "annotations": {
+    "present": true,
+    "records": 10,
+    "claimsChecked": 9,
+    "claimsMatched": 7,
+    "contracts": 1,
+    "invariants": 0,
+    "examples": 0,
+    "sha256": "ae7144831a5eff1077e19869e2e9bff20718e680494ad0bebea82f8012bf8f6f"
+  },
+  "catalogVersion": "anma-diagnostics/1"
 }
 ```
 
-Here the model's own annotations point straight at the fault: it claimed record 7 was `(ARG v3)`, but its bytes put RETURN there. The report states facts and rules, and the model writes every byte of the fixed file. The one suppressed error is the claim-count cascade: 10 claims were supplied but only 9 records decode.
+Here the model's own annotations point straight at the fault: it claimed record 7 was `(ARG v3)`, but its bytes put RETURN there. The report states facts and rules, and the model writes every byte of the fixed file. The three suppressed errors are annotation cascades: after the missing record, the claims for records 7 and 8 no longer line up with the bytes, and the claim for record 9 names a record that does not exist.
 
 ## 18. Counter-experiment protocol
 
@@ -1371,4 +1405,4 @@ The accompanying archive contains this PRD, the pinned generation/manual text, u
 
 The included preparation run passed 2,015 fixture executions and rejected 30 invalid binary, transport, or input cases. It also checked the forty designated values and original permutation in the capstone fixture. Full results and checker source hashes are in `verification/results.json`.
 
-The subset checker covers only the fixture instruction subset and structural rules needed for those fixtures. It is not the production validator, resource-constrained runtime, browser UI, or OpenAI broker. Its test results do not establish finite-storage behavior, browser security, or model-generation success. No live OpenAI request, Cloudflare deployment, or native macOS execution was performed while preparing this handoff. The version 3.2 additions have not been prototyped: the agentic loop, diagnostic catalog, annotations, contract language, and verification tiers. The only verified parts of the Section 17 examples are the byte lengths and SHA-256 values of the 192-byte fixture and its 176-byte malformed variant. The diagnostic report shown there is the target output, not captured checker output.
+The subset checker covers only the fixture instruction subset and structural rules needed for those fixtures. It is not the production validator, resource-constrained runtime, browser UI, or OpenAI broker. Its test results do not establish finite-storage behavior, browser security, or model-generation success. No live OpenAI request, Cloudflare deployment, or native macOS execution was performed while preparing this handoff. The version 3.2 additions have not been prototyped: the agentic loop, diagnostic catalog, annotations, contract language, and verification tiers. Implementation status is recorded in `docs/STATUS.md` (implemented, verified, tested live, not yet tested). The Section 17.2 report is captured checker output.

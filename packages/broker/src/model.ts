@@ -35,6 +35,8 @@ export interface ModelTurnRequest {
   input: unknown[];
   mode: "tools" | "raw-hex";
   maxOutputTokens: number;
+  /** Which ISA's tools to offer (ANMR-1 only for the research control). */
+  isa?: "ANMA-1" | "ANMR-1";
 }
 
 export type ModelEvent =

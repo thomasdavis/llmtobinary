@@ -16,6 +16,7 @@
     "@llmtobinary/reference": "workspace:*",
     "@llmtobinary/runtime": "workspace:*",
     "@llmtobinary/devices": "workspace:*",
-    "@llmtobinary/protocol": "workspace:*"
+    "@llmtobinary/protocol": "workspace:*",
+    "@llmtobinary/anmr": "workspace:*"
   }
 }
