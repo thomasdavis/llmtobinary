@@ -50,6 +50,31 @@ export class ChipViewModel {
     if (isa === "ANMR-1" && initialR0 !== null && this.cells[0]) this.cells[0] = { value: "r0", payload: initialR0 };
   }
 
+  /** Re-synchronize from the engine's reported state (after heat mode ran ahead without events). */
+  loadState(st: { cells: { value: string | null; payload: string | null }[]; memOccupied: number[]; rec: number | null; text: string; counters: Record<string, number>; latches: { A: string | null; B: string | null; R: string | null } }): void {
+    this.cells = st.cells.map((c) => ({ value: c.value, payload: c.payload }));
+    this.mem = new Map(st.memOccupied.map((i) => [i, { value: null, payload: null }]));
+    this.rec = st.rec;
+    this.text = st.text;
+    this.latches = { ...st.latches };
+    const c = st.counters;
+    this.counters = {
+      instructions: c.executedInstructions ?? c.instructions ?? 0,
+      ticks: c.modeledTicks ?? 0,
+      hits: c.operandHits ?? 0,
+      misses: c.operandMisses ?? 0,
+      backingReads: (c.backingReads ?? 0) + (c.restores ?? 0),
+      backingWrites: (c.backingWrites ?? 0) + (c.saves ?? 0),
+      evictions: c.evictions ?? 0,
+      regReads: c.regReads ?? 0,
+      regWrites: c.regWrites ?? 0,
+      saves: c.saves ?? 0,
+      restores: c.restores ?? 0,
+      hostCalls: c.hostCalls ?? 0,
+    };
+    this.pendingPayload = null;
+  }
+
   private freeByValue(value: string): void {
     for (const c of this.cells) if (c.value === value) Object.assign(c, { value: null, payload: null });
     for (const [k, c] of this.mem) if (c.value === value) this.mem.delete(k);

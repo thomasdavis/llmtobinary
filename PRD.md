@@ -10,6 +10,8 @@
 
 > **Change from 3.0:** the product is named **llmtobinary** and is hosted on **Cloudflare** using **Wrangler**. The Node inference broker becomes a Cloudflare Worker, session and budget state move to Durable Objects, and the static Vite build is served as Workers static assets from the same Worker and origin. The ISA, fixtures, prompts, schema, and experiment protocol are unchanged.
 >
+> **Change from 3.2 (additive):** a **chip view** (Section 14A) animates a modeled floorplan from the engine's own executed micro-events, with a declared latency model (`anma-cost/1`, "modeled ticks") and an ANMA-1 vs ANMR-1 compare. No ISA, fixture, prompt or protocol change.
+>
 > **Change from 3.1:** generation is an **agentic loop**, not a single response plus three repairs. Models will often produce malformed bytes, so the loop keeps going until the candidate passes or a declared budget runs out. The model gets a static `check_candidate` tool that never executes anything and returns precise, model-oriented diagnostics (Section 7.7). Browser test results feed the next iteration. Submissions may carry **annotations and machine-checked contracts** (Section 15.3–15.5): record-level comments cross-checked against the decoded bytes, `requires`/`ensures`/invariant contracts checked at runtime, and, as a P2 tier, bit-vector SMT proofs. Annotations are a sidecar: ANMA-1 bytes, hashes, and fixtures are unchanged. The submission schema (7.2), request shape (7.3), repair rules (7.6), error classes (9), limits (14.1), trial conditions (18.6), manifest (19), acceptance tests (20), and milestones (21) change accordingly.
 
 This document supersedes the earlier conceptual and browser PRDs and version 3.0. It is the implementation authority for the web demonstration. The bundled prompts, schema, and executable fixtures are supporting conformance material. "Must" denotes a requirement; explicitly deferred features are not launch dependencies. External research supports the source review and platform integration; ANMA's encoding, limits, interfaces, and execution rules are project design decisions.
@@ -821,6 +823,44 @@ Cap validation work, encoded declarations, checkpoints, snapshots, response even
 Interactive execution can use bounded successive slices with a visible cumulative ceiling; no automatic unlimited fuel renewal. Renderer speed does not determine semantics. Timeout outcomes and instruction-fuel outcomes are recorded separately.
 
 Server-side, the Cloudflare Worker enforces the 256 KiB model-response buffer and the event/body size caps independently of the browser. It must never buffer an unbounded upstream response in Durable Object memory or storage.
+
+## 14A. Chip view and the declared cost model
+
+The chip view (`/chip`) shows a **modeled floorplan** of an ANMA-1 machine: instruction memory, fetch and decode, the value directory, fast slots, A/B/R latches, the ALU, backing SRAM, argument staging, the call stack, the typed heap, and the I/O bus with the terminal, framebuffer and input devices. It exists so a viewer can see where values live while a program runs. It is not a hardware design, a netlist, or a timing claim.
+
+**Honesty rules (must):**
+
+1. Every light, packet and analyzer bar corresponds to one **micro-event** the engine actually executed. Events come from an optional `onEvent` listener on the same engines the machine panel uses (the fifo-v1 finite machine and the ANMR-1 stepping machine). Nothing in the view re-implements execution. Tests prove that attaching the listener never changes counters or results.
+2. The die shows state **rebuilt only by replaying those events in order**. The worker runs ahead of the animation, so its snapshot is in the future. Tests prove the replayed state equals the engine's slots, payloads and backing occupancy after every instruction, at F = 1, 4, 8 and 64, and for ANMR-1.
+3. The animation clock never passes the last buffered event.
+4. Time is shown in **modeled ticks** from the declared cost model `anma-cost/1`, never as "cycles":
+   - fetch + decode 2;
+   - fast-slot read 1 and write 1;
+   - backing read 4 and write 4;
+   - ALU 1, except multiply 3 and divide or remainder 20;
+   - staging 1 per value;
+   - branch 1, call 2, return 2;
+   - heap alloc 2 and access 4;
+   - host call 4 plus device work.
+
+   The page states that these latencies are declared, not measured.
+5. Amber marks datapath events. A distinct cool colour and a distinct shape (a diamond, not a circle) mark **only** backing and spill traffic, so the cost of limited fast storage is visible without relying on colour alone.
+
+**Modes:**
+
+- **Event clock:** 4, 12, 40 or 120 ticks per second, with step-instruction, step-microstep and reset, and a logic-analyzer strip with one lane per unit over a 120-tick window.
+- **Heat:** 2k or 50k instructions per second. Units glow by their share of executed microsteps; per-event traces pause. On return to the event clock, the view resynchronises from the engine's own reported state.
+
+**Compare:** available for the forty-value capstone only. It shows ANMA-1 at F fast slots next to the ANMR-1 register control at R ∈ {4, 8, 16, 32}, on one clock with the same input. The left die shows storage traffic placed by the hardware; the right die shows SAVE/RESTORE traffic the model wrote. Both must return the same value.
+
+**Other controls:**
+
+- Deep links: `?fixture=`, `?sha=` (a locally stored artifact), `&F=`, `&x=`, `&compare=1&R=`.
+- **Export trace** writes the executed events together with the cost-model id and the program hash.
+- Keyboard: Space plays or pauses, → steps one instruction, `.` steps one microstep, R resets.
+- Under reduced motion, travelling packets and glow decay are omitted; every state change stays visible.
+
+The chip view uses the Worker isolation, fuel and limits of Section 14. It runs in its own machine-worker instance.
 
 ## 15. Independent validation, annotations, and correctness
 

@@ -46,6 +46,7 @@ node --experimental-transform-types --no-warnings tools/fixture-builder/src/buil
 pnpm dev                     # Vite + Worker + Durable Objects locally (reads apps/web/.dev.vars)
 node scripts/live-test.mjs <url> [--fake | --openai <taskId>]
 node tests/e2e/browser-e2e.mjs <url> [--live]
+node tests/e2e/chip-e2e.mjs <url> [screenshot-dir]   # /chip view
 node --experimental-transform-types --no-warnings tools/research-cli/src/verify.ts fixtures/upstream-capstone-40.anma --task capstone-40
 ```
 
@@ -61,6 +62,10 @@ npx wrangler rollback <version-id> --name llmtobinary-staging
 ```
 
 Live generation is enabled per environment by `LIVE_GENERATION_ENABLED`, `OPENAI_MODEL`, price ceilings, and `SESSION_USD_CAP`/`DAILY_USD_CAP` in `wrangler.jsonc`; secrets are never in the repo. Production has live generation enabled with those caps.
+
+## Chip view
+
+`/chip` shows a modeled floorplan of the machine: fetch/decode, value directory, fast slots, latches, ALU, backing SRAM, staging, stack and I/O. Units light up as the engine executes each microstep. Every light is an event the engine actually emitted. Time is in **modeled ticks** from the declared cost model `anma-cost/1`, not measured cycles. For the forty-value capstone, **Compare with ANMR-1** runs the model-managed-register control next to it on the same clock. The machine panel links to it via "Open in chip view".
 
 ## What this does and does not show
 

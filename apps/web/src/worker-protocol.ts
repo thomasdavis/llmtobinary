@@ -58,6 +58,8 @@ export interface ChipState {
   isa: ChipIsa;
   status: string;
   rec: number | null;
+  /** Disassembly of the record at `rec` ("" when there is none). */
+  text: string;
   cells: ChipCell[];
   /** Occupied backing (ANMA) or initialized spill slots (ANMR), bounded. */
   memOccupied: number[];

@@ -2,7 +2,10 @@
 // provenance (every bundled fixture is specification- or tool-created, never model output).
 import manifest from "../../../fixtures/manifest.json";
 
-const urls = import.meta.glob("../../../fixtures/*.anma", { query: "?url", import: "default", eager: true }) as Record<string, string>;
+const urls = {
+  ...(import.meta.glob("../../../fixtures/*.anma", { query: "?url", import: "default", eager: true }) as Record<string, string>),
+  ...(import.meta.glob("../../../fixtures/*.anmr", { query: "?url", import: "default", eager: true }) as Record<string, string>),
+};
 
 export interface FixtureEntry {
   file: string;

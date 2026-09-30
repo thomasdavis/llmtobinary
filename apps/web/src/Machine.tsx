@@ -72,6 +72,12 @@ export function MachinePanel(props: {
   return (
     <section className="panel" aria-label="Machine">
       <h2>Machine</h2>
+      {a?.module && (
+        <p className="small">
+          <a href={`/chip?sha=${a.record.sha256}&F=${Math.min(64, F)}${props.inputTexts[0] ? `&x=${encodeURIComponent(props.inputTexts[0])}` : ""}`}>Open in chip view</a>
+          <span className="muted"> · watch every microstep light up a modeled floorplan</span>
+        </p>
+      )}
       {!a?.module ? <p className="muted">A valid executable is required to run.</p> : (
         <>
           <div className="row wrap">

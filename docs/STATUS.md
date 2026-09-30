@@ -32,6 +32,11 @@ Legend: **verified** = automated tests in this repo pass · **live** = exercised
 - **live** T3 in the browser: the page is cross-origin isolated (COOP + COEP `require-corp`, all assets same-origin); z3's 34 MB wasm is served as two hash-checked chunks under the 25 MiB per-file asset limit and loaded by a classic verifier worker (`'wasm-unsafe-eval'` for the trusted solver only). "Verify with z3" proves square-plus-two against its task contract in about 5 s in headless Chromium; the report is included in exported manifests.
 - **not yet** The Section 18.6 study itself (runner implemented in `tools/research-cli/src/trials.ts`; it refuses to run without an approved budget).
 
+## Chip view (PRD 14A)
+- **live** `/chip`: a modeled floorplan driven only by executed micro-events (`onEvent` on the finite machine and on ANMR-1), with declared `anma-cost/1` modeled ticks, a logic analyzer, heat mode, step instruction/microstep, trace export, and deep links. ANMA-1 vs ANMR-1 capstone compare runs on one clock.
+- **verified** Unit tests: attaching the event listener never changes counters; the event timeline is gap-free and sums to `modeledTicks`; the replayed view state equals the engine state after every instruction (F = 1/4/8/64 and ANMR-1).
+- **verified** Browser checks (`tests/e2e/chip-e2e.mjs`, Chromium against staging): step and play advance; the capstone finishes in heat mode; compare returns identical values (ANMA F=8 vs ANMR R=8); no packets under reduced motion; no horizontal scroll at 390 px; no page errors.
+
 ## Not yet / deviations
 - **Browser coverage:** headless Chromium and Firefox 142 pass the full E2E against production (live generation E2E on Chromium/staging). WebKit is not yet run: it needs system libraries (GStreamer, libvpx, …) that would require apt installs on this shared host; the deploy workflow runs the E2E on Chromium, Firefox, and WebKit with `playwright-core install --with-deps`.
 - **Production live generation is on** (`$4.00`/session, `$20.00`/day caps); staging has live generation with `$0.50`/session and `$1.00`/day caps and conservative price ceilings (`$2`/`$10` per million tokens) that over-reserve.

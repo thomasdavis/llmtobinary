@@ -19,5 +19,5 @@ export default defineConfig({
   // Classic (IIFE) workers: the T3 verifier uses importScripts for the z3 solver script.
   worker: { format: "iife" },
   // Fixtures stay separate same-origin files: the CSP (connect-src 'self') forbids fetching data: URLs.
-  build: { target: "es2022", sourcemap: false, chunkSizeWarningLimit: 2000, assetsInlineLimit: (file) => (file.endsWith(".anma") ? false : undefined) },
+  build: { target: "es2022", sourcemap: false, chunkSizeWarningLimit: 2000, assetsInlineLimit: (file) => (file.endsWith(".anma") || file.endsWith(".anmr") ? false : undefined) },
 });
