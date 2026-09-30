@@ -1,0 +1,42 @@
+{
+  "ok": false,
+  "byteLength": 112,
+  "sha256": "64f8fd3529879f2c45a2c0e62eab2b00661b325bd8e90b1756d967f7ab3c4dc2",
+  "errors": [
+    {
+      "rule": "ANMA-V-TYPE-004",
+      "severity": "error",
+      "category": "TYPE_MISMATCH",
+      "message": "RETURN v0 has type bool but fn0 returns u64.",
+      "location": {
+        "byteOffset": 84,
+        "recordIndex": 3,
+        "field": "record.a",
+        "functionId": 0,
+        "blockId": 0
+      },
+      "found": "(RETURN v0)",
+      "expected": "a u64 value",
+      "derived": null,
+      "context": "  0 @32  01 00 00 00 00 00 00 00 00 00 00 00 01 00 00 00  (FUNC fn0 0 u64)\n  1 @48  02 00 00 00 00 00 00 00 00 00 00 00 01 00 00 00  (BLOCK block0 0 1)\n  2 @64  11 00 00 00 00 00 00 00 01 00 00 00 00 00 00 00  (CONST_BOOL v0 1)\n> 3 @80  43 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (RETURN v0)\n  4 @96  04 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (END_FUNC)",
+      "claim": null,
+      "manualRef": "§10.4"
+    }
+  ],
+  "warnings": [],
+  "suppressed": 0,
+  "omitted": 0,
+  "listing": "5 lines",
+  "listingTruncated": false,
+  "annotations": {
+    "present": false,
+    "records": 0,
+    "claimsChecked": 0,
+    "claimsMatched": 0,
+    "contracts": 0,
+    "invariants": 0,
+    "examples": 0,
+    "sha256": null
+  },
+  "catalogVersion": "anma-diagnostics/1"
+}

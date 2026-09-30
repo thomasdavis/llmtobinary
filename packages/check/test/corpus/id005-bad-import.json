@@ -1,0 +1,42 @@
+{
+  "ok": false,
+  "byteLength": 128,
+  "sha256": "1447701e8c7dbefe1ca5ce5f45a50a3e8fd30a99b3521109327591fae6389023",
+  "errors": [
+    {
+      "rule": "ANMA-V-ID-005",
+      "severity": "error",
+      "category": "INVALID_ID",
+      "message": "HOST import 42 does not exist.",
+      "location": {
+        "byteOffset": 72,
+        "recordIndex": 2,
+        "field": "record.b",
+        "functionId": 0,
+        "blockId": 0
+      },
+      "found": "(HOST _ import42 0)",
+      "expected": "an import ID in 0..6 (0 terminal.print_u64, 1 terminal.print_utf8, 2 display.clear, 3 display.pixel, 4 display.present, 5 input.key_down, 6 input.wait_tick)",
+      "derived": null,
+      "context": "  0 @32  01 00 00 00 00 00 00 00 00 00 00 00 01 00 00 00  (FUNC fn0 0 u64)\n  1 @48  02 00 00 00 00 00 00 00 00 00 00 00 01 00 00 00  (BLOCK block0 0 1)\n> 2 @64  60 00 00 00 ff ff ff ff 2a 00 00 00 00 00 00 00  (HOST _ import42 0)\n  3 @80  10 00 00 00 00 00 00 00 01 00 00 00 00 00 00 00  (CONST_U64 v0 1)\n  4 @96  43 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (RETURN v0)\n  5 @112  04 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (END_FUNC)",
+      "claim": null,
+      "manualRef": "§13"
+    }
+  ],
+  "warnings": [],
+  "suppressed": 0,
+  "omitted": 0,
+  "listing": "6 lines",
+  "listingTruncated": false,
+  "annotations": {
+    "present": false,
+    "records": 0,
+    "claimsChecked": 0,
+    "claimsMatched": 0,
+    "contracts": 0,
+    "invariants": 0,
+    "examples": 0,
+    "sha256": null
+  },
+  "catalogVersion": "anma-diagnostics/1"
+}

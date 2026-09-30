@@ -1,0 +1,61 @@
+{
+  "ok": false,
+  "byteLength": 128,
+  "sha256": "7712f55f678b543d4093909dd47bbab5af59cb9a93a174c34a99223c07a204e8",
+  "errors": [
+    {
+      "rule": "ANMA-V-HDR-004",
+      "severity": "error",
+      "category": "LENGTH_MISMATCH",
+      "message": "File length does not match the header.",
+      "location": {
+        "byteOffset": 12,
+        "recordIndex": null,
+        "field": "header.word3",
+        "functionId": null,
+        "blockId": null
+      },
+      "found": "128 bytes; header word 3 (record count) = 7, word 4 (data bytes) = 0",
+      "expected": "length = 32 + 16 * recordCount + dataBytes",
+      "derived": "7 records need 144 bytes. 128 = 32 + 16*6, so the file holds 6 complete records: either one record is missing or the header count is wrong.",
+      "context": null,
+      "claim": null,
+      "manualRef": "§10.1"
+    },
+    {
+      "rule": "ANMA-V-ARG-001",
+      "severity": "error",
+      "category": "BAD_RECORD_GRAMMAR",
+      "message": "HOST declares 1 argument but is not followed by 1 ARG record.",
+      "location": {
+        "byteOffset": 96,
+        "recordIndex": 4,
+        "field": "record.opcode",
+        "functionId": 0,
+        "blockId": 0
+      },
+      "found": "record 4 is (RETURN v0)",
+      "expected": "record 4 must be ARG (opcode 0x44), because record 3 is HOST with argument count 1",
+      "derived": "If the missing record is added, the file will hold 7 records, which matches header word 3.",
+      "context": "  1 @48  02 00 00 00 00 00 00 00 01 00 00 00 01 00 00 00  (BLOCK block0 1 1)\n  2 @64  03 00 00 00 00 00 00 00 01 00 00 00 00 00 00 00  (PARAM v0 u64 0)\n  3 @80  60 00 00 00 ff ff ff ff 00 00 00 00 01 00 00 00  (HOST _ terminal.print_u64 1)\n> 4 @96  43 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (RETURN v0)\n  5 @112  04 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (END_FUNC)",
+      "claim": null,
+      "manualRef": "§10.4"
+    }
+  ],
+  "warnings": [],
+  "suppressed": 0,
+  "omitted": 0,
+  "listing": "6 lines",
+  "listingTruncated": false,
+  "annotations": {
+    "present": false,
+    "records": 0,
+    "claimsChecked": 0,
+    "claimsMatched": 0,
+    "contracts": 0,
+    "invariants": 0,
+    "examples": 0,
+    "sha256": null
+  },
+  "catalogVersion": "anma-diagnostics/1"
+}

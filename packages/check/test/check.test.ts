@@ -69,3 +69,13 @@ describe("check_candidate pipeline", () => {
     expect((await checkCandidate({ envelope: { isa: "ANMA-1", hex: "00", extra: 1 } })).report.errors[0]!.rule).toBe("ANMA-T-006");
   });
 });
+
+describe("misaligned drafts (stray bytes)", () => {
+  it("reports the length error and one record hint; later garbage is suppressed as cascade", async () => {
+    const sq2 = sq.slice(0, 184);
+    const out = await checkCandidate({ bytes: sq2 });
+    expect(out.report.errors[0]!.rule).toBe("ANMA-V-HDR-004");
+    expect(out.report.errors[0]!.derived).toContain("stray bytes");
+    expect(out.report.errors.length).toBeLessThanOrEqual(2);
+  });
+});

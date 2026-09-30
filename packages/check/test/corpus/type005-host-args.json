@@ -1,0 +1,42 @@
+{
+  "ok": false,
+  "byteLength": 160,
+  "sha256": "73f73689b58e4a87a11e10ea5e0f0e6ed32c23051180b41772d8263a7d45bcb3",
+  "errors": [
+    {
+      "rule": "ANMA-V-TYPE-005",
+      "severity": "error",
+      "category": "SIGNATURE_MISMATCH",
+      "message": "terminal.print_u64 takes 1 argument but HOST declares 2.",
+      "location": {
+        "byteOffset": 92,
+        "recordIndex": 3,
+        "field": "record.c",
+        "functionId": 0,
+        "blockId": 0
+      },
+      "found": "(HOST _ terminal.print_u64 2)",
+      "expected": "(HOST _ terminal.print_u64 1) then 1 ARG records: value",
+      "derived": null,
+      "context": "  0 @32  01 00 00 00 00 00 00 00 01 00 00 00 01 00 00 00  (FUNC fn0 1 u64)\n  1 @48  02 00 00 00 00 00 00 00 01 00 00 00 01 00 00 00  (BLOCK block0 1 1)\n  2 @64  03 00 00 00 00 00 00 00 01 00 00 00 00 00 00 00  (PARAM v0 u64 0)\n> 3 @80  60 00 00 00 ff ff ff ff 00 00 00 00 02 00 00 00  (HOST _ terminal.print_u64 2)\n  4 @96  44 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (ARG v0)\n  5 @112  44 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (ARG v0)\n  6 @128  43 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (RETURN v0)",
+      "claim": null,
+      "manualRef": "§13"
+    }
+  ],
+  "warnings": [],
+  "suppressed": 0,
+  "omitted": 0,
+  "listing": "8 lines",
+  "listingTruncated": false,
+  "annotations": {
+    "present": false,
+    "records": 0,
+    "claimsChecked": 0,
+    "claimsMatched": 0,
+    "contracts": 0,
+    "invariants": 0,
+    "examples": 0,
+    "sha256": null
+  },
+  "catalogVersion": "anma-diagnostics/1"
+}

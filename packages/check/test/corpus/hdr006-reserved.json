@@ -1,0 +1,42 @@
+{
+  "ok": false,
+  "byteLength": 112,
+  "sha256": "65c8ade95868041329056555d2c37deb1264a9319f65ea09af11880c86775aa6",
+  "errors": [
+    {
+      "rule": "ANMA-V-HDR-006",
+      "severity": "error",
+      "category": "BAD_HEADER",
+      "message": "Reserved header words 6 and 7 must both be zero.",
+      "location": {
+        "byteOffset": 24,
+        "recordIndex": null,
+        "field": "header.word6",
+        "functionId": null,
+        "blockId": null
+      },
+      "found": "word6=1, word7=0",
+      "expected": "0 and 0",
+      "derived": null,
+      "context": null,
+      "claim": null,
+      "manualRef": "§10.1"
+    }
+  ],
+  "warnings": [],
+  "suppressed": 0,
+  "omitted": 0,
+  "listing": "5 lines",
+  "listingTruncated": false,
+  "annotations": {
+    "present": false,
+    "records": 0,
+    "claimsChecked": 0,
+    "claimsMatched": 0,
+    "contracts": 0,
+    "invariants": 0,
+    "examples": 0,
+    "sha256": null
+  },
+  "catalogVersion": "anma-diagnostics/1"
+}

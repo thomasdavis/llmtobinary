@@ -1,0 +1,42 @@
+{
+  "ok": false,
+  "byteLength": 8,
+  "sha256": "e091d175ed35043ce731cf71fe17ea15fca0119e12f4c2edc0628df6a35fad45",
+  "errors": [
+    {
+      "rule": "ANMA-V-HDR-001",
+      "severity": "error",
+      "category": "BAD_HEADER",
+      "message": "The file is shorter than the 32-byte header.",
+      "location": {
+        "byteOffset": 0,
+        "recordIndex": null,
+        "field": "header",
+        "functionId": null,
+        "blockId": null
+      },
+      "found": "8 bytes",
+      "expected": "a 32-byte header of eight little-endian u32 words, then 16-byte records, then read-only data",
+      "derived": null,
+      "context": null,
+      "claim": null,
+      "manualRef": "§10.1"
+    }
+  ],
+  "warnings": [],
+  "suppressed": 0,
+  "omitted": 0,
+  "listing": null,
+  "listingTruncated": false,
+  "annotations": {
+    "present": false,
+    "records": 0,
+    "claimsChecked": 0,
+    "claimsMatched": 0,
+    "contracts": 0,
+    "invariants": 0,
+    "examples": 0,
+    "sha256": null
+  },
+  "catalogVersion": "anma-diagnostics/1"
+}

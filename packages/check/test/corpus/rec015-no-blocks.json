@@ -1,0 +1,42 @@
+{
+  "ok": false,
+  "byteLength": 64,
+  "sha256": "bd8338f018d775ade4ed1cea443c122278f7e4f7358ec286b59b08605d9968ae",
+  "errors": [
+    {
+      "rule": "ANMA-V-REC-015",
+      "severity": "error",
+      "category": "BAD_RECORD_GRAMMAR",
+      "message": "Function 0 has no blocks.",
+      "location": {
+        "byteOffset": 48,
+        "recordIndex": 1,
+        "field": null,
+        "functionId": 0,
+        "blockId": null
+      },
+      "found": null,
+      "expected": "at least block 0 before END_FUNC",
+      "derived": null,
+      "context": "  0 @32  01 00 00 00 00 00 00 00 00 00 00 00 01 00 00 00  (FUNC fn0 0 u64)\n> 1 @48  04 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (END_FUNC)",
+      "claim": null,
+      "manualRef": "§10.2"
+    }
+  ],
+  "warnings": [],
+  "suppressed": 0,
+  "omitted": 0,
+  "listing": "2 lines",
+  "listingTruncated": false,
+  "annotations": {
+    "present": false,
+    "records": 0,
+    "claimsChecked": 0,
+    "claimsMatched": 0,
+    "contracts": 0,
+    "invariants": 0,
+    "examples": 0,
+    "sha256": null
+  },
+  "catalogVersion": "anma-diagnostics/1"
+}

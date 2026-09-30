@@ -1,0 +1,61 @@
+{
+  "ok": false,
+  "byteLength": 160,
+  "sha256": "46ef377b6ccf2742cabee4733f17601a3f54b1664c205a13967a0f4993302026",
+  "errors": [
+    {
+      "rule": "ANMA-V-ARG-004",
+      "severity": "error",
+      "category": "RESOURCE_EXHAUSTED",
+      "message": "JUMP block1 declares 300 arguments.",
+      "location": {
+        "byteOffset": 92,
+        "recordIndex": 3,
+        "field": "record.c",
+        "functionId": 0,
+        "blockId": 0
+      },
+      "found": null,
+      "expected": "at most 256",
+      "derived": null,
+      "context": "  0 @32  01 00 00 00 00 00 00 00 00 00 00 00 01 00 00 00  (FUNC fn0 0 u64)\n  1 @48  02 00 00 00 00 00 00 00 00 00 00 00 01 00 00 00  (BLOCK block0 0 1)\n  2 @64  10 00 00 00 00 00 00 00 01 00 00 00 00 00 00 00  (CONST_U64 v0 1)\n> 3 @80  40 00 00 00 01 00 00 00 2c 01 00 00 00 00 00 00  (JUMP block1 300)\n  4 @96  02 00 00 00 01 00 00 00 00 00 00 00 01 00 00 00  (BLOCK block1 0 1)\n  5 @112  10 00 00 00 00 00 00 00 01 00 00 00 00 00 00 00  (CONST_U64 v0 1)\n  6 @128  43 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (RETURN v0)",
+      "claim": null,
+      "manualRef": "§14.1"
+    },
+    {
+      "rule": "ANMA-V-ARG-001",
+      "severity": "error",
+      "category": "BAD_RECORD_GRAMMAR",
+      "message": "JUMP declares 256 arguments but is not followed by 256 ARG records.",
+      "location": {
+        "byteOffset": 96,
+        "recordIndex": 4,
+        "field": "record.opcode",
+        "functionId": 0,
+        "blockId": 0
+      },
+      "found": "record 4 is (BLOCK block1 0 1)",
+      "expected": "record 4 must be ARG (opcode 0x44), because record 3 is JUMP with argument count 256",
+      "derived": null,
+      "context": "  1 @48  02 00 00 00 00 00 00 00 00 00 00 00 01 00 00 00  (BLOCK block0 0 1)\n  2 @64  10 00 00 00 00 00 00 00 01 00 00 00 00 00 00 00  (CONST_U64 v0 1)\n  3 @80  40 00 00 00 01 00 00 00 2c 01 00 00 00 00 00 00  (JUMP block1 300)\n> 4 @96  02 00 00 00 01 00 00 00 00 00 00 00 01 00 00 00  (BLOCK block1 0 1)\n  5 @112  10 00 00 00 00 00 00 00 01 00 00 00 00 00 00 00  (CONST_U64 v0 1)\n  6 @128  43 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (RETURN v0)\n  7 @144  04 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (END_FUNC)",
+      "claim": null,
+      "manualRef": "§10.4"
+    }
+  ],
+  "warnings": [],
+  "suppressed": 0,
+  "omitted": 0,
+  "listing": "8 lines",
+  "listingTruncated": false,
+  "annotations": {
+    "present": false,
+    "records": 0,
+    "claimsChecked": 0,
+    "claimsMatched": 0,
+    "contracts": 0,
+    "invariants": 0,
+    "examples": 0,
+    "sha256": null
+  },
+  "catalogVersion": "anma-diagnostics/1"
+}

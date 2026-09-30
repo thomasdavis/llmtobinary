@@ -1,0 +1,42 @@
+{
+  "ok": false,
+  "byteLength": 128,
+  "sha256": "86b1c304635c5f2fef63dea3d57b34a61f34c7cdcdd4ed10e17be12596705bbe",
+  "errors": [
+    {
+      "rule": "ANMA-V-ID-002",
+      "severity": "error",
+      "category": "INVALID_ID",
+      "message": "v7 is used as the right operand but is not defined earlier in block 0.",
+      "location": {
+        "byteOffset": 92,
+        "recordIndex": 3,
+        "field": "record.c",
+        "functionId": 0,
+        "blockId": 0
+      },
+      "found": "(ADD_U64 v1 v0 v7)",
+      "expected": "a value ID in v0..v0",
+      "derived": "Value IDs are block-local: pass values into another block as edge arguments (block parameters).",
+      "context": "  0 @32  01 00 00 00 00 00 00 00 00 00 00 00 01 00 00 00  (FUNC fn0 0 u64)\n  1 @48  02 00 00 00 00 00 00 00 00 00 00 00 02 00 00 00  (BLOCK block0 0 2)\n  2 @64  10 00 00 00 00 00 00 00 2a 00 00 00 00 00 00 00  (CONST_U64 v0 42)\n> 3 @80  20 00 00 00 01 00 00 00 00 00 00 00 07 00 00 00  (ADD_U64 v1 v0 v7)\n  4 @96  43 00 00 00 01 00 00 00 00 00 00 00 00 00 00 00  (RETURN v1)\n  5 @112  04 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (END_FUNC)",
+      "claim": null,
+      "manualRef": "§10.2"
+    }
+  ],
+  "warnings": [],
+  "suppressed": 0,
+  "omitted": 0,
+  "listing": "6 lines",
+  "listingTruncated": false,
+  "annotations": {
+    "present": false,
+    "records": 0,
+    "claimsChecked": 0,
+    "claimsMatched": 0,
+    "contracts": 0,
+    "invariants": 0,
+    "examples": 0,
+    "sha256": null
+  },
+  "catalogVersion": "anma-diagnostics/1"
+}

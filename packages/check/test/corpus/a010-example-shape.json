@@ -1,0 +1,42 @@
+{
+  "ok": false,
+  "byteLength": 112,
+  "sha256": "7faf944afae69068e7ceddc57d780b9b11fbccc368c04ce235671dfa5562e65f",
+  "errors": [
+    {
+      "rule": "ANMA-A-010",
+      "severity": "error",
+      "category": "ANNOTATION_INVALID",
+      "message": "Example 0 does not match the entry signature: it has 1 inputs but the entry function takes 0.",
+      "location": {
+        "byteOffset": null,
+        "recordIndex": null,
+        "field": null,
+        "functionId": null,
+        "blockId": null
+      },
+      "found": "{\"inputs\":[\"1\"],\"result\":\"42\",\"terminal\":null}",
+      "expected": "inputs as canonical u64 decimal strings or true/false, one per entry parameter",
+      "derived": null,
+      "context": null,
+      "claim": null,
+      "manualRef": "§15.4"
+    }
+  ],
+  "warnings": [],
+  "suppressed": 0,
+  "omitted": 0,
+  "listing": "5 lines",
+  "listingTruncated": false,
+  "annotations": {
+    "present": true,
+    "records": 0,
+    "claimsChecked": 0,
+    "claimsMatched": 0,
+    "contracts": 0,
+    "invariants": 0,
+    "examples": 1,
+    "sha256": "ca870933c32983489e3ac4616b9d38d26cbe2514d418630c6e9fbdcd55c128fa"
+  },
+  "catalogVersion": "anma-diagnostics/1"
+}

@@ -1,0 +1,42 @@
+{
+  "ok": false,
+  "byteLength": 96,
+  "sha256": "b18704297d1856b42dd91b11d94948816ca93020bea4a60016454626b85853f9",
+  "errors": [
+    {
+      "rule": "ANMA-V-REC-008",
+      "severity": "error",
+      "category": "BAD_RECORD_GRAMMAR",
+      "message": "Block 0 declares 1 parameters but only 0 PARAM records follow.",
+      "location": {
+        "byteOffset": 64,
+        "recordIndex": 2,
+        "field": "record.opcode",
+        "functionId": 0,
+        "blockId": 0
+      },
+      "found": "(RETURN v0)",
+      "expected": "(PARAM v0 <type> 0)",
+      "derived": null,
+      "context": "  0 @32  01 00 00 00 00 00 00 00 01 00 00 00 01 00 00 00  (FUNC fn0 1 u64)\n  1 @48  02 00 00 00 00 00 00 00 01 00 00 00 01 00 00 00  (BLOCK block0 1 1)\n> 2 @64  43 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (RETURN v0)\n  3 @80  04 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (END_FUNC)",
+      "claim": null,
+      "manualRef": "§10.2"
+    }
+  ],
+  "warnings": [],
+  "suppressed": 0,
+  "omitted": 0,
+  "listing": "4 lines",
+  "listingTruncated": false,
+  "annotations": {
+    "present": false,
+    "records": 0,
+    "claimsChecked": 0,
+    "claimsMatched": 0,
+    "contracts": 0,
+    "invariants": 0,
+    "examples": 0,
+    "sha256": null
+  },
+  "catalogVersion": "anma-diagnostics/1"
+}

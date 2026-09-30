@@ -1,0 +1,42 @@
+{
+  "ok": true,
+  "byteLength": 112,
+  "sha256": "e4437e8cc0751c99be3b12a73e18a9c3cf000dc884be78f1e91cfb29ca69f64a",
+  "errors": [],
+  "warnings": [
+    {
+      "rule": "ANMA-W-002",
+      "severity": "warning",
+      "category": "ADVISORY",
+      "message": "Declared feature terminal is never used.",
+      "location": {
+        "byteOffset": 8,
+        "recordIndex": null,
+        "field": "header.word2",
+        "functionId": null,
+        "blockId": null
+      },
+      "found": null,
+      "expected": null,
+      "derived": null,
+      "context": null,
+      "claim": null,
+      "manualRef": "§10.1"
+    }
+  ],
+  "suppressed": 0,
+  "omitted": 0,
+  "listing": "5 lines",
+  "listingTruncated": false,
+  "annotations": {
+    "present": false,
+    "records": 0,
+    "claimsChecked": 0,
+    "claimsMatched": 0,
+    "contracts": 0,
+    "invariants": 0,
+    "examples": 0,
+    "sha256": null
+  },
+  "catalogVersion": "anma-diagnostics/1"
+}

@@ -1,0 +1,42 @@
+{
+  "ok": false,
+  "byteLength": 128,
+  "sha256": "196f5ba71f367d3ea4dfcdb9f1ee3824202a4620c2a46f04314936f778a72bc6",
+  "errors": [
+    {
+      "rule": "ANMA-V-HDR-009",
+      "severity": "error",
+      "category": "SIGNATURE_MISMATCH",
+      "message": "Entry function parameter 0 has type handle<u64>; public inputs must be u64 or bool.",
+      "location": {
+        "byteOffset": 32,
+        "recordIndex": 0,
+        "field": null,
+        "functionId": 0,
+        "blockId": 0
+      },
+      "found": null,
+      "expected": "u64 or bool entry parameters",
+      "derived": null,
+      "context": "> 0 @32  01 00 00 00 00 00 00 00 01 00 00 00 01 00 00 00  (FUNC fn0 1 u64)\n  1 @48  02 00 00 00 00 00 00 00 01 00 00 00 02 00 00 00  (BLOCK block0 1 2)\n  2 @64  03 00 00 00 00 00 00 00 04 00 00 00 00 00 00 00  (PARAM v0 handle_u64 0)\n  3 @80  10 00 00 00 01 00 00 00 00 00 00 00 00 00 00 00  (CONST_U64 v1 0)",
+      "claim": null,
+      "manualRef": "§11"
+    }
+  ],
+  "warnings": [],
+  "suppressed": 0,
+  "omitted": 0,
+  "listing": "6 lines",
+  "listingTruncated": false,
+  "annotations": {
+    "present": false,
+    "records": 0,
+    "claimsChecked": 0,
+    "claimsMatched": 0,
+    "contracts": 0,
+    "invariants": 0,
+    "examples": 0,
+    "sha256": null
+  },
+  "catalogVersion": "anma-diagnostics/1"
+}

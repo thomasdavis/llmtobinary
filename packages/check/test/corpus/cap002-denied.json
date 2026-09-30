@@ -1,0 +1,42 @@
+{
+  "ok": false,
+  "byteLength": 144,
+  "sha256": "383157a738d5489fb4e9fba1840250508cb1e7f25ccc6339c6252b64ffeb2d46",
+  "errors": [
+    {
+      "rule": "ANMA-V-CAP-002",
+      "severity": "error",
+      "category": "CAPABILITY_DENIED",
+      "message": "The host does not grant the declared feature terminal.",
+      "location": {
+        "byteOffset": 8,
+        "recordIndex": null,
+        "field": "header.word2",
+        "functionId": null,
+        "blockId": null
+      },
+      "found": "declared 0x2",
+      "expected": "a subset of granted features 0x0 (none)",
+      "derived": null,
+      "context": null,
+      "claim": null,
+      "manualRef": "§10.1"
+    }
+  ],
+  "warnings": [],
+  "suppressed": 0,
+  "omitted": 0,
+  "listing": "7 lines",
+  "listingTruncated": false,
+  "annotations": {
+    "present": false,
+    "records": 0,
+    "claimsChecked": 0,
+    "claimsMatched": 0,
+    "contracts": 0,
+    "invariants": 0,
+    "examples": 0,
+    "sha256": null
+  },
+  "catalogVersion": "anma-diagnostics/1"
+}

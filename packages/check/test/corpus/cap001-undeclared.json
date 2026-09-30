@@ -1,0 +1,42 @@
+{
+  "ok": false,
+  "byteLength": 144,
+  "sha256": "79cde12595c47db53edcfee11527b0da477ba590ce26d25c8b84386e247d469e",
+  "errors": [
+    {
+      "rule": "ANMA-V-CAP-001",
+      "severity": "error",
+      "category": "CAPABILITY_NOT_DECLARED",
+      "message": "HOST terminal.print_u64 requires the terminal feature, which the header does not declare.",
+      "location": {
+        "byteOffset": 80,
+        "recordIndex": 3,
+        "field": "record.opcode",
+        "functionId": 0,
+        "blockId": 0
+      },
+      "found": "header features = 0x0 (none)",
+      "expected": "feature bit 0x2 (terminal) set in header word 2",
+      "derived": null,
+      "context": "  0 @32  01 00 00 00 00 00 00 00 01 00 00 00 01 00 00 00  (FUNC fn0 1 u64)\n  1 @48  02 00 00 00 00 00 00 00 01 00 00 00 01 00 00 00  (BLOCK block0 1 1)\n  2 @64  03 00 00 00 00 00 00 00 01 00 00 00 00 00 00 00  (PARAM v0 u64 0)\n> 3 @80  60 00 00 00 ff ff ff ff 00 00 00 00 01 00 00 00  (HOST _ terminal.print_u64 1)\n  4 @96  44 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (ARG v0)\n  5 @112  43 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (RETURN v0)\n  6 @128  04 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (END_FUNC)",
+      "claim": null,
+      "manualRef": "§10.1"
+    }
+  ],
+  "warnings": [],
+  "suppressed": 0,
+  "omitted": 0,
+  "listing": "7 lines",
+  "listingTruncated": false,
+  "annotations": {
+    "present": false,
+    "records": 0,
+    "claimsChecked": 0,
+    "claimsMatched": 0,
+    "contracts": 0,
+    "invariants": 0,
+    "examples": 0,
+    "sha256": null
+  },
+  "catalogVersion": "anma-diagnostics/1"
+}

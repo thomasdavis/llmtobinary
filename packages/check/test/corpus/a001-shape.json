@@ -1,0 +1,42 @@
+{
+  "ok": false,
+  "byteLength": 112,
+  "sha256": "7faf944afae69068e7ceddc57d780b9b11fbccc368c04ce235671dfa5562e65f",
+  "errors": [
+    {
+      "rule": "ANMA-A-001",
+      "severity": "error",
+      "category": "ANNOTATION_INVALID",
+      "message": "annotations has the wrong keys.",
+      "location": {
+        "byteOffset": null,
+        "recordIndex": null,
+        "field": null,
+        "functionId": null,
+        "blockId": null
+      },
+      "found": "missing params, records, contracts, invariants, examples",
+      "expected": "the annotations object from the candidate schema (§7.2)",
+      "derived": null,
+      "context": null,
+      "claim": null,
+      "manualRef": "§15.3"
+    }
+  ],
+  "warnings": [],
+  "suppressed": 0,
+  "omitted": 0,
+  "listing": "5 lines",
+  "listingTruncated": false,
+  "annotations": {
+    "present": false,
+    "records": 0,
+    "claimsChecked": 0,
+    "claimsMatched": 0,
+    "contracts": 0,
+    "invariants": 0,
+    "examples": 0,
+    "sha256": null
+  },
+  "catalogVersion": "anma-diagnostics/1"
+}

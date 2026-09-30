@@ -1,0 +1,42 @@
+{
+  "ok": false,
+  "byteLength": null,
+  "sha256": null,
+  "errors": [
+    {
+      "rule": "ANMA-T-001",
+      "severity": "error",
+      "category": "TRANSPORT_INVALID",
+      "message": "The hex string contains 4 characters that are not hex digits or whitespace.",
+      "location": {
+        "byteOffset": null,
+        "recordIndex": null,
+        "field": "hex.char",
+        "functionId": null,
+        "blockId": null
+      },
+      "found": "first invalid character \"x\" (U+0078) at string index 1, near \"0x41 0x4e\"",
+      "expected": "only 0-9, a-f, A-F, space, tab, CR, and LF",
+      "derived": "The text contains \"0x\" prefixes; literal hex has no prefixes.",
+      "context": null,
+      "claim": null,
+      "manualRef": "§9"
+    }
+  ],
+  "warnings": [],
+  "suppressed": 0,
+  "omitted": 0,
+  "listing": null,
+  "listingTruncated": false,
+  "annotations": {
+    "present": false,
+    "records": 0,
+    "claimsChecked": 0,
+    "claimsMatched": 0,
+    "contracts": 0,
+    "invariants": 0,
+    "examples": 0,
+    "sha256": null
+  },
+  "catalogVersion": "anma-diagnostics/1"
+}

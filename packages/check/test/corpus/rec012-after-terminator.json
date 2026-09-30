@@ -1,0 +1,42 @@
+{
+  "ok": false,
+  "byteLength": 128,
+  "sha256": "4e983f528b335cb2b4268c5ce14b805798b16e95ade4fcda81a213648d91b299",
+  "errors": [
+    {
+      "rule": "ANMA-V-REC-012",
+      "severity": "error",
+      "category": "BAD_RECORD_GRAMMAR",
+      "message": "After a terminator the next record must be BLOCK or END_FUNC, but found (CONST_U64 v1 1).",
+      "location": {
+        "byteOffset": 96,
+        "recordIndex": 4,
+        "field": "record.opcode",
+        "functionId": 0,
+        "blockId": null
+      },
+      "found": "(CONST_U64 v1 1)",
+      "expected": "BLOCK or END_FUNC",
+      "derived": "Each block ends with exactly one terminator (JUMP, BR_IF, or RETURN); there is no fall-through.",
+      "context": "  1 @48  02 00 00 00 00 00 00 00 00 00 00 00 01 00 00 00  (BLOCK block0 0 1)\n  2 @64  10 00 00 00 00 00 00 00 2a 00 00 00 00 00 00 00  (CONST_U64 v0 42)\n  3 @80  43 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (RETURN v0)\n> 4 @96  10 00 00 00 01 00 00 00 01 00 00 00 00 00 00 00  (CONST_U64 v1 1)\n  5 @112  04 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (END_FUNC)",
+      "claim": null,
+      "manualRef": "§10.2"
+    }
+  ],
+  "warnings": [],
+  "suppressed": 0,
+  "omitted": 0,
+  "listing": "6 lines",
+  "listingTruncated": false,
+  "annotations": {
+    "present": false,
+    "records": 0,
+    "claimsChecked": 0,
+    "claimsMatched": 0,
+    "contracts": 0,
+    "invariants": 0,
+    "examples": 0,
+    "sha256": null
+  },
+  "catalogVersion": "anma-diagnostics/1"
+}

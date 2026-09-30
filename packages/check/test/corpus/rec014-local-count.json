@@ -1,0 +1,42 @@
+{
+  "ok": false,
+  "byteLength": 112,
+  "sha256": "ba2ef899f9cc6c76c7331f43d186a21122a136c8c9e1076180a83cec6daf48e5",
+  "errors": [
+    {
+      "rule": "ANMA-V-REC-014",
+      "severity": "error",
+      "category": "BAD_RECORD_GRAMMAR",
+      "message": "Block 0 of function 0 declares 5 local values but defines 1.",
+      "location": {
+        "byteOffset": 60,
+        "recordIndex": 1,
+        "field": "record.c",
+        "functionId": 0,
+        "blockId": 0
+      },
+      "found": "(BLOCK block0 0 5)",
+      "expected": "local value count = 0 parameters + 1 results = 1",
+      "derived": null,
+      "context": "  0 @32  01 00 00 00 00 00 00 00 00 00 00 00 01 00 00 00  (FUNC fn0 0 u64)\n> 1 @48  02 00 00 00 00 00 00 00 00 00 00 00 05 00 00 00  (BLOCK block0 0 5)\n  2 @64  10 00 00 00 00 00 00 00 2a 00 00 00 00 00 00 00  (CONST_U64 v0 42)\n  3 @80  43 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (RETURN v0)\n  4 @96  04 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (END_FUNC)",
+      "claim": null,
+      "manualRef": "§10.2"
+    }
+  ],
+  "warnings": [],
+  "suppressed": 0,
+  "omitted": 0,
+  "listing": "5 lines",
+  "listingTruncated": false,
+  "annotations": {
+    "present": false,
+    "records": 0,
+    "claimsChecked": 0,
+    "claimsMatched": 0,
+    "contracts": 0,
+    "invariants": 0,
+    "examples": 0,
+    "sha256": null
+  },
+  "catalogVersion": "anma-diagnostics/1"
+}

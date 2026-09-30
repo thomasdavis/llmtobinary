@@ -140,6 +140,24 @@ describe("ANMR-1 matched register control", () => {
     if (vu.ok) expect(runAnmr(vu.program, 1n).trap?.rule).toBe("ANMR-R-001");
     void dv;
   });
+  it("rejects bad headers, lengths, grammar, and spill slots with ANMR rule IDs", () => {
+    const b = anmrCapstone(4);
+    const magic = b.slice();
+    magic[3] = 0x41;
+    expect(validateAnmr(magic).diagnostics[0]?.rule).toBe("ANMR-V-001");
+    expect(validateAnmr(b.slice(0, b.length - 16)).diagnostics[0]?.rule).toBe("ANMR-V-002");
+    const gram = b.slice();
+    new DataView(gram.buffer).setUint32(32 + 16, 0x01, true); // record 1 must be BLOCK
+    expect(validateAnmr(gram).diagnostics[0]?.rule).toBe("ANMR-V-003");
+    const slot = b.slice();
+    const saveAt = Array.from({ length: (b.length - 32) / 16 }, (_, i) => i).find((i) => new DataView(b.buffer).getUint32(32 + 16 * i, true) === 0x70)!;
+    new DataView(slot.buffer).setUint32(32 + 16 * saveAt + 8, 999, true);
+    expect(validateAnmr(slot).diagnostics[0]?.rule).toBe("ANMR-V-005");
+    const v = validateAnmr(b);
+    if (!v.ok) throw new Error();
+    const restoreFirst = { ...v.program, instrs: [{ k: "restore" as const, rd: 3, slot: 7, rec: 3 }, ...v.program.instrs] };
+    expect(runAnmr(restoreFirst, 1n).trap?.rule).toBe("ANMR-R-002");
+  });
   it("the ANMR witness tracks spill provenance and rejects recomputation", () => {
     // recompute: replace a RESTORE with a fresh CONST+ADD (x + i recomputed instead of restored)
     const v = validateAnmr(anmrCapstone(4));

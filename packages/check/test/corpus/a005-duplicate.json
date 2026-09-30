@@ -1,0 +1,42 @@
+{
+  "ok": false,
+  "byteLength": 112,
+  "sha256": "7faf944afae69068e7ceddc57d780b9b11fbccc368c04ce235671dfa5562e65f",
+  "errors": [
+    {
+      "rule": "ANMA-A-005",
+      "severity": "error",
+      "category": "ANNOTATION_INVALID",
+      "message": "Record 2 is annotated more than once.",
+      "location": {
+        "byteOffset": null,
+        "recordIndex": 2,
+        "field": null,
+        "functionId": null,
+        "blockId": null
+      },
+      "found": null,
+      "expected": null,
+      "derived": null,
+      "context": "  0 @32  01 00 00 00 00 00 00 00 00 00 00 00 01 00 00 00  (FUNC fn0 0 u64)\n  1 @48  02 00 00 00 00 00 00 00 00 00 00 00 01 00 00 00  (BLOCK block0 0 1)\n> 2 @64  10 00 00 00 00 00 00 00 2a 00 00 00 00 00 00 00  (CONST_U64 v0 42)   ; note: a\n  3 @80  43 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (RETURN v0)\n  4 @96  04 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (END_FUNC)",
+      "claim": null,
+      "manualRef": "§15.3"
+    }
+  ],
+  "warnings": [],
+  "suppressed": 0,
+  "omitted": 0,
+  "listing": "5 lines",
+  "listingTruncated": false,
+  "annotations": {
+    "present": true,
+    "records": 1,
+    "claimsChecked": 0,
+    "claimsMatched": 0,
+    "contracts": 0,
+    "invariants": 0,
+    "examples": 0,
+    "sha256": "71a88bdb343dc2777a56476b5fa232ff026fa065f9a07e21ae4f58a914c6f2dc"
+  },
+  "catalogVersion": "anma-diagnostics/1"
+}

@@ -1,0 +1,42 @@
+{
+  "ok": false,
+  "byteLength": 112,
+  "sha256": "f8a027ddf75caa84d10e1415529264ec03c06a748a34dcd991c2a8f3b3866844",
+  "errors": [
+    {
+      "rule": "ANMA-V-HDR-003",
+      "severity": "error",
+      "category": "BAD_HEADER",
+      "message": "The version word must be 1.",
+      "location": {
+        "byteOffset": 4,
+        "recordIndex": null,
+        "field": "header.word1",
+        "functionId": null,
+        "blockId": null
+      },
+      "found": "16777216",
+      "expected": "01 00 00 00 (version 1, little-endian)",
+      "derived": "The bytes look big-endian; every word is little-endian.",
+      "context": null,
+      "claim": null,
+      "manualRef": "§10.1"
+    }
+  ],
+  "warnings": [],
+  "suppressed": 0,
+  "omitted": 0,
+  "listing": "5 lines",
+  "listingTruncated": false,
+  "annotations": {
+    "present": false,
+    "records": 0,
+    "claimsChecked": 0,
+    "claimsMatched": 0,
+    "contracts": 0,
+    "invariants": 0,
+    "examples": 0,
+    "sha256": null
+  },
+  "catalogVersion": "anma-diagnostics/1"
+}

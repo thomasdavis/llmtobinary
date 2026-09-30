@@ -1,0 +1,42 @@
+{
+  "ok": true,
+  "byteLength": 160,
+  "sha256": "c3bd246f4bd1f06ce5dcb0148ec6f209af0c25b1eb902b451cfa49a928acbc4c",
+  "errors": [],
+  "warnings": [
+    {
+      "rule": "ANMA-W-003",
+      "severity": "warning",
+      "category": "ADVISORY",
+      "message": "Block 1 of function 0 is unreachable from block 0.",
+      "location": {
+        "byteOffset": 96,
+        "recordIndex": 4,
+        "field": null,
+        "functionId": 0,
+        "blockId": 1
+      },
+      "found": null,
+      "expected": null,
+      "derived": null,
+      "context": "  1 @48  02 00 00 00 00 00 00 00 00 00 00 00 01 00 00 00  (BLOCK block0 0 1)\n  2 @64  10 00 00 00 00 00 00 00 2a 00 00 00 00 00 00 00  (CONST_U64 v0 42)\n  3 @80  43 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (RETURN v0)\n> 4 @96  02 00 00 00 01 00 00 00 00 00 00 00 01 00 00 00  (BLOCK block1 0 1)\n  5 @112  10 00 00 00 00 00 00 00 01 00 00 00 00 00 00 00  (CONST_U64 v0 1)\n  6 @128  43 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (RETURN v0)\n  7 @144  04 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (END_FUNC)",
+      "claim": null,
+      "manualRef": "§10.4"
+    }
+  ],
+  "suppressed": 0,
+  "omitted": 0,
+  "listing": "8 lines",
+  "listingTruncated": false,
+  "annotations": {
+    "present": false,
+    "records": 0,
+    "claimsChecked": 0,
+    "claimsMatched": 0,
+    "contracts": 0,
+    "invariants": 0,
+    "examples": 0,
+    "sha256": null
+  },
+  "catalogVersion": "anma-diagnostics/1"
+}

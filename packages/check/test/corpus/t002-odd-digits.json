@@ -1,0 +1,42 @@
+{
+  "ok": false,
+  "byteLength": null,
+  "sha256": null,
+  "errors": [
+    {
+      "rule": "ANMA-T-002",
+      "severity": "error",
+      "category": "TRANSPORT_INVALID",
+      "message": "The hex string has an odd number of digits, so it cannot be split into bytes.",
+      "location": {
+        "byteOffset": null,
+        "recordIndex": null,
+        "field": null,
+        "functionId": null,
+        "blockId": null
+      },
+      "found": "5 hex digits",
+      "expected": "an even number of hex digits (two per byte)",
+      "derived": "2 whole bytes plus one dangling digit",
+      "context": null,
+      "claim": null,
+      "manualRef": "§9"
+    }
+  ],
+  "warnings": [],
+  "suppressed": 0,
+  "omitted": 0,
+  "listing": null,
+  "listingTruncated": false,
+  "annotations": {
+    "present": false,
+    "records": 0,
+    "claimsChecked": 0,
+    "claimsMatched": 0,
+    "contracts": 0,
+    "invariants": 0,
+    "examples": 0,
+    "sha256": null
+  },
+  "catalogVersion": "anma-diagnostics/1"
+}

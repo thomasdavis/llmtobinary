@@ -1,0 +1,42 @@
+{
+  "ok": false,
+  "byteLength": 144,
+  "sha256": "90b97d4f05da7dc2cff4ff7d004d487dde4b6f2044ecf50abbb2dc8bec9a7b18",
+  "errors": [
+    {
+      "rule": "ANMA-V-LIM-001",
+      "severity": "error",
+      "category": "RESOURCE_EXHAUSTED",
+      "message": "Block 0 defines 3 values.",
+      "location": {
+        "byteOffset": 48,
+        "recordIndex": 1,
+        "field": null,
+        "functionId": 0,
+        "blockId": 0
+      },
+      "found": null,
+      "expected": "at most 2",
+      "derived": null,
+      "context": "  0 @32  01 00 00 00 00 00 00 00 00 00 00 00 01 00 00 00  (FUNC fn0 0 u64)\n> 1 @48  02 00 00 00 00 00 00 00 00 00 00 00 03 00 00 00  (BLOCK block0 0 3)\n  2 @64  10 00 00 00 00 00 00 00 01 00 00 00 00 00 00 00  (CONST_U64 v0 1)\n  3 @80  10 00 00 00 01 00 00 00 01 00 00 00 00 00 00 00  (CONST_U64 v1 1)\n  4 @96  10 00 00 00 02 00 00 00 01 00 00 00 00 00 00 00  (CONST_U64 v2 1)",
+      "claim": null,
+      "manualRef": "§14.1"
+    }
+  ],
+  "warnings": [],
+  "suppressed": 0,
+  "omitted": 0,
+  "listing": "7 lines",
+  "listingTruncated": false,
+  "annotations": {
+    "present": false,
+    "records": 0,
+    "claimsChecked": 0,
+    "claimsMatched": 0,
+    "contracts": 0,
+    "invariants": 0,
+    "examples": 0,
+    "sha256": null
+  },
+  "catalogVersion": "anma-diagnostics/1"
+}

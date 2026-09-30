@@ -1,0 +1,42 @@
+{
+  "ok": false,
+  "byteLength": 112,
+  "sha256": "7faf944afae69068e7ceddc57d780b9b11fbccc368c04ce235671dfa5562e65f",
+  "errors": [
+    {
+      "rule": "ANMA-A-007",
+      "severity": "error",
+      "category": "ANNOTATION_INVALID",
+      "message": "The ensures of fn0 does not parse: missing \")\" to close (eq … (at character 13).",
+      "location": {
+        "byteOffset": null,
+        "recordIndex": null,
+        "field": null,
+        "functionId": 0,
+        "blockId": null
+      },
+      "found": "(eq result 42",
+      "expected": "an ANMA-Spec bool expression (see the contract grammar in the manual)",
+      "derived": null,
+      "context": null,
+      "claim": null,
+      "manualRef": "§15.4"
+    }
+  ],
+  "warnings": [],
+  "suppressed": 0,
+  "omitted": 0,
+  "listing": "5 lines",
+  "listingTruncated": false,
+  "annotations": {
+    "present": true,
+    "records": 0,
+    "claimsChecked": 0,
+    "claimsMatched": 0,
+    "contracts": 1,
+    "invariants": 0,
+    "examples": 0,
+    "sha256": "db9cc746770f6043f4429bf3e132fb178071aff95ced4a2f9dc2a698060d2678"
+  },
+  "catalogVersion": "anma-diagnostics/1"
+}

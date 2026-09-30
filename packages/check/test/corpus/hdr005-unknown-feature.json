@@ -1,0 +1,62 @@
+{
+  "ok": false,
+  "byteLength": 112,
+  "sha256": "295b154e139018799bbb95a3049896237a79946f2907f4d447d9913ebb9e645e",
+  "errors": [
+    {
+      "rule": "ANMA-V-HDR-005",
+      "severity": "error",
+      "category": "BAD_HEADER",
+      "message": "The header sets feature bits that ANMA-1 does not define.",
+      "location": {
+        "byteOffset": 8,
+        "recordIndex": null,
+        "field": "header.word2",
+        "functionId": null,
+        "blockId": null
+      },
+      "found": "0x10",
+      "expected": "only bits 0 (heap), 1 (terminal), 2 (framebuffer), 3 (input), i.e. a subset of 0xf",
+      "derived": null,
+      "context": null,
+      "claim": null,
+      "manualRef": "§10.1"
+    }
+  ],
+  "warnings": [
+    {
+      "rule": "ANMA-W-002",
+      "severity": "warning",
+      "category": "ADVISORY",
+      "message": "Declared feature  is never used.",
+      "location": {
+        "byteOffset": 8,
+        "recordIndex": null,
+        "field": "header.word2",
+        "functionId": null,
+        "blockId": null
+      },
+      "found": null,
+      "expected": null,
+      "derived": null,
+      "context": null,
+      "claim": null,
+      "manualRef": "§10.1"
+    }
+  ],
+  "suppressed": 0,
+  "omitted": 0,
+  "listing": "5 lines",
+  "listingTruncated": false,
+  "annotations": {
+    "present": false,
+    "records": 0,
+    "claimsChecked": 0,
+    "claimsMatched": 0,
+    "contracts": 0,
+    "invariants": 0,
+    "examples": 0,
+    "sha256": null
+  },
+  "catalogVersion": "anma-diagnostics/1"
+}

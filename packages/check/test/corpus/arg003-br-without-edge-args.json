@@ -1,0 +1,42 @@
+{
+  "ok": false,
+  "byteLength": 160,
+  "sha256": "3ca5d5f14ac2223c4b7ccfb45df2476c50c5ad954c8bbb30ed75733074372bb5",
+  "errors": [
+    {
+      "rule": "ANMA-V-ARG-003",
+      "severity": "error",
+      "category": "BAD_RECORD_GRAMMAR",
+      "message": "BR_IF must be followed by EDGE_ARGS for its true edge.",
+      "location": {
+        "byteOffset": 96,
+        "recordIndex": 4,
+        "field": "record.opcode",
+        "functionId": 0,
+        "blockId": 0
+      },
+      "found": "record 4 is (BLOCK block1 0 1)",
+      "expected": "record 4 must be (EDGE_ARGS <count>) for the true edge to block1, even when the count is 0",
+      "derived": null,
+      "context": "  1 @48  02 00 00 00 00 00 00 00 00 00 00 00 01 00 00 00  (BLOCK block0 0 1)\n  2 @64  11 00 00 00 00 00 00 00 01 00 00 00 00 00 00 00  (CONST_BOOL v0 1)\n  3 @80  41 00 00 00 00 00 00 00 01 00 00 00 01 00 00 00  (BR_IF v0 block1 block1)\n> 4 @96  02 00 00 00 01 00 00 00 00 00 00 00 01 00 00 00  (BLOCK block1 0 1)\n  5 @112  10 00 00 00 00 00 00 00 01 00 00 00 00 00 00 00  (CONST_U64 v0 1)\n  6 @128  43 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (RETURN v0)\n  7 @144  04 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (END_FUNC)",
+      "claim": null,
+      "manualRef": "§10.4"
+    }
+  ],
+  "warnings": [],
+  "suppressed": 0,
+  "omitted": 0,
+  "listing": "8 lines",
+  "listingTruncated": false,
+  "annotations": {
+    "present": false,
+    "records": 0,
+    "claimsChecked": 0,
+    "claimsMatched": 0,
+    "contracts": 0,
+    "invariants": 0,
+    "examples": 0,
+    "sha256": null
+  },
+  "catalogVersion": "anma-diagnostics/1"
+}

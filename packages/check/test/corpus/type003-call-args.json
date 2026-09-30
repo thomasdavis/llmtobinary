@@ -1,0 +1,42 @@
+{
+  "ok": false,
+  "byteLength": 240,
+  "sha256": "21d6ff2933d3f4cd1243829dba46c28b35f2e228c5034f0f2784baa0aaa0ace2",
+  "errors": [
+    {
+      "rule": "ANMA-V-TYPE-003",
+      "severity": "error",
+      "category": "SIGNATURE_MISMATCH",
+      "message": "CALL passes 2 arguments but fn1 takes 1.",
+      "location": {
+        "byteOffset": 92,
+        "recordIndex": 3,
+        "field": "record.c",
+        "functionId": 0,
+        "blockId": 0
+      },
+      "found": "(CALL v1 fn1 2)",
+      "expected": "fn1(u64)",
+      "derived": null,
+      "context": "   0 @32  01 00 00 00 00 00 00 00 00 00 00 00 01 00 00 00  (FUNC fn0 0 u64)\n   1 @48  02 00 00 00 00 00 00 00 00 00 00 00 02 00 00 00  (BLOCK block0 0 2)\n   2 @64  10 00 00 00 00 00 00 00 01 00 00 00 00 00 00 00  (CONST_U64 v0 1)\n>  3 @80  42 00 00 00 01 00 00 00 01 00 00 00 02 00 00 00  (CALL v1 fn1 2)\n   4 @96  44 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (ARG v0)\n   5 @112  44 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (ARG v0)\n   6 @128  43 00 00 00 01 00 00 00 00 00 00 00 00 00 00 00  (RETURN v1)",
+      "claim": null,
+      "manualRef": "§10.4"
+    }
+  ],
+  "warnings": [],
+  "suppressed": 0,
+  "omitted": 0,
+  "listing": "13 lines",
+  "listingTruncated": false,
+  "annotations": {
+    "present": false,
+    "records": 0,
+    "claimsChecked": 0,
+    "claimsMatched": 0,
+    "contracts": 0,
+    "invariants": 0,
+    "examples": 0,
+    "sha256": null
+  },
+  "catalogVersion": "anma-diagnostics/1"
+}

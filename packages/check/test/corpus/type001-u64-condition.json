@@ -1,0 +1,42 @@
+{
+  "ok": false,
+  "byteLength": 192,
+  "sha256": "0f126bcc7d7b85c8a34447115486186731920f234e9fadb4b017286748f0446a",
+  "errors": [
+    {
+      "rule": "ANMA-V-TYPE-001",
+      "severity": "error",
+      "category": "TYPE_MISMATCH",
+      "message": "The condition v0 has type u64 but bool is required.",
+      "location": {
+        "byteOffset": 84,
+        "recordIndex": 3,
+        "field": "record.a",
+        "functionId": 0,
+        "blockId": 0
+      },
+      "found": "(BR_IF v0 block1 block1) where v0 : u64",
+      "expected": "condition of type bool",
+      "derived": "Convert with U64_NONZERO; there is no implicit u64/bool conversion.",
+      "context": "  0 @32  01 00 00 00 00 00 00 00 00 00 00 00 01 00 00 00  (FUNC fn0 0 u64)\n  1 @48  02 00 00 00 00 00 00 00 00 00 00 00 01 00 00 00  (BLOCK block0 0 1)\n  2 @64  10 00 00 00 00 00 00 00 01 00 00 00 00 00 00 00  (CONST_U64 v0 1)\n> 3 @80  41 00 00 00 00 00 00 00 01 00 00 00 01 00 00 00  (BR_IF v0 block1 block1)\n  4 @96  45 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (EDGE_ARGS 0)\n  5 @112  45 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (EDGE_ARGS 0)\n  6 @128  02 00 00 00 01 00 00 00 00 00 00 00 01 00 00 00  (BLOCK block1 0 1)",
+      "claim": null,
+      "manualRef": "§10.3"
+    }
+  ],
+  "warnings": [],
+  "suppressed": 0,
+  "omitted": 0,
+  "listing": "10 lines",
+  "listingTruncated": false,
+  "annotations": {
+    "present": false,
+    "records": 0,
+    "claimsChecked": 0,
+    "claimsMatched": 0,
+    "contracts": 0,
+    "invariants": 0,
+    "examples": 0,
+    "sha256": null
+  },
+  "catalogVersion": "anma-diagnostics/1"
+}

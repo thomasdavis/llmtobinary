@@ -1,0 +1,42 @@
+{
+  "ok": false,
+  "byteLength": 144,
+  "sha256": "383157a738d5489fb4e9fba1840250508cb1e7f25ccc6339c6252b64ffeb2d46",
+  "errors": [
+    {
+      "rule": "ANMA-A-006",
+      "severity": "error",
+      "category": "ANNOTATION_INVALID",
+      "message": "Parameter name \"result\" is not allowed.",
+      "location": {
+        "byteOffset": null,
+        "recordIndex": null,
+        "field": null,
+        "functionId": null,
+        "blockId": null
+      },
+      "found": "result",
+      "expected": "a lowercase identifier matching [a-z_][a-z0-9_]{0,31} that is not a reserved word (result, argN, bpN, vN, operator names)",
+      "derived": null,
+      "context": null,
+      "claim": null,
+      "manualRef": "§15.3"
+    }
+  ],
+  "warnings": [],
+  "suppressed": 0,
+  "omitted": 0,
+  "listing": "7 lines",
+  "listingTruncated": false,
+  "annotations": {
+    "present": true,
+    "records": 0,
+    "claimsChecked": 0,
+    "claimsMatched": 0,
+    "contracts": 0,
+    "invariants": 0,
+    "examples": 0,
+    "sha256": "8cc521da3ac90ed0942d14fcdd4aa1689b7633fc0f85fb20cdffa319335aac86"
+  },
+  "catalogVersion": "anma-diagnostics/1"
+}

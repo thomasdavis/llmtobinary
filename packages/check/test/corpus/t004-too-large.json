@@ -1,0 +1,42 @@
+{
+  "ok": false,
+  "byteLength": null,
+  "sha256": null,
+  "errors": [
+    {
+      "rule": "ANMA-T-004",
+      "severity": "error",
+      "category": "TRANSPORT_INVALID",
+      "message": "The candidate is larger than the permitted binary size.",
+      "location": {
+        "byteOffset": null,
+        "recordIndex": null,
+        "field": null,
+        "functionId": null,
+        "blockId": null
+      },
+      "found": "66560 bytes",
+      "expected": "at most 65536 bytes",
+      "derived": null,
+      "context": null,
+      "claim": null,
+      "manualRef": "§14.1"
+    }
+  ],
+  "warnings": [],
+  "suppressed": 0,
+  "omitted": 0,
+  "listing": null,
+  "listingTruncated": false,
+  "annotations": {
+    "present": false,
+    "records": 0,
+    "claimsChecked": 0,
+    "claimsMatched": 0,
+    "contracts": 0,
+    "invariants": 0,
+    "examples": 0,
+    "sha256": null
+  },
+  "catalogVersion": "anma-diagnostics/1"
+}

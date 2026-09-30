@@ -1,0 +1,42 @@
+{
+  "ok": false,
+  "byteLength": 112,
+  "sha256": "d616e89a77a0397b5da1bb3481d8de0854974a976cfbca234ff88e9355f9077d",
+  "errors": [
+    {
+      "rule": "ANMA-V-HDR-004",
+      "severity": "error",
+      "category": "LENGTH_MISMATCH",
+      "message": "File length does not match the header.",
+      "location": {
+        "byteOffset": 12,
+        "recordIndex": null,
+        "field": "header.word3",
+        "functionId": null,
+        "blockId": null
+      },
+      "found": "112 bytes; header word 3 (record count) = 6, word 4 (data bytes) = 0",
+      "expected": "length = 32 + 16 * recordCount + dataBytes",
+      "derived": "6 records need 128 bytes. 112 = 32 + 16*5, so the file holds 5 complete records: either one record is missing or the header count is wrong.",
+      "context": null,
+      "claim": null,
+      "manualRef": "§10.1"
+    }
+  ],
+  "warnings": [],
+  "suppressed": 0,
+  "omitted": 0,
+  "listing": "5 lines",
+  "listingTruncated": false,
+  "annotations": {
+    "present": false,
+    "records": 0,
+    "claimsChecked": 0,
+    "claimsMatched": 0,
+    "contracts": 0,
+    "invariants": 0,
+    "examples": 0,
+    "sha256": null
+  },
+  "catalogVersion": "anma-diagnostics/1"
+}

@@ -1,0 +1,42 @@
+{
+  "ok": false,
+  "byteLength": 128,
+  "sha256": "3cdd36594105111ec01292d0242ce151ca73f30d91e8b70aaa4379019f74ccec",
+  "errors": [
+    {
+      "rule": "ANMA-V-REC-003",
+      "severity": "error",
+      "category": "BAD_RECORD_GRAMMAR",
+      "message": "Expected FUNC at top level but found (BLOCK block0 0 0).",
+      "location": {
+        "byteOffset": 32,
+        "recordIndex": 0,
+        "field": "record.opcode",
+        "functionId": null,
+        "blockId": null
+      },
+      "found": "(BLOCK block0 0 0)",
+      "expected": "the first record must be FUNC",
+      "derived": null,
+      "context": "> 0 @32  02 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (BLOCK block0 0 0)\n  1 @48  01 00 00 00 00 00 00 00 00 00 00 00 01 00 00 00  (FUNC fn0 0 u64)\n  2 @64  02 00 00 00 00 00 00 00 00 00 00 00 01 00 00 00  (BLOCK block0 0 1)\n  3 @80  10 00 00 00 00 00 00 00 2a 00 00 00 00 00 00 00  (CONST_U64 v0 42)",
+      "claim": null,
+      "manualRef": "§10.2"
+    }
+  ],
+  "warnings": [],
+  "suppressed": 0,
+  "omitted": 0,
+  "listing": "6 lines",
+  "listingTruncated": false,
+  "annotations": {
+    "present": false,
+    "records": 0,
+    "claimsChecked": 0,
+    "claimsMatched": 0,
+    "contracts": 0,
+    "invariants": 0,
+    "examples": 0,
+    "sha256": null
+  },
+  "catalogVersion": "anma-diagnostics/1"
+}

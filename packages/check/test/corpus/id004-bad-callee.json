@@ -1,0 +1,42 @@
+{
+  "ok": false,
+  "byteLength": 112,
+  "sha256": "f2f473acfed50294cdbe3dc7b61ec9f00b2ec12783b0b79cd59b8c7a73b4222c",
+  "errors": [
+    {
+      "rule": "ANMA-V-ID-004",
+      "severity": "error",
+      "category": "INVALID_ID",
+      "message": "CALL targets fn7, which does not exist.",
+      "location": {
+        "byteOffset": 72,
+        "recordIndex": 2,
+        "field": "record.b",
+        "functionId": 0,
+        "blockId": 0
+      },
+      "found": "(CALL v0 fn7 0)",
+      "expected": "a function ID in fn0..fn0",
+      "derived": null,
+      "context": "  0 @32  01 00 00 00 00 00 00 00 00 00 00 00 01 00 00 00  (FUNC fn0 0 u64)\n  1 @48  02 00 00 00 00 00 00 00 00 00 00 00 01 00 00 00  (BLOCK block0 0 1)\n> 2 @64  42 00 00 00 00 00 00 00 07 00 00 00 00 00 00 00  (CALL v0 fn7 0)\n  3 @80  43 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (RETURN v0)\n  4 @96  04 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (END_FUNC)",
+      "claim": null,
+      "manualRef": "§10.4"
+    }
+  ],
+  "warnings": [],
+  "suppressed": 0,
+  "omitted": 0,
+  "listing": "5 lines",
+  "listingTruncated": false,
+  "annotations": {
+    "present": false,
+    "records": 0,
+    "claimsChecked": 0,
+    "claimsMatched": 0,
+    "contracts": 0,
+    "invariants": 0,
+    "examples": 0,
+    "sha256": null
+  },
+  "catalogVersion": "anma-diagnostics/1"
+}

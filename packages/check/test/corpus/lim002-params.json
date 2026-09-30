@@ -1,0 +1,80 @@
+{
+  "ok": false,
+  "byteLength": 96,
+  "sha256": "789b631ee5867b41b180612774a32cb1dd908d386b0257edc2cf10cb835b309e",
+  "errors": [
+    {
+      "rule": "ANMA-V-LIM-002",
+      "severity": "error",
+      "category": "RESOURCE_EXHAUSTED",
+      "message": "Function declares 300 parameters.",
+      "location": {
+        "byteOffset": 40,
+        "recordIndex": 0,
+        "field": "record.b",
+        "functionId": 0,
+        "blockId": null
+      },
+      "found": null,
+      "expected": "at most 256",
+      "derived": null,
+      "context": "> 0 @32  01 00 00 00 00 00 00 00 2c 01 00 00 01 00 00 00  (FUNC fn0 300 u64)\n  1 @48  02 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (BLOCK block0 0 0)\n  2 @64  43 00 00 00 ff ff ff ff 00 00 00 00 00 00 00 00  (RETURN _)\n  3 @80  04 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (END_FUNC)",
+      "claim": null,
+      "manualRef": "§14.1"
+    },
+    {
+      "rule": "ANMA-V-REC-007",
+      "severity": "error",
+      "category": "SIGNATURE_MISMATCH",
+      "message": "Block 0 declares 0 parameters but FUNC fn0 declares 300.",
+      "location": {
+        "byteOffset": 56,
+        "recordIndex": 1,
+        "field": "record.b",
+        "functionId": 0,
+        "blockId": 0
+      },
+      "found": "(BLOCK block0 0 0)",
+      "expected": "block 0 parameter count = 300",
+      "derived": null,
+      "context": "  0 @32  01 00 00 00 00 00 00 00 2c 01 00 00 01 00 00 00  (FUNC fn0 300 u64)\n> 1 @48  02 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (BLOCK block0 0 0)\n  2 @64  43 00 00 00 ff ff ff ff 00 00 00 00 00 00 00 00  (RETURN _)\n  3 @80  04 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (END_FUNC)",
+      "claim": null,
+      "manualRef": "§10.2"
+    },
+    {
+      "rule": "ANMA-V-TYPE-004",
+      "severity": "error",
+      "category": "TYPE_MISMATCH",
+      "message": "fn0 returns u64 but RETURN has the unit sentinel.",
+      "location": {
+        "byteOffset": 68,
+        "recordIndex": 2,
+        "field": "record.a",
+        "functionId": 0,
+        "blockId": 0
+      },
+      "found": "(RETURN _)",
+      "expected": "(RETURN vN) with vN : u64",
+      "derived": null,
+      "context": "  0 @32  01 00 00 00 00 00 00 00 2c 01 00 00 01 00 00 00  (FUNC fn0 300 u64)\n  1 @48  02 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (BLOCK block0 0 0)\n> 2 @64  43 00 00 00 ff ff ff ff 00 00 00 00 00 00 00 00  (RETURN _)\n  3 @80  04 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (END_FUNC)",
+      "claim": null,
+      "manualRef": "§10.4"
+    }
+  ],
+  "warnings": [],
+  "suppressed": 0,
+  "omitted": 0,
+  "listing": "4 lines",
+  "listingTruncated": false,
+  "annotations": {
+    "present": false,
+    "records": 0,
+    "claimsChecked": 0,
+    "claimsMatched": 0,
+    "contracts": 0,
+    "invariants": 0,
+    "examples": 0,
+    "sha256": null
+  },
+  "catalogVersion": "anma-diagnostics/1"
+}

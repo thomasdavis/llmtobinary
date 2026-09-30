@@ -110,9 +110,9 @@ async function route(request: Request, env: Env): Promise<Response> {
   if (path === "/api/generation-sessions" && request.method === "POST") {
     checkOrigin(request);
     await admit(request, env, "create");
+    const req = validateCreate(await readJson(request, MAX_CREATE_BODY), env);
     const live = liveStatus(env);
     if (!live.live) throw new HttpError(503, `live generation is unavailable: ${live.reason}`);
-    const req = validateCreate(await readJson(request, MAX_CREATE_BODY), env);
     const profile = profileFromEnv(env);
     const prof = profile.ok ? profile.profile : { id: "default", label: "test", model: "test-model", reasoningEffort: null, carryReasoning: false, inputPerMTok: 1, outputPerMTok: 4, maxContextChars: 600_000 };
     const sessionId = crypto.randomUUID();

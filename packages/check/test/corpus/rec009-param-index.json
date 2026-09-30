@@ -1,0 +1,42 @@
+{
+  "ok": false,
+  "byteLength": 112,
+  "sha256": "0e3b22797e9fc4f3779b65c7ff2fa0b6c58dc62a574d0dd4f4cf6be472d7fba0",
+  "errors": [
+    {
+      "rule": "ANMA-V-REC-009",
+      "severity": "error",
+      "category": "BAD_RECORD_GRAMMAR",
+      "message": "PARAM index must be 0.",
+      "location": {
+        "byteOffset": 76,
+        "recordIndex": 2,
+        "field": "record.c",
+        "functionId": 0,
+        "blockId": 0
+      },
+      "found": "(PARAM v0 u64 1)",
+      "expected": "(PARAM v0 <type> 0)",
+      "derived": null,
+      "context": "  0 @32  01 00 00 00 00 00 00 00 01 00 00 00 01 00 00 00  (FUNC fn0 1 u64)\n  1 @48  02 00 00 00 00 00 00 00 01 00 00 00 01 00 00 00  (BLOCK block0 1 1)\n> 2 @64  03 00 00 00 00 00 00 00 01 00 00 00 01 00 00 00  (PARAM v0 u64 1)\n  3 @80  43 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (RETURN v0)\n  4 @96  04 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (END_FUNC)",
+      "claim": null,
+      "manualRef": "§10.2"
+    }
+  ],
+  "warnings": [],
+  "suppressed": 0,
+  "omitted": 0,
+  "listing": "5 lines",
+  "listingTruncated": false,
+  "annotations": {
+    "present": false,
+    "records": 0,
+    "claimsChecked": 0,
+    "claimsMatched": 0,
+    "contracts": 0,
+    "invariants": 0,
+    "examples": 0,
+    "sha256": null
+  },
+  "catalogVersion": "anma-diagnostics/1"
+}

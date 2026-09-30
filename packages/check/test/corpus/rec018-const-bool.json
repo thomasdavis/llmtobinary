@@ -1,0 +1,42 @@
+{
+  "ok": false,
+  "byteLength": 112,
+  "sha256": "e330c20660cf775046abdff1024413dbeb29478a0e1671095faba9ba502be49c",
+  "errors": [
+    {
+      "rule": "ANMA-V-REC-018",
+      "severity": "error",
+      "category": "BAD_RECORD_GRAMMAR",
+      "message": "CONST_BOOL immediate must be 0 or 1.",
+      "location": {
+        "byteOffset": 72,
+        "recordIndex": 2,
+        "field": "record.b",
+        "functionId": 0,
+        "blockId": 0
+      },
+      "found": "2",
+      "expected": "0 or 1",
+      "derived": null,
+      "context": "  0 @32  01 00 00 00 00 00 00 00 00 00 00 00 02 00 00 00  (FUNC fn0 0 bool)\n  1 @48  02 00 00 00 00 00 00 00 00 00 00 00 01 00 00 00  (BLOCK block0 0 1)\n> 2 @64  11 00 00 00 00 00 00 00 02 00 00 00 00 00 00 00  (CONST_BOOL v0 2)\n  3 @80  43 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (RETURN v0)\n  4 @96  04 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (END_FUNC)",
+      "claim": null,
+      "manualRef": "§10.3"
+    }
+  ],
+  "warnings": [],
+  "suppressed": 0,
+  "omitted": 0,
+  "listing": "5 lines",
+  "listingTruncated": false,
+  "annotations": {
+    "present": false,
+    "records": 0,
+    "claimsChecked": 0,
+    "claimsMatched": 0,
+    "contracts": 0,
+    "invariants": 0,
+    "examples": 0,
+    "sha256": null
+  },
+  "catalogVersion": "anma-diagnostics/1"
+}

@@ -107,6 +107,7 @@ describe("agentic loop", () => {
     const h = harness([{ kind: "check", envelope: env(badHex) }, { kind: "check", envelope: env(badHex) }, { kind: "check", envelope: env(badHex) }, { kind: "check", envelope: env(sqHex) }]);
     await runAttempt(h.state, { idempotencyKey: "k", feedback: null }, h.deps);
     expect(h.state.outcome).toBe("stalled");
+    expect(h.state.stopDetail).toMatch(/^ANMA-L-002/);
     expect(h.model.requests).toHaveLength(3);
   });
 
@@ -123,6 +124,7 @@ describe("agentic loop", () => {
     await runAttempt(turns.state, { idempotencyKey: "k", feedback: null }, turns.deps);
     expect(turns.state.outcome).toBe("budget-exhausted");
     expect(turns.model.requests).toHaveLength(2);
+    expect(turns.state.stopDetail).toMatch(/^ANMA-L-001/);
     const spend = harness([{ kind: "submit", envelope: env(sqHex) }], { ledgerLimit: 0 });
     await runAttempt(spend.state, { idempotencyKey: "k", feedback: null }, spend.deps);
     expect(spend.state.outcome).toBe("budget-exhausted");
@@ -184,6 +186,15 @@ describe("agentic loop", () => {
     expect(el.length).toBeGreaterThan(0);
     const last = JSON.stringify(h.model.requests.at(-1)!.input);
     expect(last).toContain("[elided] draft 1: rules ANMA-V-HDR-004, ANMA-V-ARG-001");
+  });
+
+  it("context budget exhausted even after elision stops with ANMA-L-003", async () => {
+    const h = harness([{ kind: "submit", envelope: env(sqHex) }]);
+    h.state.profile = { ...h.state.profile, maxContextChars: 100 };
+    await runAttempt(h.state, { idempotencyKey: "k", feedback: null }, h.deps);
+    expect(h.state.outcome).toBe("budget-exhausted");
+    expect(h.state.stopDetail).toMatch(/^ANMA-L-003/);
+    expect(h.model.requests).toHaveLength(0);
   });
 
   it("raw-hex profile: text output is the submission", async () => {

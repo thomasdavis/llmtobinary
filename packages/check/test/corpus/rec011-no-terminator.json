@@ -1,0 +1,42 @@
+{
+  "ok": false,
+  "byteLength": 96,
+  "sha256": "414feacf54cf9da0b92f340dc5b56e4a8f27ca006f65f62fa389e8d665337ea9",
+  "errors": [
+    {
+      "rule": "ANMA-V-REC-011",
+      "severity": "error",
+      "category": "BAD_RECORD_GRAMMAR",
+      "message": "Block 0 of function 0 has no terminator before END_FUNC.",
+      "location": {
+        "byteOffset": 80,
+        "recordIndex": 3,
+        "field": "record.opcode",
+        "functionId": 0,
+        "blockId": 0
+      },
+      "found": "(END_FUNC)",
+      "expected": "JUMP, BR_IF, or RETURN as the block's final instruction",
+      "derived": null,
+      "context": "  0 @32  01 00 00 00 00 00 00 00 00 00 00 00 01 00 00 00  (FUNC fn0 0 u64)\n  1 @48  02 00 00 00 00 00 00 00 00 00 00 00 01 00 00 00  (BLOCK block0 0 1)\n  2 @64  10 00 00 00 00 00 00 00 2a 00 00 00 00 00 00 00  (CONST_U64 v0 42)\n> 3 @80  04 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (END_FUNC)",
+      "claim": null,
+      "manualRef": "§10.2"
+    }
+  ],
+  "warnings": [],
+  "suppressed": 0,
+  "omitted": 0,
+  "listing": "4 lines",
+  "listingTruncated": false,
+  "annotations": {
+    "present": false,
+    "records": 0,
+    "claimsChecked": 0,
+    "claimsMatched": 0,
+    "contracts": 0,
+    "invariants": 0,
+    "examples": 0,
+    "sha256": null
+  },
+  "catalogVersion": "anma-diagnostics/1"
+}

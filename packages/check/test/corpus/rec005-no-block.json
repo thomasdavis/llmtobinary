@@ -1,0 +1,80 @@
+{
+  "ok": false,
+  "byteLength": 96,
+  "sha256": "a7204fe101ee9703365fbbfd792930fb803a61a4ddf0888219f00d755a9ffd8e",
+  "errors": [
+    {
+      "rule": "ANMA-V-REC-005",
+      "severity": "error",
+      "category": "BAD_RECORD_GRAMMAR",
+      "message": "Expected BLOCK after FUNC but found (CONST_U64 v0 42).",
+      "location": {
+        "byteOffset": 48,
+        "recordIndex": 1,
+        "field": "record.opcode",
+        "functionId": 0,
+        "blockId": null
+      },
+      "found": "(CONST_U64 v0 42)",
+      "expected": "(BLOCK block0 <paramCount> <localValueCount>)",
+      "derived": null,
+      "context": "  0 @32  01 00 00 00 00 00 00 00 00 00 00 00 01 00 00 00  (FUNC fn0 0 u64)\n> 1 @48  10 00 00 00 00 00 00 00 2a 00 00 00 00 00 00 00  (CONST_U64 v0 42)\n  2 @64  43 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (RETURN v0)\n  3 @80  04 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (END_FUNC)",
+      "claim": null,
+      "manualRef": "§10.2"
+    },
+    {
+      "rule": "ANMA-V-REC-005",
+      "severity": "error",
+      "category": "BAD_RECORD_GRAMMAR",
+      "message": "Expected BLOCK after FUNC but found (RETURN v0).",
+      "location": {
+        "byteOffset": 64,
+        "recordIndex": 2,
+        "field": "record.opcode",
+        "functionId": 0,
+        "blockId": null
+      },
+      "found": "(RETURN v0)",
+      "expected": "(BLOCK block0 <paramCount> <localValueCount>)",
+      "derived": null,
+      "context": "  0 @32  01 00 00 00 00 00 00 00 00 00 00 00 01 00 00 00  (FUNC fn0 0 u64)\n  1 @48  10 00 00 00 00 00 00 00 2a 00 00 00 00 00 00 00  (CONST_U64 v0 42)\n> 2 @64  43 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (RETURN v0)\n  3 @80  04 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (END_FUNC)",
+      "claim": null,
+      "manualRef": "§10.2"
+    },
+    {
+      "rule": "ANMA-V-REC-015",
+      "severity": "error",
+      "category": "BAD_RECORD_GRAMMAR",
+      "message": "Function 0 has no blocks.",
+      "location": {
+        "byteOffset": 80,
+        "recordIndex": 3,
+        "field": null,
+        "functionId": 0,
+        "blockId": null
+      },
+      "found": null,
+      "expected": "at least block 0 before END_FUNC",
+      "derived": null,
+      "context": "  0 @32  01 00 00 00 00 00 00 00 00 00 00 00 01 00 00 00  (FUNC fn0 0 u64)\n  1 @48  10 00 00 00 00 00 00 00 2a 00 00 00 00 00 00 00  (CONST_U64 v0 42)\n  2 @64  43 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (RETURN v0)\n> 3 @80  04 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (END_FUNC)",
+      "claim": null,
+      "manualRef": "§10.2"
+    }
+  ],
+  "warnings": [],
+  "suppressed": 0,
+  "omitted": 0,
+  "listing": "4 lines",
+  "listingTruncated": false,
+  "annotations": {
+    "present": false,
+    "records": 0,
+    "claimsChecked": 0,
+    "claimsMatched": 0,
+    "contracts": 0,
+    "invariants": 0,
+    "examples": 0,
+    "sha256": null
+  },
+  "catalogVersion": "anma-diagnostics/1"
+}

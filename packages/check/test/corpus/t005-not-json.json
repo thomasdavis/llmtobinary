@@ -1,0 +1,42 @@
+{
+  "ok": false,
+  "byteLength": null,
+  "sha256": null,
+  "errors": [
+    {
+      "rule": "ANMA-T-005",
+      "severity": "error",
+      "category": "TRANSPORT_INVALID",
+      "message": "The envelope is not valid JSON.",
+      "location": {
+        "byteOffset": null,
+        "recordIndex": null,
+        "field": null,
+        "functionId": null,
+        "blockId": null
+      },
+      "found": "Unexpected end of JSON input",
+      "expected": null,
+      "derived": null,
+      "context": null,
+      "claim": null,
+      "manualRef": "§7.2"
+    }
+  ],
+  "warnings": [],
+  "suppressed": 0,
+  "omitted": 0,
+  "listing": null,
+  "listingTruncated": false,
+  "annotations": {
+    "present": false,
+    "records": 0,
+    "claimsChecked": 0,
+    "claimsMatched": 0,
+    "contracts": 0,
+    "invariants": 0,
+    "examples": 0,
+    "sha256": null
+  },
+  "catalogVersion": "anma-diagnostics/1"
+}

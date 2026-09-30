@@ -1,0 +1,42 @@
+{
+  "ok": false,
+  "byteLength": 192,
+  "sha256": "b2239fa9ed90c48e99e6dc79191039566e01f5f838ed6754850ec2b252236c61",
+  "errors": [
+    {
+      "rule": "ANMA-V-LIM-003",
+      "severity": "error",
+      "category": "RESOURCE_EXHAUSTED",
+      "message": "Too many functions.",
+      "location": {
+        "byteOffset": 112,
+        "recordIndex": 5,
+        "field": null,
+        "functionId": 1,
+        "blockId": null
+      },
+      "found": null,
+      "expected": null,
+      "derived": null,
+      "context": "  2 @64  10 00 00 00 00 00 00 00 2a 00 00 00 00 00 00 00  (CONST_U64 v0 42)\n  3 @80  43 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (RETURN v0)\n  4 @96  04 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (END_FUNC)\n> 5 @112  01 00 00 00 01 00 00 00 00 00 00 00 01 00 00 00  (FUNC fn1 0 u64)\n  6 @128  02 00 00 00 00 00 00 00 00 00 00 00 01 00 00 00  (BLOCK block0 0 1)\n  7 @144  10 00 00 00 00 00 00 00 2a 00 00 00 00 00 00 00  (CONST_U64 v0 42)\n  8 @160  43 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (RETURN v0)",
+      "claim": null,
+      "manualRef": "§14.1"
+    }
+  ],
+  "warnings": [],
+  "suppressed": 0,
+  "omitted": 0,
+  "listing": "10 lines",
+  "listingTruncated": false,
+  "annotations": {
+    "present": false,
+    "records": 0,
+    "claimsChecked": 0,
+    "claimsMatched": 0,
+    "contracts": 0,
+    "invariants": 0,
+    "examples": 0,
+    "sha256": null
+  },
+  "catalogVersion": "anma-diagnostics/1"
+}

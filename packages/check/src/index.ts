@@ -158,6 +158,21 @@ export async function checkCandidate(input: CheckInput, opts: CheckOptions = {})
     if (v.module) all.push(...checkContracts(ann, v.module));
   }
 
+  // 3b. Misaligned files (stray bytes: the record area is not a multiple of 16) decode as garbage
+  // after the misalignment, so only the length error and the first record-level error are root
+  // causes; later record-level errors are cascades.
+  if (v.decoded) {
+    const h = v.decoded.header;
+    const recordArea = bytes.length - 32 - (h.dataBytes <= bytes.length - 32 ? h.dataBytes : 0);
+    if (bytes.length >= 32 && recordArea % 16 !== 0) {
+      let kept = 0;
+      for (const d of all.sort((a, b) => (a.location.recordIndex ?? -1) - (b.location.recordIndex ?? -1))) {
+        if (d.severity !== "error" || d.location.recordIndex === null || d.stage === 1) continue;
+        if (kept++ >= 1) d.cascade = true;
+      }
+    }
+  }
+
   // 4. attach the model's own claim to structural diagnostics at that record
   for (const d of all) {
     if (d.claim === null && d.location.recordIndex !== null && claims.has(d.location.recordIndex)) d.claim = claims.get(d.location.recordIndex)!;

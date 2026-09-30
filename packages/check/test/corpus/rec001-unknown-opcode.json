@@ -1,0 +1,42 @@
+{
+  "ok": false,
+  "byteLength": 128,
+  "sha256": "332755e11f9418ebc9155112b3abd95c283a8dff50728ce94a7c1237e9396769",
+  "errors": [
+    {
+      "rule": "ANMA-V-REC-001",
+      "severity": "error",
+      "category": "UNKNOWN_OPCODE",
+      "message": "Unknown opcode 0x99.",
+      "location": {
+        "byteOffset": 64,
+        "recordIndex": 2,
+        "field": "record.opcode",
+        "functionId": 0,
+        "blockId": 0
+      },
+      "found": "opcode word 153 (0x99); bytes (UNKNOWN 0x99 0 0 0)",
+      "expected": "an opcode from the manual's opcode tables",
+      "derived": null,
+      "context": "  0 @32  01 00 00 00 00 00 00 00 00 00 00 00 01 00 00 00  (FUNC fn0 0 u64)\n  1 @48  02 00 00 00 00 00 00 00 00 00 00 00 01 00 00 00  (BLOCK block0 0 1)\n> 2 @64  99 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (UNKNOWN 0x99 0 0 0)\n  3 @80  10 00 00 00 00 00 00 00 01 00 00 00 00 00 00 00  (CONST_U64 v0 1)\n  4 @96  43 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (RETURN v0)\n  5 @112  04 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (END_FUNC)",
+      "claim": null,
+      "manualRef": "§10"
+    }
+  ],
+  "warnings": [],
+  "suppressed": 0,
+  "omitted": 0,
+  "listing": "6 lines",
+  "listingTruncated": false,
+  "annotations": {
+    "present": false,
+    "records": 0,
+    "claimsChecked": 0,
+    "claimsMatched": 0,
+    "contracts": 0,
+    "invariants": 0,
+    "examples": 0,
+    "sha256": null
+  },
+  "catalogVersion": "anma-diagnostics/1"
+}

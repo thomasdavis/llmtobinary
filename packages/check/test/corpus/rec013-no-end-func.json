@@ -1,0 +1,42 @@
+{
+  "ok": false,
+  "byteLength": 96,
+  "sha256": "f73584c691d598427076ab975e33d5352837c271e67dde06f8a6d7add9f5b9d7",
+  "errors": [
+    {
+      "rule": "ANMA-V-REC-013",
+      "severity": "error",
+      "category": "BAD_RECORD_GRAMMAR",
+      "message": "The file ends inside function 0 without END_FUNC.",
+      "location": {
+        "byteOffset": 96,
+        "recordIndex": 4,
+        "field": null,
+        "functionId": 0,
+        "blockId": null
+      },
+      "found": null,
+      "expected": "END_FUNC after the last block's terminator",
+      "derived": null,
+      "context": "  0 @32  01 00 00 00 00 00 00 00 00 00 00 00 01 00 00 00  (FUNC fn0 0 u64)\n  1 @48  02 00 00 00 00 00 00 00 00 00 00 00 01 00 00 00  (BLOCK block0 0 1)\n  2 @64  10 00 00 00 00 00 00 00 2a 00 00 00 00 00 00 00  (CONST_U64 v0 42)\n> 3 @80  43 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (RETURN v0)",
+      "claim": null,
+      "manualRef": "§10.2"
+    }
+  ],
+  "warnings": [],
+  "suppressed": 0,
+  "omitted": 0,
+  "listing": "4 lines",
+  "listingTruncated": false,
+  "annotations": {
+    "present": false,
+    "records": 0,
+    "claimsChecked": 0,
+    "claimsMatched": 0,
+    "contracts": 0,
+    "invariants": 0,
+    "examples": 0,
+    "sha256": null
+  },
+  "catalogVersion": "anma-diagnostics/1"
+}

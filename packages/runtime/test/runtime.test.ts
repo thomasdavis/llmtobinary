@@ -204,6 +204,7 @@ describe("resource and control outcomes", () => {
     const fin = runFinite(m, [], { limits, config: { fastSlots: 2 } });
     expect(ref.trap?.code).toBe("FUEL_EXHAUSTED");
     expect(fin.trap?.code).toBe("FUEL_EXHAUSTED");
+    expect(fin.trap?.rule).toBe("ANMA-R-006");
     expect(fin.counters.executedInstructions).toBe(10_000);
   });
 
@@ -250,6 +251,7 @@ describe("resource and control outcomes", () => {
       const opts = allowed !== undefined ? { allowedFeatures: allowed } : {};
       const ref = runToCompletion(m, [u(9)], opts);
       expect(ref.trap?.code, name).toBe(code);
+      if (code === "DIVIDE_BY_ZERO") expect(ref.trap?.rule).toBe("ANMA-R-001");
       for (const F of [1, 3]) {
         const fin = runFinite(m, [u(9)], { ...opts, config: { fastSlots: F } });
         expect(fin.trap?.code, name).toBe(code);

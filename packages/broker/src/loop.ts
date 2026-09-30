@@ -228,7 +228,7 @@ export async function runAttempt(state: SessionState, req: AttemptRequest, deps:
       state.items.push({ type: "function_call_output", call_id: state.pendingSubmitCallId, output: body });
     } else state.items.push({ role: "user", content: `${FEEDBACK_NOTE}\n${body}` });
     state.pendingSubmitCallId = null;
-    if (state.counters.submissions >= state.budget.maxSubmissions) return stop("budget-exhausted", `the submission budget (${state.budget.maxSubmissions}) is used up`);
+    if (state.counters.submissions >= state.budget.maxSubmissions) return stop("budget-exhausted", `ANMA-L-001: the submission budget (${state.budget.maxSubmissions}) is used up`);
   }
 
   const instructions = generationInstructions();
@@ -242,11 +242,11 @@ export async function runAttempt(state: SessionState, req: AttemptRequest, deps:
     }
     const b = state.budget;
     const c = state.counters;
-    if (c.turns >= b.maxTurns) return stop("budget-exhausted", `the turn budget (${b.maxTurns}) is used up`);
-    if (deps.now() - c.startedAt > b.maxWallClockMs) return stop("budget-exhausted", "the wall-clock budget is used up");
+    if (c.turns >= b.maxTurns) return stop("budget-exhausted", `ANMA-L-001: the turn budget (${b.maxTurns}) is used up`);
+    if (deps.now() - c.startedAt > b.maxWallClockMs) return stop("budget-exhausted", "ANMA-L-001: the wall-clock budget is used up");
     const remainingTokens = b.maxOutputTokensPerSession - c.outputTokens;
     const maxOut = Math.min(b.maxOutputTokensPerTurn, remainingTokens);
-    if (maxOut < 1024) return stop("budget-exhausted", "the output-token budget is used up");
+    if (maxOut < 1024) return stop("budget-exhausted", "ANMA-L-001: the output-token budget is used up");
 
     // Deterministic context elision (never model-written summaries).
     let elided = 0;
@@ -258,14 +258,14 @@ export async function runAttempt(state: SessionState, req: AttemptRequest, deps:
     }
     if (elided) await emit({ type: "loop.elided", elidedChecks: elided });
     if (contextChars(instructions, state.items) > state.profile.maxContextChars) {
-      return stop("budget-exhausted", "CONTEXT_BUDGET_EXHAUSTED: the loop context budget is used up even after elision");
+      return stop("budget-exhausted", "ANMA-L-003: CONTEXT_BUDGET_EXHAUSTED: the loop context budget is used up even after elision");
     }
 
     const turnId = `${attempt.attemptId}:${c.turns}`;
     const estInputTokens = Math.ceil(contextChars(instructions, state.items) / 3);
     const reserveUsd = (estInputTokens * state.profile.inputPerMTok + maxOut * state.profile.outputPerMTok) / 1e6;
     const gate = await deps.ledger.reserve(turnId, reserveUsd);
-    if (!gate.ok) return stop("budget-exhausted", `spend cap: ${gate.reason}`);
+    if (!gate.ok) return stop("budget-exhausted", `ANMA-L-001: spend cap: ${gate.reason}`);
 
     c.turns++;
     await emit({ type: "turn.started", turn: c.turns });
@@ -356,9 +356,9 @@ export async function runAttempt(state: SessionState, req: AttemptRequest, deps:
       state.recentCheckSignatures.push(sig);
       if (state.recentCheckSignatures.length > b.stallRepeatK) state.recentCheckSignatures.shift();
       if (sig !== "clean" && state.recentCheckSignatures.length === b.stallRepeatK && state.recentCheckSignatures.every((s) => s === sig)) {
-        return stop("stalled", `the same rule set (${sig}) was reported for ${b.stallRepeatK} consecutive checks`);
+        return stop("stalled", `ANMA-L-002: the same rule set (${sig}) was reported for ${b.stallRepeatK} consecutive checks`);
       }
-      if (c.checks >= b.maxChecks) return stop("budget-exhausted", `the check budget (${b.maxChecks}) is used up`);
+      if (c.checks >= b.maxChecks) return stop("budget-exhausted", `ANMA-L-001: the check budget (${b.maxChecks}) is used up`);
       continue;
     }
     if (call.name === SUBMIT_TOOL) return submit(call.arguments, call.callId);
@@ -389,7 +389,7 @@ export async function runAttempt(state: SessionState, req: AttemptRequest, deps:
     const cand: Candidate = { attemptId: attempt.attemptId, kind: "submit", seq: state.candidates.length, rawText, sha256: sha, byteLength: len };
     state.candidates.push(cand);
     await emit({ type: "candidate.submitted", candidate: cand, envelopeText: rawText });
-    if (sha && state.submittedShas.includes(sha)) return stop("stalled", `candidate ${sha} was submitted before`);
+    if (sha && state.submittedShas.includes(sha)) return stop("stalled", `ANMA-L-002: candidate ${sha} was submitted before`);
     if (sha) state.submittedShas.push(sha);
     state.pendingSubmitCallId = callId;
     attempt.status = "awaiting-feedback";

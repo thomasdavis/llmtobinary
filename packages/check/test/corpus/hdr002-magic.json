@@ -1,0 +1,42 @@
+{
+  "ok": false,
+  "byteLength": 112,
+  "sha256": "b73a30e34ea9b7f9320cb4b1e228456db33f08a45be2c3f32986cb003c9bc1c5",
+  "errors": [
+    {
+      "rule": "ANMA-V-HDR-002",
+      "severity": "error",
+      "category": "BAD_HEADER",
+      "message": "The file does not start with the ANMA magic bytes.",
+      "location": {
+        "byteOffset": 0,
+        "recordIndex": null,
+        "field": "header.word0",
+        "functionId": null,
+        "blockId": null
+      },
+      "found": "41 4e 4d 42",
+      "expected": "41 4e 4d 41",
+      "derived": null,
+      "context": null,
+      "claim": null,
+      "manualRef": "§10.1"
+    }
+  ],
+  "warnings": [],
+  "suppressed": 0,
+  "omitted": 0,
+  "listing": "5 lines",
+  "listingTruncated": false,
+  "annotations": {
+    "present": false,
+    "records": 0,
+    "claimsChecked": 0,
+    "claimsMatched": 0,
+    "contracts": 0,
+    "invariants": 0,
+    "examples": 0,
+    "sha256": null
+  },
+  "catalogVersion": "anma-diagnostics/1"
+}

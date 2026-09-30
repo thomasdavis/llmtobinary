@@ -1,0 +1,42 @@
+{
+  "ok": false,
+  "byteLength": 112,
+  "sha256": "65d77b4149ce4c998ee3066dce18869e41a9db1ddd9af97a27be8e08c0a29aff",
+  "errors": [
+    {
+      "rule": "ANMA-V-REC-010",
+      "severity": "error",
+      "category": "TYPE_MISMATCH",
+      "message": "Invalid parameter type tag 9.",
+      "location": {
+        "byteOffset": 72,
+        "recordIndex": 2,
+        "field": "record.b",
+        "functionId": 0,
+        "blockId": 0
+      },
+      "found": "(PARAM v0 type9 0)",
+      "expected": "1 u64, 2 bool, 3 handle<u8>, or 4 handle<u64> (unit is not a parameter type)",
+      "derived": null,
+      "context": "  0 @32  01 00 00 00 00 00 00 00 01 00 00 00 01 00 00 00  (FUNC fn0 1 u64)\n  1 @48  02 00 00 00 00 00 00 00 01 00 00 00 01 00 00 00  (BLOCK block0 1 1)\n> 2 @64  03 00 00 00 00 00 00 00 09 00 00 00 00 00 00 00  (PARAM v0 type9 0)\n  3 @80  43 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (RETURN v0)\n  4 @96  04 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (END_FUNC)",
+      "claim": null,
+      "manualRef": "§10.2"
+    }
+  ],
+  "warnings": [],
+  "suppressed": 0,
+  "omitted": 0,
+  "listing": "5 lines",
+  "listingTruncated": false,
+  "annotations": {
+    "present": false,
+    "records": 0,
+    "claimsChecked": 0,
+    "claimsMatched": 0,
+    "contracts": 0,
+    "invariants": 0,
+    "examples": 0,
+    "sha256": null
+  },
+  "catalogVersion": "anma-diagnostics/1"
+}

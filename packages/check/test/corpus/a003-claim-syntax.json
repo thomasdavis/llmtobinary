@@ -1,0 +1,42 @@
+{
+  "ok": false,
+  "byteLength": 112,
+  "sha256": "7faf944afae69068e7ceddc57d780b9b11fbccc368c04ce235671dfa5562e65f",
+  "errors": [
+    {
+      "rule": "ANMA-A-003",
+      "severity": "error",
+      "category": "ANNOTATION_INVALID",
+      "message": "The claim for record 2 does not parse: a claim is one parenthesized s-expression such as (ADD_U64 v3 v1 v2), (CONST_U64 v2 2), (HOST _ terminal.print_u64 1), (ARG v3), (BR_IF v5 block1 block2).",
+      "location": {
+        "byteOffset": null,
+        "recordIndex": 2,
+        "field": null,
+        "functionId": null,
+        "blockId": null
+      },
+      "found": "CONST v0 42",
+      "expected": null,
+      "derived": null,
+      "context": "  0 @32  01 00 00 00 00 00 00 00 00 00 00 00 01 00 00 00  (FUNC fn0 0 u64)\n  1 @48  02 00 00 00 00 00 00 00 00 00 00 00 01 00 00 00  (BLOCK block0 0 1)\n> 2 @64  10 00 00 00 00 00 00 00 2a 00 00 00 00 00 00 00  (CONST_U64 v0 42)   ; claim: CONST v0 42\n  3 @80  43 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (RETURN v0)\n  4 @96  04 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (END_FUNC)",
+      "claim": "CONST v0 42",
+      "manualRef": "§15.3"
+    }
+  ],
+  "warnings": [],
+  "suppressed": 0,
+  "omitted": 0,
+  "listing": "5 lines",
+  "listingTruncated": false,
+  "annotations": {
+    "present": true,
+    "records": 1,
+    "claimsChecked": 0,
+    "claimsMatched": 0,
+    "contracts": 0,
+    "invariants": 0,
+    "examples": 0,
+    "sha256": "6c292617bd12f8050718c9469d52106bc68c9b243bcb730aef1a6131be457c0c"
+  },
+  "catalogVersion": "anma-diagnostics/1"
+}

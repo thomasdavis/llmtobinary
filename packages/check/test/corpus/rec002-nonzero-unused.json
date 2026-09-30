@@ -1,0 +1,42 @@
+{
+  "ok": false,
+  "byteLength": 112,
+  "sha256": "b0ba14ab443d907d56e135398e2e649f9bf149f857981b1226226a40c2cf6e80",
+  "errors": [
+    {
+      "rule": "ANMA-V-REC-002",
+      "severity": "error",
+      "category": "BAD_RECORD_GRAMMAR",
+      "message": "Unused field b of RETURN must be zero.",
+      "location": {
+        "byteOffset": 88,
+        "recordIndex": 3,
+        "field": "record.b",
+        "functionId": 0,
+        "blockId": 0
+      },
+      "found": "b = 5",
+      "expected": "0",
+      "derived": null,
+      "context": "  0 @32  01 00 00 00 00 00 00 00 00 00 00 00 01 00 00 00  (FUNC fn0 0 u64)\n  1 @48  02 00 00 00 00 00 00 00 00 00 00 00 01 00 00 00  (BLOCK block0 0 1)\n  2 @64  10 00 00 00 00 00 00 00 2a 00 00 00 00 00 00 00  (CONST_U64 v0 42)\n> 3 @80  43 00 00 00 00 00 00 00 05 00 00 00 00 00 00 00  (RETURN v0)\n  4 @96  04 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (END_FUNC)",
+      "claim": null,
+      "manualRef": "§10.1"
+    }
+  ],
+  "warnings": [],
+  "suppressed": 0,
+  "omitted": 0,
+  "listing": "5 lines",
+  "listingTruncated": false,
+  "annotations": {
+    "present": false,
+    "records": 0,
+    "claimsChecked": 0,
+    "claimsMatched": 0,
+    "contracts": 0,
+    "invariants": 0,
+    "examples": 0,
+    "sha256": null
+  },
+  "catalogVersion": "anma-diagnostics/1"
+}

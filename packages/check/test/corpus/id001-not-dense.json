@@ -1,0 +1,42 @@
+{
+  "ok": false,
+  "byteLength": 112,
+  "sha256": "8470c5635c5ebe2845c4adc8a798be46c9db75ac14d452b0e992bc66a72ead01",
+  "errors": [
+    {
+      "rule": "ANMA-V-ID-001",
+      "severity": "error",
+      "category": "INVALID_ID",
+      "message": "Destination v5 is not the next dense value ID in block 0.",
+      "location": {
+        "byteOffset": 68,
+        "recordIndex": 2,
+        "field": "record.a",
+        "functionId": 0,
+        "blockId": 0
+      },
+      "found": "(CONST_U64 v5 42)",
+      "expected": "destination v0",
+      "derived": "Block 0 has defined v0..v-1 so far (0 parameters + 0 results), so the next result is v0.",
+      "context": "  0 @32  01 00 00 00 00 00 00 00 00 00 00 00 01 00 00 00  (FUNC fn0 0 u64)\n  1 @48  02 00 00 00 00 00 00 00 00 00 00 00 01 00 00 00  (BLOCK block0 0 1)\n> 2 @64  10 00 00 00 05 00 00 00 2a 00 00 00 00 00 00 00  (CONST_U64 v5 42)\n  3 @80  43 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (RETURN v0)\n  4 @96  04 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00  (END_FUNC)",
+      "claim": null,
+      "manualRef": "§10.2"
+    }
+  ],
+  "warnings": [],
+  "suppressed": 0,
+  "omitted": 0,
+  "listing": "5 lines",
+  "listingTruncated": false,
+  "annotations": {
+    "present": false,
+    "records": 0,
+    "claimsChecked": 0,
+    "claimsMatched": 0,
+    "contracts": 0,
+    "invariants": 0,
+    "examples": 0,
+    "sha256": null
+  },
+  "catalogVersion": "anma-diagnostics/1"
+}
