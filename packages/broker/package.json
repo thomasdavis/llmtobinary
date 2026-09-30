@@ -12,11 +12,11 @@
   "dependencies": {
     "@llmtobinary/spec": "workspace:*",
     "@llmtobinary/decode": "workspace:*",
-    "@llmtobinary/validate": "workspace:*",
     "@llmtobinary/diagnostics": "workspace:*",
     "@llmtobinary/annotations": "workspace:*",
     "@llmtobinary/protocol": "workspace:*",
-    "openai": "7.25.0",
-    "@llmtobinary/check": "workspace:*"
+    "@llmtobinary/check": "workspace:*",
+    "@llmtobinary/tasks": "workspace:*",
+    "openai": "7.25.0"
   }
 }
