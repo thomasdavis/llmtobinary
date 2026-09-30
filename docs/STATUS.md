@@ -40,7 +40,7 @@ Legend: **verified** = automated tests in this repo pass · **live** = exercised
 
 ## Not yet / deviations
 - **Browser coverage:** headless Chromium and Firefox 142 pass the full E2E against production (live generation E2E on Chromium/staging). WebKit is not yet run: it needs system libraries (GStreamer, libvpx, …) that would require apt installs on this shared host; the deploy workflow runs the E2E on Chromium, Firefox, and WebKit with `playwright-core install --with-deps`.
-- **Production live generation is on** (`$4.00`/session, `$20.00`/day caps); staging has live generation with `$0.50`/session and `$1.00`/day caps and conservative price ceilings (`$2`/`$10` per million tokens) that over-reserve.
+- **Production live generation is on** (`$4.00`/session, `$20.00`/day caps); staging has live generation with `$0.50`/session and `$1.00`/day caps.
 - **Compatibility date** pinned to 2026-08-20 (the newest date supported by the pinned test runtime).
-- **Model pricing** in `wrangler.jsonc` are ceilings, not published prices; reconcile them before a study.
+- **Model:** `gpt-6-luna` (medium reasoning) on production and staging since 2026-09-30, priced at OpenAI's published $0.10 / $0.50 per million input/output tokens, so the $4 session and $20 day caps are real dollars. There is no dated snapshot id, so the alias can change under us; recheck the price before a study. A real generation passed on both environments.
 - **No GitHub remote** yet, so the CI and deploy workflows have not run.

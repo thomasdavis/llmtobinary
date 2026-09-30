@@ -139,6 +139,7 @@ export function Die(props: {
   const dir = unitGeom("directory")!;
   const staging = unitGeom("staging")!;
   const stack = unitGeom("stack")!;
+  const heapU = unitGeom("heap")!;
   const fetch = unitGeom("fetch")!;
   const decode = unitGeom("decode")!;
   const memUsed = vm.mem.size;
@@ -246,6 +247,19 @@ export function Die(props: {
           </text>
         )}
       </g>
+
+      {/* typed heap: live allocations as tiles, size, and the last operation */}
+      {!heapU.inactive && (
+        <g className="heap">
+          <text className="mono readout" x={heapU.x + 16} y={heapU.y + 76}>
+            {vm.heap.allocations ? `${vm.heap.allocations} allocation${vm.heap.allocations === 1 ? "" : "s"} · ${vm.heap.bytes.toLocaleString()} B` : "no allocations"}
+          </text>
+          {vm.heap.last && <text className="mono readout dim" x={heapU.x + 16} y={heapU.y + 102}>{`last: ${vm.heap.last}`}</text>}
+          {Array.from({ length: Math.min(vm.heap.allocations, 24) }, (_, i) => (
+            <rect key={i} className="heap-tile" x={heapU.x + 16 + i * 17} y={heapU.y + heapU.h - 28} width={13} height={13} rx={2} />
+          ))}
+        </g>
+      )}
 
       {/* staging and stack */}
       {!staging.inactive && (

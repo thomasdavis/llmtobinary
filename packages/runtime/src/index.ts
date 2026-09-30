@@ -580,7 +580,7 @@ export class FiniteMachine implements Engine {
         this.counters.heapAllocations = this.heap.count;
         this.R = r.value;
         this.m(`R = alloc(${n})`);
-        if (this.ev) this.ev({ at: this.tk(LATENCY.heapAlloc), ticks: LATENCY.heapAlloc, u: "heap", kind: "alloc" });
+        if (this.ev) this.ev({ at: this.tk(LATENCY.heapAlloc), ticks: LATENCY.heapAlloc, u: "heap", kind: "alloc", bytes: this.heap.bytes, allocations: this.heap.count });
         else this.tk(LATENCY.heapAlloc);
         this.publish(f.fnAct, f.blockAct, ins.dst, f.block.types[ins.dst]!, f.block.uses[ins.dst]!);
         break;
@@ -592,7 +592,7 @@ export class FiniteMachine implements Engine {
         if (!r.ok) return this.failWith(r.trap);
         this.R = r.value;
         this.m(`R = heap[A][B] = ${r.value}`);
-        if (this.ev) this.ev({ at: this.tk(LATENCY.heapAccess), ticks: LATENCY.heapAccess, u: "heap", kind: "load" });
+        if (this.ev) this.ev({ at: this.tk(LATENCY.heapAccess), ticks: LATENCY.heapAccess, u: "heap", kind: "load", bytes: this.heap.bytes, allocations: this.heap.count });
         else this.tk(LATENCY.heapAccess);
         this.publish(f.fnAct, f.blockAct, ins.dst, f.block.types[ins.dst]!, f.block.uses[ins.dst]!);
         break;
@@ -604,7 +604,7 @@ export class FiniteMachine implements Engine {
         const r = this.heap.store(ins.op === Op.STORE_U64 ? "u64" : "u8", h, i, v);
         if (!r.ok) return this.failWith(r.trap);
         this.m(`heap[A][B] = R`);
-        if (this.ev) this.ev({ at: this.tk(LATENCY.heapAccess), ticks: LATENCY.heapAccess, u: "heap", kind: "store" });
+        if (this.ev) this.ev({ at: this.tk(LATENCY.heapAccess), ticks: LATENCY.heapAccess, u: "heap", kind: "store", bytes: this.heap.bytes, allocations: this.heap.count });
         else this.tk(LATENCY.heapAccess);
         break;
       }

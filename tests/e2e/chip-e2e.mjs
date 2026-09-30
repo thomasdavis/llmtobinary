@@ -102,6 +102,19 @@ const num = (s) => Number(String(s).replace(/[^0-9]/g, ""));
   await ctx.close();
 }
 
+// 3b. Recursive fibonacci grows the call stack on the die.
+{
+  const { ctx, page, errors } = await open({ width: 1600, height: 1000 }, "/chip?fixture=fibonacci.anma&F=4&x=7");
+  await page.getByRole("combobox", { name: "Clock" }).selectOption({ label: "120 ticks/s" });
+  await page.getByRole("button", { name: "Play" }).click();
+  await page.waitForFunction(() => document.querySelectorAll(".die-svg .frame-bar").length > 2, null, { timeout: 30_000 }).catch(() => undefined);
+  const bars = await page.locator(".die-svg .frame-bar").count();
+  ok(bars > 2, `call stack shows nested calls (${bars} frames)`);
+  await shot(page, "07b-fibonacci-stack");
+  ok(errors.length === 0, `no page errors (${errors.join(" | ")})`);
+  await ctx.close();
+}
+
 // 4. Phone width: no horizontal scroll.
 {
   const { ctx, page, errors } = await open({ width: 390, height: 844 }, "/chip?fixture=square-plus-two.anma&F=1&x=5");

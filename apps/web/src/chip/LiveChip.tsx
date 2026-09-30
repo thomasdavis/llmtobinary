@@ -83,7 +83,7 @@ export function LiveChip(props: { artifact: LoadedArtifact; view: MachineView; m
     (s: MachineSnapshot) => {
       const g = eng.current;
       if (g.vm.cells.length !== s.slots.length) g.vm = new ChipViewModel("ANMA-1", s.slots.length);
-      g.vm.loadState({ cells: s.slots.map((c) => ({ value: c.value, payload: c.payload })), memOccupied: s.backing.occupied, rec: s.position?.recordIndex ?? null, text: s.position ? textOf(s.position.recordIndex) : "", counters: s.counters as unknown as Record<string, number>, latches: s.latches });
+      g.vm.loadState({ cells: s.slots.map((c) => ({ value: c.value, payload: c.payload })), memOccupied: s.backing.occupied, rec: s.position?.recordIndex ?? null, text: s.position ? textOf(s.position.recordIndex) : "", depth: s.position ? s.position.depth + 1 : 1, counters: s.counters as unknown as Record<string, number>, latches: s.latches });
       g.t = g.bufferedTo = s.counters.modeledTicks;
       g.queue = [];
       g.synced = true;

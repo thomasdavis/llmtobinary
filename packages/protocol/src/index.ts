@@ -399,7 +399,7 @@ export type MicroEvent = { at: number; ticks: number } & (
   | { u: "publish"; slot: number; value: string; payload: string }
   | { u: "reclaim"; slot: number | null; entry: number | null; value: string }
   | { u: "stage"; payload: string }
-  | { u: "heap"; kind: "alloc" | "load" | "store" }
+  | { u: "heap"; kind: "alloc" | "load" | "store"; /** heap size and live allocations after the op */ bytes: number; allocations: number }
   | { u: "host"; name: string }
   | { u: "branch"; target: number; taken: boolean | null }
   | { u: "call"; fn: number }

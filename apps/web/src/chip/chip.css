@@ -199,6 +199,7 @@ body.chip-body {
 .die-svg .mem-cell.is-full { fill: oklch(0.37 0.05 232); stroke: oklch(0.5 0.06 232); }
 .die-svg .mem-cell.is-hot { fill: var(--chip-spill); stroke: var(--chip-spill); }
 
+.die-svg .heap-tile { fill: oklch(0.36 0.04 72); stroke: oklch(0.55 0.07 72); }
 .die-svg .frame-bar { fill: oklch(0.36 0.04 72); stroke: oklch(0.5 0.06 72); }
 
 .die-svg .packet { fill: var(--chip-signal); stroke: oklch(0.2 0.02 70); stroke-width: 2; }

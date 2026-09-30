@@ -33,6 +33,8 @@ export class ChipViewModel {
   alu: { op: string; result: string } | null = null;
   staged: string[] = [];
   depth = 1;
+  /** Typed heap after the last heap op (size and live allocations come from the event itself). */
+  heap: { bytes: number; allocations: number; last: "alloc" | "load" | "store" | null } = { bytes: 0, allocations: 0, last: null };
   lastLookup: string | null = null;
   lastHost: string | null = null;
   rec: number | null = null;
@@ -51,11 +53,12 @@ export class ChipViewModel {
   }
 
   /** Re-synchronize from the engine's reported state (after heat mode ran ahead without events). */
-  loadState(st: { cells: { value: string | null; payload: string | null }[]; memOccupied: number[]; rec: number | null; text: string; counters: Record<string, number>; latches: { A: string | null; B: string | null; R: string | null } }): void {
+  loadState(st: { cells: { value: string | null; payload: string | null }[]; memOccupied: number[]; rec: number | null; text: string; depth: number; counters: Record<string, number>; latches: { A: string | null; B: string | null; R: string | null } }): void {
     this.cells = st.cells.map((c) => ({ value: c.value, payload: c.payload }));
     this.mem = new Map(st.memOccupied.map((i) => [i, { value: null, payload: null }]));
     this.rec = st.rec;
     this.text = st.text;
+    this.depth = st.depth;
     this.latches = { ...st.latches };
     const c = st.counters;
     this.counters = {
@@ -72,6 +75,7 @@ export class ChipViewModel {
       restores: c.restores ?? 0,
       hostCalls: c.hostCalls ?? 0,
     };
+    this.heap = { bytes: c.heapBytes ?? 0, allocations: c.heapAllocations ?? 0, last: null };
     this.pendingPayload = null;
   }
 
@@ -131,6 +135,7 @@ export class ChipViewModel {
         this.staged = [...this.staged.slice(-7), e.payload];
         break;
       case "heap":
+        this.heap = { bytes: e.bytes, allocations: e.allocations, last: e.kind };
         break;
       case "host":
         this.counters.hostCalls++;
@@ -141,6 +146,7 @@ export class ChipViewModel {
         break;
       case "call":
         this.depth++;
+        this.staged = []; // the call consumed its staged arguments
         break;
       case "return":
         this.depth = Math.max(1, this.depth - 1);

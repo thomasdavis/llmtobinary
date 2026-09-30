@@ -44,7 +44,7 @@ export function describe(e: MicroEvent): string {
     case "publish": return `publish R = ${e.payload} as ${e.value} in fast slot s${e.slot} (${t})`;
     case "reclaim": return `reclaim ${e.value}${e.slot !== null ? ` from s${e.slot}` : e.entry !== null ? ` from backing[${e.entry}]` : ""} (no remaining uses)`;
     case "stage": return `stage argument ${e.payload} (${t})`;
-    case "heap": return `heap ${e.kind} (${t})`;
+    case "heap": return `heap ${e.kind}: ${e.allocations} allocation${e.allocations === 1 ? "" : "s"}, ${e.bytes} bytes (${t})`;
     case "host": return `host call ${e.name} over the I/O bus (${t})`;
     case "branch": return e.taken === null ? `jump to block${e.target} (${t})` : `branch ${e.taken ? "taken" : "not taken"} to block${e.target} (${t})`;
     case "call": return `call fn${e.fn}: push frame (${t})`;

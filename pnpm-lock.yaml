@@ -251,6 +251,9 @@ importers:
       '@cloudflare/workers-types':
         specifier: 5.20260930.1
         version: 5.20260930.1
+      '@llmtobinary/fixture-builder':
+        specifier: workspace:*
+        version: link:../../tools/fixture-builder
       '@types/react':
         specifier: 19.3.0
         version: 19.3.0

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { mustValidate } from "@llmtobinary/validate";
 import { createFiniteMachine } from "@llmtobinary/runtime";
 import { runAnmr, validateAnmr } from "@llmtobinary/research";
+import { ModuleBuilder } from "@llmtobinary/fixture-builder";
 import type { MicroEvent } from "@llmtobinary/protocol";
 import { ChipViewModel } from "./viewmodel.ts";
 import { unitsOf } from "./units.ts";
@@ -45,6 +46,47 @@ describe("the chip view model is a faithful replay of engine events", () => {
     expect(vm.counters.restores).toBe(r.counters.restores);
     expect(vm.counters.ticks).toBe(r.counters.modeledTicks);
     expect(vm.mem.size).toBe(r.counters.saves); // every save used a distinct slot in this fixture
+  });
+
+  it("recursive fibonacci: the replayed call depth matches the engine after every instruction", () => {
+    const events: MicroEvent[] = [];
+    const m = createFiniteMachine(mustValidate(bytes("fibonacci.anma")), [{ t: "u64", v: "7" }], { config: { fastSlots: 4 }, onEvent: (e) => events.push(e) });
+    const vm = new ChipViewModel("ANMA-1", 4);
+    let n = 0;
+    let deepest = 1;
+    while (m.status !== "halted") {
+      m.step();
+      for (; n < events.length; n++) vm.apply(events[n]!);
+      const pos = m.snapshot().position;
+      if (pos) expect(vm.depth).toBe(pos.depth + 1);
+      deepest = Math.max(deepest, vm.depth);
+    }
+    expect(deepest).toBeGreaterThan(3);
+  });
+
+  it("the typed heap shows the engine's allocations and bytes, by replay and after adopting state", () => {
+    const mb = new ModuleBuilder();
+    const f = mb.func(["u64"], "u64");
+    const b0 = f.block();
+    const n = b0.params[0]!;
+    const a = b0.allocU64(n);
+    const b = b0.allocU64(b0.const(3));
+    b0.storeU64(a, b0.const(0), n);
+    b0.storeU64(b, b0.const(2), b0.const(9));
+    const v = b0.add(b0.loadU64(a, b0.const(0)), b0.loadU64(b, b0.const(2)));
+    b0.ret(v);
+    const events: MicroEvent[] = [];
+    const m = createFiniteMachine(mustValidate(mb.build()), [{ t: "u64", v: "5" }], { config: { fastSlots: 4 }, onEvent: (e) => events.push(e) });
+    m.run(1000);
+    const r = m.result();
+    expect(r.returnValue).toEqual({ t: "u64", v: "14" });
+    const vm = new ChipViewModel("ANMA-1", 4);
+    for (const e of events) vm.apply(e);
+    expect(vm.heap).toEqual({ bytes: r.counters.heapBytes, allocations: r.counters.heapAllocations, last: "load" });
+    expect(r.counters.heapAllocations).toBe(2);
+    const adopted = new ChipViewModel("ANMA-1", 4);
+    adopted.loadState({ cells: [], memOccupied: [], rec: null, text: "", depth: 1, counters: r.counters as unknown as Record<string, number>, latches: { A: null, B: null, R: null } });
+    expect({ bytes: adopted.heap.bytes, allocations: adopted.heap.allocations }).toEqual({ bytes: vm.heap.bytes, allocations: vm.heap.allocations });
   });
 
   it("every event lights at least one unit", () => {

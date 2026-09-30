@@ -83,6 +83,8 @@ export interface ChipState {
   memCapacity: number;
   latches: { A: string | null; B: string | null; R: string | null };
   frames: number;
+  /** Call depth, 1 at the entry function. */
+  depth: number;
   liveValues: number;
   counters: Record<string, number>;
   terminal: string;
