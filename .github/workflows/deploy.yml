@@ -28,7 +28,9 @@ jobs:
           else
             CLOUDFLARE_ENV=staging npx vite build && npx wrangler deploy
           fi
-      - name: Live route checks against the deployed Worker
+      - name: Live route checks and browser E2E (Chromium, Firefox, WebKit) against the deployed Worker
         run: |
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then URL="${{ vars.PRODUCTION_URL }}"; else URL="${{ vars.STAGING_URL }}"; fi
           node scripts/live-test.mjs "$URL"
+          npx playwright-core install --with-deps chromium firefox webkit
+          for b in chromium firefox webkit; do BROWSER=$b node tests/e2e/browser-e2e.mjs "$URL"; done

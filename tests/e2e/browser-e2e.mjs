@@ -3,7 +3,7 @@
 import { existsSync, readdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { chromium } from "playwright-core";
+import { chromium, firefox, webkit } from "playwright-core";
 
 // Use CHROMIUM_PATH, else any cached Playwright headless shell (avoids a large download).
 function executablePath() {
@@ -40,8 +40,10 @@ function runawayHex() {
   return b.toString("hex");
 }
 
-const exe = executablePath();
-const browser = await chromium.launch({ headless: true, ...(exe ? { executablePath: exe } : {}) });
+const which = process.env.BROWSER ?? "chromium";
+const exe = which === "chromium" ? executablePath() : undefined;
+const browser = await ({ chromium, firefox, webkit }[which]).launch({ headless: true, ...(exe ? { executablePath: exe } : {}) });
+console.log(`browser: ${which} ${browser.version()}`);
 const page = await browser.newPage({ viewport: { width: 1600, height: 1000 } });
 const errors = [];
 page.on("pageerror", (e) => errors.push(e.message));

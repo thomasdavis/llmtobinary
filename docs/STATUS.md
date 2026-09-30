@@ -13,7 +13,7 @@ Legend: **verified** = automated tests in this repo pass · **live** = exercised
 
 ## Milestone C — browser
 - **verified/live** React UI, machine Web Worker (bounded chunks, pause/step/stop, hard terminate fallback), inspectors (bytes↔records, claims with tier badges, values), counters, microsteps, bounded trace, terminal, framebuffer, keyboard ticks recorded for replay, cross-F comparison, IndexedDB history with memory fallback, export/import bundles with Section 19 manifests.
-- **live** Headless Chromium E2E against staging and production: fixture runs, F changes on the same bytes, cross-F comparison, capstone backing writes at F=4, imported executables start stopped, pause/stop of a runaway program, interactive ticks, narrow layout without page scroll, no console errors.
+- **live** Headless Chromium and Firefox E2E against staging/production: fixture runs, F changes on the same bytes, cross-F comparison, capstone backing writes at F=4, imported executables start stopped, pause/stop of a runaway program, interactive ticks, narrow layout without page scroll, no console errors.
 
 ## Milestone D — OpenAI + agentic loop
 - **verified** Loop controller (every stop outcome, stall detection, deterministic elision, one visible retry, idempotency, budget gate), OpenAI Responses adapter, prompts/manual generated from the spec, scripted fake model.
@@ -33,7 +33,7 @@ Legend: **verified** = automated tests in this repo pass · **live** = exercised
 
 ## Not yet / deviations
 - **Browser T3 not deployed.** z3's wasm is 34 MB (> 25 MiB Workers asset limit) and needs `SharedArrayBuffer` (cross-origin isolation) plus `'wasm-unsafe-eval'`. A chunked-asset browser backend exists (`packages/verify/src/browser-backend.ts`) but is not wired into the UI; T3 runs in Node.
-- **Browser coverage:** only headless Chromium was tested; Firefox and WebKit are not yet covered.
+- **Browser coverage:** headless Chromium and Firefox 142 pass the full E2E against production (live generation E2E on Chromium/staging). WebKit is not yet run: it needs system libraries (GStreamer, libvpx, …) that would require apt installs on this shared host; the deploy workflow runs the E2E on Chromium, Firefox, and WebKit with `playwright-core install --with-deps`.
 - **Production live generation is off** (fixture mode) pending a spend decision; staging has live generation with `$0.50`/session and `$1.00`/day caps and conservative price ceilings (`$2`/`$10` per million tokens) that over-reserve.
 - **Compatibility date** pinned to 2026-08-20 (the newest date supported by the pinned test runtime).
 - **Model pricing** in `wrangler.jsonc` are ceilings, not published prices; reconcile them before a study.
