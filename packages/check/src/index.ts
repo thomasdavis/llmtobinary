@@ -3,10 +3,10 @@
 // It decodes, validates, and cross-checks annotations. It NEVER executes guest code and NEVER
 // returns corrected bytes.
 
-import { DEFAULT_LIMITS, SPEC_ID, type Limits } from "@llmtobinary/spec";
+import { DEFAULT_LIMITS, IMPORTS, Op, SPEC_ID, TYPE_NAMES, type Limits, type TypeTag } from "@llmtobinary/spec";
 import { listingLines, parseEnvelope, parseHex, toHex, type DecodedFile } from "@llmtobinary/decode";
 import { validateBytes, type Module } from "@llmtobinary/validate";
-import { CATALOG_VERSION, assemble, jsonBytes, renderContext, type Diagnostic } from "@llmtobinary/diagnostics";
+import { CATALOG_VERSION, Stage, assemble, diag, jsonBytes, renderContext, type Diagnostic } from "@llmtobinary/diagnostics";
 import { canonicalJson, checkContracts, crossCheckClaims, parseAnnotations, type ParsedAnnotations } from "@llmtobinary/annotations";
 import type { AnnotationSummary, CheckReport } from "@llmtobinary/protocol";
 import { validateAnmr, type AnmrProgram } from "@llmtobinary/anmr";
@@ -28,6 +28,51 @@ export interface CheckOptions {
   allowedFeatures?: number;
   /** Size cap for transported candidates (defaults to the live-generation cap). */
   maxCandidateBytes?: number;
+  /**
+   * What the task's tests will require (known to the generation loop). Lets the static check catch
+   * a wrong entry signature, or a program that can never produce the output the tests compare,
+   * before a submission is spent. Still static: nothing is executed.
+   */
+  task?: TaskRequirements;
+}
+
+export interface TaskRequirements {
+  params: readonly ("u64" | "bool")[];
+  returns: "unit" | "u64" | "bool";
+  /** Output the task's tests compare with the oracle. */
+  effects: readonly ("terminal" | "framebuffer" | "frames")[];
+}
+
+const typeWord = (t: TypeTag): string => TYPE_NAMES[t];
+
+/** Static task-level checks on a valid module (signature and the presence of required output). */
+export function checkTaskRequirements(module: Module, task: TaskRequirements): Diagnostic[] {
+  const out: Diagnostic[] = [];
+  const entry = module.functions[module.entry]!;
+  const got = `(${entry.params.map(typeWord).join(", ")}) -> ${typeWord(entry.ret)}`;
+  const want = `(${task.params.join(", ")}) -> ${task.returns}`;
+  if (got !== want) out.push(diag("ANMA-K-003", { message: `The entry function has signature ${got} but the task requires ${want}.`, found: got, expected: want, stage: Stage.TASK }));
+  const used = new Set<string>();
+  for (const r of module.records) if (r.op === Op.HOST) used.add(IMPORTS[r.b]?.name ?? "");
+  const calls = [...used].filter(Boolean).sort();
+  const callsText = calls.length ? calls.join(", ") : "no host imports";
+  if ((task.effects.includes("framebuffer") || task.effects.includes("frames")) && !used.has("display.present")) {
+    out.push(diag("ANMA-K-002", {
+      message: "The task's tests compare what the program draws, but this executable never calls display.present, so no frame is ever shown and the final framebuffer stays blank (every pixel 0x00000000).",
+      found: `calls: ${callsText}; declared features 0x${module.features.toString(16)}`,
+      expected: "drawing with display.* imports and a display.present call for each frame (the FRAMEBUFFER feature, 0x4, must be declared)",
+      stage: Stage.TASK,
+    }));
+  }
+  if (task.effects.includes("terminal") && ![...used].some((n) => n.startsWith("terminal."))) {
+    out.push(diag("ANMA-K-002", {
+      message: "The task's tests compare terminal output, but this executable never calls a terminal.* import, so it prints nothing.",
+      found: `calls: ${callsText}; declared features 0x${module.features.toString(16)}`,
+      expected: "terminal output via terminal.print_u64 or terminal.print_utf8 (the TERMINAL feature, 0x2, must be declared)",
+      stage: Stage.TASK,
+    }));
+  }
+  return out;
 }
 
 export interface CheckOutcome {
@@ -158,6 +203,7 @@ export async function checkCandidate(input: CheckInput, opts: CheckOptions = {})
     }
     if (v.module) all.push(...checkContracts(ann, v.module));
   }
+  if (v.module && opts.task) all.push(...checkTaskRequirements(v.module, opts.task));
 
   // 3b. Misaligned files (stray bytes: the record area is not a multiple of 16) decode as garbage
   // after the misalignment, so only the length error and the first record-level error are root

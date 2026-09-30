@@ -47,6 +47,7 @@ pnpm dev                     # Vite + Worker + Durable Objects locally (reads ap
 node scripts/live-test.mjs <url> [--fake | --openai <taskId>]
 node tests/e2e/browser-e2e.mjs <url> [--live]
 node tests/e2e/chip-e2e.mjs <url> [screenshot-dir]   # /chip view
+node tests/e2e/custom-prompt-e2e.mjs <url> [--live]   # writing your own prompt
 node --experimental-transform-types --no-warnings tools/research-cli/src/verify.ts fixtures/upstream-capstone-40.anma --task capstone-40
 ```
 

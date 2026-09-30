@@ -104,3 +104,28 @@ describe("zero padding", () => {
     expect(out.report.errors[0]!.derived).toContain("3 of the decodable records are all zero bytes");
   });
 });
+
+describe("task requirements (static, known to the generation loop)", () => {
+  const fx = (name: string) => new Uint8Array(readFileSync(new URL(`../../../fixtures/${name}`, import.meta.url)));
+  const ball = { params: [] as ("u64" | "bool")[], returns: "u64" as const, effects: ["framebuffer", "frames"] as ("terminal" | "framebuffer" | "frames")[] };
+  it("the real ball/paddle program satisfies its task", async () => {
+    const out = await checkCandidate({ bytes: fx("ball-paddle.anma") }, { allowedFeatures: 15, task: ball });
+    expect(out.report.ok).toBe(true);
+  });
+  it("a program that never calls display.present is flagged before any submission is spent", async () => {
+    const out = await checkCandidate({ bytes: fx("return-42.anma") }, { allowedFeatures: 15, task: ball });
+    expect(out.report.ok).toBe(false);
+    const d = out.report.errors.find((e) => e.rule === "ANMA-K-002")!;
+    expect(d.message).toContain("never calls display.present");
+    expect(d.found).toContain("no host imports");
+  });
+  it("a wrong entry signature is ANMA-K-003; terminal tasks need a terminal call", async () => {
+    const sig = await checkCandidate({ bytes: fx("square-plus-two.anma") }, { allowedFeatures: 15, task: ball });
+    expect(sig.report.errors.map((e) => e.rule)).toContain("ANMA-K-003");
+    const term = await checkCandidate({ bytes: fx("return-42.anma") }, { allowedFeatures: 15, task: { params: [], returns: "u64", effects: ["terminal"] } });
+    expect(term.report.errors.map((e) => e.rule)).toEqual(["ANMA-K-002"]);
+    const hello = await checkCandidate({ bytes: fx("hello.anma") }, { allowedFeatures: 15, task: { params: [], returns: "unit", effects: ["terminal"] } });
+    expect(hello.report.ok).toBe(true);
+  });
+});
+

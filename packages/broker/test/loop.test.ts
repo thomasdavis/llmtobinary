@@ -95,6 +95,18 @@ describe("agentic loop", () => {
     expect(JSON.stringify(h.model.requests[1]!.input)).toContain("submission\\\":\\\"rejected");
   });
 
+  it("task-aware check: a submission with the wrong signature and no output is rejected with K-003 and K-002", async () => {
+    const r42 = toHex(new Uint8Array(readFileSync(new URL("return-42.anma", root))));
+    const h = harness([{ kind: "submit", envelope: env(r42) }, { kind: "submit", envelope: env(sqHex) }]);
+    const a = await runAttempt(h.state, { idempotencyKey: "k1", feedback: null }, h.deps);
+    expect(a.status).toBe("awaiting-feedback");
+    expect(h.state.counters.submissions).toBe(1);
+    const reply = JSON.stringify(h.model.requests[1]!.input);
+    expect(reply).toContain("submission\\\":\\\"rejected");
+    expect(reply).toContain("ANMA-K-003");
+    expect(reply).toContain("never calls a terminal.* import");
+  });
+
   it("outer loop: failing browser tests are sent back as untrusted data on the submit call", async () => {
     const wrongHex = sqHex.slice(0, (32 + 5 * 16) * 2) + "21" + sqHex.slice((32 + 5 * 16) * 2 + 2); // ADD -> SUB: valid bytes, wrong answer
     const h = harness([{ kind: "submit", envelope: env(sqHex) }, { kind: "submit", envelope: env(wrongHex) }]);

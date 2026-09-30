@@ -157,3 +157,28 @@ describe("fixtures and prompts", () => {
     expect(text).not.toContain("18446744073709551615");
   });
 });
+
+describe("a program that plays the game but never draws gets a plain diagnosis, not two hashes", () => {
+  it("names the missing drawing (the exact failure seen from a live model)", async () => {
+    const task = TASK_BY_ID.get("ball-paddle")!;
+    const { ballPaddleOracle } = await import("../src/oracles.ts");
+    const score = ballPaddleOracle(task.visible[0]!.ticks ?? []).result;
+    // Waits for ticks and returns the right score on Escape, but has no display calls at all.
+    const mb = new ModuleBuilder();
+    const f = mb.func([], "u64");
+    const b0 = f.block();
+    const loop = f.block();
+    const done = f.block();
+    b0.jump(loop, []);
+    loop.host("input.wait_tick", []);
+    const esc = loop.host("input.key_down", [loop.const(6)])!;
+    loop.brIf(esc, done, [], loop, []);
+    done.ret(done.const(BigInt(score)));
+    const report = runTaskTests(mustValidate(mb.build()), task, { includeHoldout: false });
+    const d = report.cases[0]!.diagnostic!;
+    expect(d.rule).toBe("ANMA-K-002");
+    expect(d.message).toContain("never draws");
+    expect(d.found).toContain("blank framebuffer");
+    expect(d.found).not.toContain("sha256");
+  });
+});

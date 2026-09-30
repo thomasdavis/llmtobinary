@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Feature } from "@llmtobinary/spec";
 import { TASKS, TASK_BY_ID, signatureText } from "@llmtobinary/tasks/registry";
 import type { CreateSessionRequest, LoopEvent } from "@llmtobinary/protocol";
@@ -7,6 +7,26 @@ import type { Config } from "./api.ts";
 import { FIXTURES } from "./fixtures.ts";
 import type { GenState, SubmittedCandidate } from "./generation.ts";
 import { DiagnosticList } from "./Diagnostics.tsx";
+
+const MAX_DESCRIPTION = 4000;
+const MAX_INPUTS = 8;
+const DRAFT_KEY = "llmtobinary.customPrompt.v1";
+
+interface Draft {
+  description: string;
+  params: ("u64" | "bool")[];
+  returns: "unit" | "u64" | "bool";
+  features: number;
+}
+
+function loadDraft(): Draft | null {
+  try {
+    const d = JSON.parse(localStorage.getItem(DRAFT_KEY) ?? "null") as Draft | null;
+    return d && typeof d.description === "string" && Array.isArray(d.params) ? d : null;
+  } catch {
+    return null;
+  }
+}
 
 const DEVICES: [number, string][] = [
   [Feature.TERMINAL, "terminal"],
@@ -31,22 +51,40 @@ export function TaskPanel(props: {
   onClearHistory: () => void;
   hasArtifact: boolean;
 }) {
+  const draft = useState(loadDraft)[0];
+  const [source, setSource] = useState<"task" | "custom">(draft?.description.trim() ? "custom" : "task");
   const [taskId, setTaskId] = useState<string>("square-plus-two");
-  const [description, setDescription] = useState("");
-  const [params, setParams] = useState<("u64" | "bool")[]>(["u64"]);
-  const [returns, setReturns] = useState<"unit" | "u64" | "bool">("u64");
-  const [features, setFeatures] = useState<number>(Feature.TERMINAL);
+  const [description, setDescription] = useState(draft?.description ?? "");
+  const [params, setParams] = useState<("u64" | "bool")[]>(draft?.params ?? ["u64"]);
+  const [returns, setReturns] = useState<"unit" | "u64" | "bool">(draft?.returns ?? "u64");
+  const [features, setFeatures] = useState<number>(draft?.features ?? Feature.TERMINAL);
+  useEffect(() => {
+    try {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({ description, params, returns, features } satisfies Draft));
+    } catch {
+      /* storage unavailable: the draft just is not remembered */
+    }
+  }, [description, params, returns, features]);
   const [requireClaims, setRequireClaims] = useState(false);
   const [mode, setMode] = useState<"tools" | "raw-hex">("tools");
   const [consent, setConsent] = useState(false);
   const [withPrompts, setWithPrompts] = useState(false);
   const live = !!props.config?.liveGeneration;
-  const task = taskId === "open" ? null : TASK_BY_ID.get(taskId) ?? null;
+  const task = source === "custom" ? null : TASK_BY_ID.get(taskId) ?? null;
+  const allowed = props.config?.allowedFeatures ?? 15;
+  const editAsCustom = () => {
+    if (!task) return;
+    setDescription(task.prompt);
+    setParams([...task.params]);
+    setReturns(task.returns);
+    setFeatures(task.features & allowed);
+    setSource("custom");
+  };
   const busy = props.gen.phase === "creating" || props.gen.phase === "streaming" || props.gen.phase === "testing";
   const request = (): CreateSessionRequest =>
     task
       ? { task: { taskId: task.id, description: null, params: task.params, returns: task.returns, allowedFeatures: task.features, requireClaims }, mode, profile: "default" }
-      : { task: { taskId: null, description, params, returns, allowedFeatures: features, requireClaims }, mode, profile: "default" };
+      : { task: { taskId: null, description, params, returns, allowedFeatures: features & (props.config?.allowedFeatures ?? 15), requireClaims }, mode, profile: "default" };
   const b = props.config?.budget;
   return (
     <section className="panel" aria-label="Task">
@@ -63,38 +101,59 @@ export function TaskPanel(props: {
 
       <h3>Generate with OpenAI</h3>
       {!live && <p className="notice">Live generation is unavailable here{props.config?.liveReason ? `: ${props.config.liveReason}` : props.configError ? `: ${props.configError}` : ""}. Fixtures and saved artifacts still run in your browser.</p>}
-      <label className="field">
-        <span>task</span>
-        <select value={taskId} onChange={(e) => setTaskId(e.target.value)}>
-          {TASKS.filter((t) => t.tier === "public").map((t) => <option key={t.id} value={t.id}>{t.title}</option>)}
-          <optgroup label="research">{TASKS.filter((t) => t.tier === "research").map((t) => <option key={t.id} value={t.id}>{t.title}</option>)}</optgroup>
-          <option value="open">Describe your own program…</option>
-        </select>
-      </label>
-      {task ? (
+      <div className="segmented" role="radiogroup" aria-label="What to generate">
+        <button role="radio" aria-checked={source === "task"} className={source === "task" ? "on" : ""} onClick={() => setSource("task")}>Pick a task</button>
+        <button role="radio" aria-checked={source === "custom"} className={source === "custom" ? "on" : ""} onClick={() => setSource("custom")}>Write your own</button>
+      </div>
+      {source === "task" ? (
         <div className="taskbox">
-          <pre className="prompt">{task.prompt}</pre>
-          <p className="small">Entry: <code>{signatureText(task.params, task.returns, task.paramNames)}</code></p>
+          <label className="field">
+            <span>task</span>
+            <select value={taskId} onChange={(e) => setTaskId(e.target.value)}>
+              {TASKS.filter((t) => t.tier === "public").map((t) => <option key={t.id} value={t.id}>{t.title}</option>)}
+              <optgroup label="research">{TASKS.filter((t) => t.tier === "research").map((t) => <option key={t.id} value={t.id}>{t.title}</option>)}</optgroup>
+            </select>
+          </label>
+          {task && (
+            <>
+              <pre className="prompt">{task.prompt}</pre>
+              <p className="small">Entry: <code>{signatureText(task.params, task.returns, task.paramNames)}</code></p>
+              <button className="link" onClick={editAsCustom}>Edit as my own prompt</button>
+            </>
+          )}
         </div>
       ) : (
         <div className="taskbox">
-          <label className="field"><span>description</span><textarea rows={5} maxLength={4000} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="e.g. Return the sum of the decimal digits of n." /></label>
-          <div className="row wrap">
-            <label className="field"><span>inputs</span>
-              <select value={params.join(",")} onChange={(e) => setParams(e.target.value ? (e.target.value.split(",") as ("u64" | "bool")[]) : [])}>
-                <option value="">none</option><option value="u64">u64</option><option value="u64,u64">u64, u64</option><option value="u64,u64,u64">u64, u64, u64</option><option value="bool">bool</option><option value="u64,bool">u64, bool</option>
-              </select>
-            </label>
-            <label className="field"><span>returns</span>
-              <select value={returns} onChange={(e) => setReturns(e.target.value as "unit" | "u64" | "bool")}><option>u64</option><option>bool</option><option>unit</option></select>
-            </label>
-          </div>
-          <fieldset><legend>permitted devices</legend>
-            {DEVICES.map(([bit, name]) => (
+          <label className="field">
+            <span>your prompt</span>
+            <textarea className="custom-prompt" rows={9} maxLength={MAX_DESCRIPTION} value={description} onChange={(e) => setDescription(e.target.value)} placeholder={"Describe the program. For example:\nReturn the sum of the decimal digits of n.\nor: Draw a bouncing square; Left and Right move it; return the number of bounces when Escape is pressed."} />
+          </label>
+          <p className="muted small counter">{description.length.toLocaleString()} / {MAX_DESCRIPTION.toLocaleString()}</p>
+          <fieldset>
+            <legend>entry function</legend>
+            <div className="row wrap">
+              {params.map((p, i) => (
+                <span key={i} className="param">
+                  <select aria-label={`input ${i} type`} value={p} onChange={(e) => setParams(params.map((q, k) => (k === i ? (e.target.value as "u64" | "bool") : q)))}>
+                    <option value="u64">u64</option>
+                    <option value="bool">bool</option>
+                  </select>
+                  <button className="icon" aria-label={`remove input ${i}`} onClick={() => setParams(params.filter((_, k) => k !== i))}>×</button>
+                </span>
+              ))}
+              <button onClick={() => setParams([...params, "u64"])} disabled={params.length >= MAX_INPUTS}>+ input</button>
+              <label className="field inline"><span>returns</span>
+                <select value={returns} onChange={(e) => setReturns(e.target.value as "unit" | "u64" | "bool")}><option>u64</option><option>bool</option><option>unit</option></select>
+              </label>
+            </div>
+            <p className="small">Entry: <code>{signatureText(params, returns)}</code></p>
+          </fieldset>
+          <fieldset><legend>devices it may use</legend>
+            {DEVICES.filter(([bit]) => (allowed & bit) !== 0).map(([bit, name]) => (
               <label key={bit} className="check"><input type="checkbox" checked={(features & bit) !== 0} onChange={(e) => setFeatures(e.target.checked ? features | bit : features & ~bit)} /> {name}</label>
             ))}
           </fieldset>
-          <p className="muted small">Open tasks have no independent oracle: results are labelled “executed; intent not independently verified”.</p>
+          <p className="muted small">Your own prompts have no reference answer to test against: a program that validates and runs is labelled “executed; intent not independently verified”. Run it in the machine panel to see what it does.</p>
         </div>
       )}
       <div className="row wrap">

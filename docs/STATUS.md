@@ -32,6 +32,11 @@ Legend: **verified** = automated tests in this repo pass · **live** = exercised
 - **live** T3 in the browser: the page is cross-origin isolated (COOP + COEP `require-corp`, all assets same-origin); z3's 34 MB wasm is served as two hash-checked chunks under the 25 MiB per-file asset limit and loaded by a classic verifier worker (`'wasm-unsafe-eval'` for the trusted solver only). "Verify with z3" proves square-plus-two against its task contract in about 5 s in headless Chromium; the report is included in exported manifests.
 - **not yet** The Section 18.6 study itself (runner implemented in `tools/research-cli/src/trials.ts`; it refuses to run without an approved budget).
 
+## Generation feedback and custom prompts
+- **live** check_candidate is task-aware: the loop passes the entry signature and the effects the task's tests compare. A wrong signature (ANMA-K-003), or a program that never calls display.present / a terminal import when those are tested (ANMA-K-002), fails the static check, so no submission is spent. This came from a live gpt-6-luna ball/paddle session whose program never drew.
+- **live** A program with no framebuffer gets "the program never draws" instead of two framebuffer hashes.
+- **live** "Write your own" prompt mode, with an input editor (up to 8 u64/bool), a return type, the devices it may use, a draft kept in localStorage, and "Edit as my own prompt" to start from a curated task. Verified live on staging: a digit-sum prompt generated a program that returns 29 for 9875.
+
 ## Chip view (PRD 14A)
 - **live** `/chip`: a modeled floorplan driven only by executed micro-events (`onEvent` on the finite machine and on ANMR-1), with declared `anma-cost/1` modeled ticks, a logic analyzer, heat mode, step instruction/microstep, trace export, and deep links. The ANMA-1 vs ANMR-1 capstone compare is implemented but hidden (`SHOW_ANMR_COMPARE`).
 - **live** Live chip in the machine panel: instruments the panel's own run (`setEventSink` on the running machine), with speeds from full down to 2 instr/s. It has the terminal and framebuffer beside the die, live keys, and full screen with its own controls.

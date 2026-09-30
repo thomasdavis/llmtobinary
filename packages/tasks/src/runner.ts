@@ -114,6 +114,18 @@ function compare(task: TaskSpec, c: TestCase, kind: "visible" | "holdout", r: Ru
       };
     }
   }
+  if (task.effects.includes("framebuffer") && want.framebufferHash && r.framebufferHash !== want.framebufferHash && !r.finalFramebuffer) {
+    return {
+      ...base,
+      passed: false,
+      diagnostic: diag("ANMA-K-002", {
+        message: `${c.name}: the program never draws. It does not declare the FRAMEBUFFER feature (0x4) and makes no display.* call, so the screen stays blank; the task oracle presents ${want.framesPresented ?? "at least one"} frame(s).`,
+        found: `blank framebuffer (every pixel 0x00000000), ${r.framesPresented} frames presented`,
+        expected: `the drawing the task describes, shown with display.present (${want.framesPresented ?? "at least one"} frame(s))`,
+        stage: Stage.TASK,
+      }),
+    };
+  }
   if (task.effects.includes("framebuffer") && want.framebufferHash && r.framebufferHash !== want.framebufferHash) {
     const d = pixelDiff(r.finalFramebuffer ?? null, want.framebuffer ?? null);
     return {

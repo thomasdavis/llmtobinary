@@ -242,6 +242,10 @@ export async function runAttempt(state: SessionState, req: AttemptRequest, deps:
   }
 
   const isAnmr = state.task.isa === "ANMR-1";
+  // What the task's tests will compare, so check_candidate can flag a wrong signature or missing
+  // output statically (curated tasks know their effects; open tasks only fix the signature).
+  const curated = state.task.taskId ? TASK_BY_ID.get(state.task.taskId) : undefined;
+  const checkOpts = { allowedFeatures: deps.allowedFeatures, task: { params: state.task.params, returns: state.task.returns, effects: curated?.effects ?? [] } };
   const instructions = isAnmr ? anmrInstructions(state.task.registers ?? 8, ANMR_SPILL_SLOTS) : generationInstructions();
   let retriedThisAttempt = false;
 
@@ -359,13 +363,13 @@ export async function runAttempt(state: SessionState, req: AttemptRequest, deps:
     // every submission it does receive).
     let rejectedSubmission = false;
     if (call.name === SUBMIT_TOOL) {
-      const pre = isAnmr ? await checkAnmrCandidate({ envelopeText: call.arguments }) : await checkCandidate({ envelopeText: call.arguments }, { allowedFeatures: deps.allowedFeatures });
+      const pre = isAnmr ? await checkAnmrCandidate({ envelopeText: call.arguments }) : await checkCandidate({ envelopeText: call.arguments }, checkOpts);
       if (pre.report.ok) return submit(call.arguments, call.callId);
       rejectedSubmission = true;
     }
     if (call.name === CHECK_TOOL || rejectedSubmission) {
       c.checks++;
-      const out = isAnmr ? await checkAnmrCandidate({ envelopeText: call.arguments }) : await checkCandidate({ envelopeText: call.arguments }, { allowedFeatures: deps.allowedFeatures });
+      const out = isAnmr ? await checkAnmrCandidate({ envelopeText: call.arguments }) : await checkCandidate({ envelopeText: call.arguments }, checkOpts);
       const cand: Candidate = { attemptId: attempt.attemptId, kind: "check", seq: state.candidates.length, rawText: call.arguments, sha256: out.report.sha256, byteLength: out.report.byteLength };
       state.candidates.push(cand);
       await emit({ type: "check.requested", candidate: cand });

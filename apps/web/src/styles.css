@@ -70,6 +70,16 @@ th { position: sticky; top: 0; background: #f2f5f9; font-weight: 600; font-size:
 .kv > span:first-child { color: var(--muted); }
 .context { background: #f4f6f9; padding: 4px 6px; margin-top: 4px; font-size: 11.5px; white-space: pre; overflow-x: auto; }
 .taskbox { margin: 6px 0; }
+.segmented { display: inline-flex; margin: 4px 0 8px; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.segmented button { border: 0; border-radius: 0; padding: 6px 14px; background: #fff; }
+.segmented button + button { border-left: 1px solid var(--line); }
+.segmented button.on { background: var(--sel); color: var(--accent); font-weight: 600; }
+.custom-prompt { min-height: 9em; resize: vertical; font: 13px/1.45 var(--sans) !important; }
+.counter { text-align: right; margin: 2px 0 0; }
+.param { display: inline-flex; align-items: center; gap: 2px; }
+.param select { font: 13px var(--mono); padding: 4px 5px; border: 1px solid var(--line); border-radius: 5px; }
+button.icon { padding: 2px 7px; line-height: 1.2; }
+.field.inline { flex-direction: row; align-items: center; gap: 6px; }
 .prompt, .preview { background: #f4f6f9; padding: 6px 8px; border-radius: 5px; max-height: 220px; overflow: auto; }
 .consent { background: #f2f6ff; padding: 6px 8px; border-radius: 6px; }
 .gen { margin-top: 8px; }
