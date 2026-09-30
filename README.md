@@ -2,7 +2,7 @@
 
 Describe a program; an OpenAI model writes its **literal ANMA-1 bytes** in a checker-assisted agentic loop; a **TypeScript virtual machine runs those exact bytes in your browser** — and reruns the same file with fewer fast-value slots, showing the real backing-store traffic the machine (not the model) manages.
 
-- Production (live OpenAI generation, $0.50/session and $2.00/day caps): https://llmtobinary.thomasalwyndavis.workers.dev
+- Production (live OpenAI generation, $4.00/session and $20.00/day caps): https://llmtobinary.thomasalwyndavis.workers.dev
 - Staging (live OpenAI generation, hard spend caps): https://llmtobinary-staging.thomasalwyndavis.workers.dev
 
 The authority is [`PRD.md`](PRD.md) (v3.2). What is implemented, verified, tested live, and not yet tested is in [`docs/STATUS.md`](docs/STATUS.md).
