@@ -17,12 +17,12 @@ export function anmrCapstone(R: number, K = 40, stride = 17): Uint8Array {
     [Op.BLOCK, 0, 1, 0],
     [Op.PARAM, 0, TypeTag.U64, 0],
   ];
-  const home = (i: number) => (i < kept ? { reg: 4 + i } : { slot: i });
+  const home = (i: number): { kind: "reg"; reg: number } | { kind: "slot"; slot: number } => (i < kept ? { kind: "reg", reg: 4 + i } : { kind: "slot", slot: i });
   for (let i = 0; i < K; i++) {
     const [lo, hi] = wordsFromConst(BigInt(i));
     recs.push([Op.CONST_U64, 3, lo, hi]);
     const h = home(i);
-    if ("reg" in h) recs.push([Op.ADD_U64, h.reg, 0, 3]);
+    if (h.kind === "reg") recs.push([Op.ADD_U64, h.reg, 0, 3]);
     else {
       recs.push([Op.ADD_U64, 3, 0, 3]);
       recs.push([SAVE, 3, h.slot, 0]);
@@ -34,7 +34,7 @@ export function anmrCapstone(R: number, K = 40, stride = 17): Uint8Array {
     const i = (stride * j) % K;
     recs.push([Op.MUL_U64, 1, 1, 2]);
     const h = home(i);
-    if ("reg" in h) recs.push([Op.XOR_U64, 1, 1, h.reg]);
+    if (h.kind === "reg") recs.push([Op.XOR_U64, 1, 1, h.reg]);
     else {
       recs.push([RESTORE, 3, h.slot, 0]);
       recs.push([Op.XOR_U64, 1, 1, 3]);
