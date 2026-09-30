@@ -16,21 +16,30 @@ export const ANMR_SPILL_SLOTS = 64;
 
 export const LOOP_VERSION = "llmtobinary-loop/1";
 
+// Sized for complex programs (games, animations): the model may emit up to 128k output tokens per
+// response (reasoning included), so one turn can carry a ~150 KiB candidate; spend stays bounded
+// by the per-session and daily dollar caps, which apply regardless of these counts.
 export const DEFAULT_BUDGET: LoopBudget = {
-  maxOutputTokensPerTurn: 32_768,
-  maxOutputTokensPerSession: 393_216,
-  maxTurns: 40,
-  maxChecks: 32,
-  maxSubmissions: 8,
-  maxWallClockMs: 20 * 60_000,
+  maxOutputTokensPerTurn: 100_000,
+  maxOutputTokensPerSession: 2_000_000,
+  maxTurns: 100,
+  maxChecks: 64,
+  maxSubmissions: 16,
+  maxWallClockMs: 60 * 60_000,
   stallRepeatK: 3,
 };
+
+/** Latest full drafts always kept in context; older ones are elided first when context is tight. */
+const KEEP_DRAFTS = 2;
+/** Tool-call arguments at least this long count as drafts eligible for elision. */
+const DRAFT_MIN_CHARS = 2_000;
 
 export interface AttemptRecord {
   attemptId: string;
   idempotencyKey: string;
   iteration: number;
-  status: "running" | "awaiting-feedback" | "stopped" | "cancelled" | "error";
+  /** "lost": the hosting process restarted mid-attempt (recovered on the next load; see recoverLostAttempt). */
+  status: "running" | "awaiting-feedback" | "stopped" | "cancelled" | "error" | "lost";
   startedAt: number;
   endedAt: number | null;
   responseIds: string[];
@@ -54,6 +63,8 @@ export interface SessionState {
   items: unknown[];
   /** Indexes (into items) of check_candidate outputs eligible for deterministic elision, oldest first. */
   checkOutputs: { index: number; summary: string }[];
+  /** Indexes (into items) of the model's own draft tool calls, oldest first (elided before check outputs). */
+  draftCalls?: { index: number; chars: number }[];
   attempts: AttemptRecord[];
   candidates: Candidate[];
   seq: number;
@@ -128,6 +139,7 @@ export function createSession(input: { sessionId: string; task: TaskRequest; mod
     promptVersion: PROMPT_VERSION,
     items: [{ role: "user", content: text }],
     checkOutputs: [],
+    draftCalls: [],
     attempts: [],
     candidates: [],
     seq: 0,
@@ -201,12 +213,34 @@ async function sha256Hex(bytes: Uint8Array): Promise<string> {
 
 // ---------------------------------------------------------------------------
 
+/**
+ * After a restart of the hosting process, an attempt persisted as "running" can never finish. Mark
+ * it lost so the session can continue, and close any tool call left without an output (the model
+ * API rejects a conversation that has one). Returns the lost attempt, or null when none.
+ */
+export function recoverLostAttempt(state: SessionState, now: number): AttemptRecord | null {
+  const a = state.attempts.find((x) => x.status === "running");
+  if (!a) return null;
+  a.status = "lost";
+  a.endedAt = now;
+  const answered = new Set<string>();
+  for (const it of state.items as { type?: string; call_id?: string }[]) if (it.type === "function_call_output" && it.call_id) answered.add(it.call_id);
+  for (const it of state.items as { type?: string; call_id?: string }[]) {
+    if (it.type === "function_call" && it.call_id && !answered.has(it.call_id) && it.call_id !== state.pendingSubmitCallId) {
+      state.items.push({ type: "function_call_output", call_id: it.call_id, output: JSON.stringify({ error: "this call was interrupted by a server restart and was not processed; call the tool again" }) });
+      answered.add(it.call_id);
+    }
+  }
+  return a;
+}
+
 export async function runAttempt(state: SessionState, req: AttemptRequest, deps: LoopDeps): Promise<AttemptRecord> {
   const existing = state.attempts.find((a) => a.idempotencyKey === req.idempotencyKey);
   if (existing) return existing; // idempotent: never purchases another turn
   if (state.status !== "active") throw new LoopError(`session is stopped (${state.outcome})`, 409);
   if (state.attempts.some((a) => a.status === "running")) throw new LoopError("an attempt is already running", 409);
-  const iteration = state.attempts.length;
+  // Lost attempts (a host restart mid-attempt) are retried, not counted as outer iterations.
+  const iteration = state.attempts.filter((a) => a.status !== "lost").length;
   if (iteration === 0 && req.feedback) throw new LoopError("the first attempt carries no feedback", 400);
   if (iteration > 0 && !req.feedback) throw new LoopError("later attempts must carry browser feedback", 400);
 
@@ -265,13 +299,21 @@ export async function runAttempt(state: SessionState, req: AttemptRequest, deps:
 
     // Deterministic context elision (never model-written summaries).
     let elided = 0;
+    let elidedDrafts = 0;
+    const drafts = (state.draftCalls ??= []);
+    while (contextChars(instructions, state.items) > state.profile.maxContextChars && drafts.length > KEEP_DRAFTS) {
+      const oldest = drafts.shift()!;
+      const item = state.items[oldest.index] as { arguments?: string };
+      item.arguments = JSON.stringify({ elided: `an earlier draft (${oldest.chars} characters) was removed to fit the context; the latest drafts and every check report remain` });
+      elidedDrafts++;
+    }
     while (contextChars(instructions, state.items) > state.profile.maxContextChars && state.checkOutputs.length > 1) {
       const oldest = state.checkOutputs.shift()!;
       const item = state.items[oldest.index] as { output?: string };
       item.output = `[elided] ${oldest.summary}`;
       elided++;
     }
-    if (elided) await emit({ type: "loop.elided", elidedChecks: elided });
+    if (elided || elidedDrafts) await emit({ type: "loop.elided", elidedChecks: elided, elidedDrafts });
     if (contextChars(instructions, state.items) > state.profile.maxContextChars) {
       return stop("budget-exhausted", "ANMA-L-003: CONTEXT_BUDGET_EXHAUSTED: the loop context budget is used up even after elision");
     }
@@ -348,7 +390,12 @@ export async function runAttempt(state: SessionState, req: AttemptRequest, deps:
       await emit({ type: "attempt.refused", message: d.refusal.slice(0, 500) });
       return stop("refused", "the model refused; no automated bypass is attempted");
     }
+    const firstNew = state.items.length;
     state.items.push(...d.output);
+    d.output.forEach((it, k) => {
+      const args = (it as { type?: string; arguments?: unknown }).arguments;
+      if ((it as { type?: string }).type === "function_call" && typeof args === "string" && args.length >= DRAFT_MIN_CHARS) (state.draftCalls ??= []).push({ index: firstNew + k, chars: args.length });
+    });
 
     if (state.mode === "raw-hex") {
       return submit(d.text, null);

@@ -13,9 +13,9 @@ import type { CreatePayload } from "./session.ts";
 export { GenerationSession } from "./session.ts";
 export { BudgetLedger } from "./ledger.ts";
 
-const MAX_CREATE_BODY = 16 * 1024;
-const MAX_ATTEMPT_BODY = 256 * 1024;
-const MAX_DESCRIPTION = 4000;
+const MAX_CREATE_BODY = 64 * 1024;
+const MAX_ATTEMPT_BODY = 1024 * 1024;
+const MAX_DESCRIPTION = 16_000;
 
 function buildCommit(): string {
   return typeof __BUILD_COMMIT__ === "string" ? __BUILD_COMMIT__ : "unknown";
@@ -49,7 +49,7 @@ function config(env: Env): ConfigResponse & { liveReason: string | null; pricePo
     environment: env.ENVIRONMENT,
     liveGeneration: live.live,
     liveReason: live.reason,
-    profiles: p.ok ? [{ id: p.profile.id, label: p.profile.label, model: p.profile.model, reasoningEffort: p.profile.reasoningEffort }] : [],
+    profiles: p.ok ? [{ id: p.profile.id, label: p.profile.label, model: p.profile.model, reasoningEffort: p.profile.reasoningEffort, openTaskReasoningEffort: p.profile.openTaskReasoningEffort ?? p.profile.reasoningEffort }] : [],
     allowedFeatures: allowedFeatures(env),
     budget: DEFAULT_BUDGET,
     recoveryTtlSeconds: Number(env.RECOVERY_TTL_SECONDS ?? "3600"),
@@ -122,10 +122,12 @@ async function route(request: Request, env: Env): Promise<Response> {
     if (!live.live) throw new HttpError(503, `live generation is unavailable: ${live.reason}`);
     const profile = profileFromEnv(env);
     const prof = profile.ok ? profile.profile : { id: "default", label: "test", model: "test-model", reasoningEffort: null, carryReasoning: false, inputPerMTok: 1, outputPerMTok: 4, maxContextChars: 600_000 };
+    // Visitor-written tasks get their own (usually higher) reasoning effort.
+    const sessionProf = req.task.taskId === null && prof.openTaskReasoningEffort && prof.openTaskReasoningEffort !== prof.reasoningEffort ? { ...prof, reasoningEffort: prof.openTaskReasoningEffort } : prof;
     const sessionId = crypto.randomUUID();
     const ttlMs = Number(env.RECOVERY_TTL_SECONDS ?? "3600") * 1000;
     const stub = env.GENERATION_SESSION.get(env.GENERATION_SESSION.idFromName(sessionId));
-    const payload: CreatePayload = { sessionId, request: req, profile: prof, budget: {}, ttlMs };
+    const payload: CreatePayload = { sessionId, request: req, profile: sessionProf, budget: {}, ttlMs };
     const res = await stub.fetch("https://session/create", { method: "POST", body: JSON.stringify(payload) });
     if (!res.ok) return withApiHeaders(res);
     const created = (await res.json()) as { budget: CreateSessionResponse["budget"]; expiresAt: number };

@@ -231,7 +231,7 @@ export function runTaskTests(module: Module, task: TaskSpec | null, opts: Runner
 
   // Model-claimed examples (labelled model-claimed; they cannot certify task intent).
   if (ann) {
-    const fuel = task?.fuel ?? opts.openTaskFuel ?? 1_000_000;
+    const fuel = task?.fuel ?? opts.openTaskFuel ?? 20_000_000;
     const entry = module.functions[module.entry]!;
     ann.examples.forEach((ex, i) => {
       if (ex.inputs.length !== entry.params.length || ex.inputs.some((s, k) => (entry.params[k] === TypeTag.BOOL ? s !== "true" && s !== "false" : parseU64Decimal(s) === null))) return; // reported statically (A-010)

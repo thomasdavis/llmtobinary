@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { DEFAULT_LIMITS } from "@llmtobinary/spec";
 import { describe, expect, it } from "vitest";
 import fc from "fast-check";
 import { runToCompletion } from "@llmtobinary/reference";
@@ -62,7 +63,7 @@ describe("fuzzed, truncated, and oversized inputs", () => {
     expect(Date.now() - t0).toBeLessThan(200);
   });
   it("oversized candidates are refused at the transport layer", async () => {
-    const r = await checkCandidate({ hex: "00".repeat(70_000) });
+    const r = await checkCandidate({ hex: "00".repeat(DEFAULT_LIMITS.liveCandidateBytes + 1) });
     expect(r.report.errors[0]!.rule).toBe("ANMA-T-004");
     expect(validateBytes(new Uint8Array(2 * 1024 * 1024)).diagnostics[0]!.rule).toBe("ANMA-V-HDR-007");
   });

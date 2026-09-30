@@ -5,7 +5,7 @@ import { ModuleBuilder } from "@llmtobinary/fixture-builder";
 import { runToCompletion } from "@llmtobinary/reference";
 import { parseHex, toHex } from "@llmtobinary/decode";
 import type { BrowserFeedback, CheckReport, LoopEvent } from "@llmtobinary/protocol";
-import { EXAMPLE_A_HEX, EXAMPLE_B_HEX, FakeModelClient, TOOLS, createSession, generationInstructions, runAttempt, type BudgetGate, type ModelProfile, type ScriptedTurn, type SessionState } from "../src/index.ts";
+import { EXAMPLE_A_HEX, EXAMPLE_B_HEX, FakeModelClient, TOOLS, createSession, generationInstructions, recoverLostAttempt, runAttempt, type BudgetGate, type ModelProfile, type ScriptedTurn, type SessionState } from "../src/index.ts";
 
 const root = new URL("../../../fixtures/", import.meta.url);
 const sqHex = toHex(new Uint8Array(readFileSync(new URL("square-plus-two.anma", root))));
@@ -129,6 +129,22 @@ describe("agentic loop", () => {
     const reply = JSON.stringify(h.model.requests[1]!.input);
     expect(reply).toContain("submission\\\":\\\"rejected");
     expect(reply).toContain("draws but never calls display.present");
+  });
+
+  it("an attempt lost to a host restart is recovered: marked lost, dangling tool call answered, session resumes", async () => {
+    const h = harness([{ kind: "submit", envelope: env(sqHex) }]);
+    // What a restart leaves behind: an attempt persisted as running, and a tool call with no output.
+    h.state.attempts.push({ attemptId: "dead", idempotencyKey: "k0", iteration: 0, status: "running", startedAt: 1, endedAt: null, responseIds: [] });
+    h.state.items.push({ type: "function_call", call_id: "call_dead", name: "check_candidate", arguments: "{}" });
+    const lost = recoverLostAttempt(h.state, 5);
+    expect(lost?.attemptId).toBe("dead");
+    expect(h.state.attempts[0]!.status).toBe("lost");
+    expect(h.state.items.at(-1)).toMatchObject({ type: "function_call_output", call_id: "call_dead" });
+    expect(recoverLostAttempt(h.state, 6)).toBeNull();
+    // The resumed attempt is still the first iteration (no feedback required) and runs normally.
+    const a = await runAttempt(h.state, { idempotencyKey: "k1", feedback: null }, h.deps);
+    expect(a.status).toBe("awaiting-feedback");
+    expect(a.iteration).toBe(0);
   });
 
   it("outer loop: failing browser tests are sent back as untrusted data on the submit call", async () => {

@@ -2,6 +2,7 @@
 // crafted case whose full report is snapshot-tested. Reports must be deterministic, bounded,
 // root-cause-first, and never contain replacement bytes.
 import { readdirSync, readFileSync } from "node:fs";
+import { DEFAULT_LIMITS } from "@llmtobinary/spec";
 import { describe, expect, it } from "vitest";
 import { RULES } from "@llmtobinary/diagnostics";
 import { checkCandidate, type CheckInput, type CheckOptions } from "../src/index.ts";
@@ -28,7 +29,7 @@ const CASES: Case[] = [
   { name: "t001-0x-prefix", rule: "ANMA-T-001", input: { hex: "0x41 0x4e 0x4d 0x41" } },
   { name: "t002-odd-digits", rule: "ANMA-T-002", input: { hex: "414e4" } },
   { name: "t003-empty", rule: "ANMA-T-003", input: { hex: "  \n " } },
-  { name: "t004-too-large", rule: "ANMA-T-004", input: { hex: "00".repeat(65 * 1024) } },
+  { name: "t004-too-large", rule: "ANMA-T-004", input: { hex: "00".repeat(DEFAULT_LIMITS.liveCandidateBytes + 1) } },
   { name: "t005-not-json", rule: "ANMA-T-005", input: { envelopeText: '{"isa": "ANMA-1", "hex": ' } },
   { name: "t006-extra-key", rule: "ANMA-T-006", input: { envelope: { isa: "ANMA-1", hex: "00", note: "hi" } } },
   { name: "t007-wrong-isa", rule: "ANMA-T-007", input: { envelope: { isa: "ANMA-2", hex: "00", annotations: null } } },

@@ -292,10 +292,21 @@ export interface Limits {
 const MiB = 1024 * 1024;
 const KiB = 1024;
 
+/**
+ * Limits for runs a visitor starts and watches in the machine panel or chip view: no instruction
+ * or microstep fuel (the worker yields between slices and Pause/Stop always work), a larger
+ * terminal. Task tests and model examples keep bounded fuel.
+ */
+export const INTERACTIVE_RUN_LIMITS: Readonly<Partial<Limits>> = Object.freeze({
+  executedInstructions: Number.MAX_SAFE_INTEGER,
+  microsteps: Number.MAX_SAFE_INTEGER,
+  terminalBytes: 8 * MiB,
+});
+
 export const DEFAULT_LIMITS: Readonly<Limits> = Object.freeze({
   importedExecutableBytes: 1 * MiB,
-  liveCandidateBytes: 64 * KiB,
-  modelResponseTextBytes: 256 * KiB,
+  liveCandidateBytes: 192 * KiB,
+  modelResponseTextBytes: 1 * MiB,
   valuesPerBlock: 65_536,
   paramsPerFunctionOrBlock: 256,
   activeFrames: 256,
@@ -310,12 +321,12 @@ export const DEFAULT_LIMITS: Readonly<Limits> = Object.freeze({
   terminalBytes: 1 * MiB,
   traceEvents: 10_000,
   inputEvents: 4_096,
-  annotationBytes: 128 * KiB,
+  annotationBytes: 1 * MiB,
   claimBytes: 512,
   contractExpressionBytes: 4 * KiB,
   contractAstDepth: 64,
   examplesPerCandidate: 32,
-  diagnosticReportBytes: 24 * KiB,
+  diagnosticReportBytes: 32 * KiB,
   diagnosticReportedErrors: 12,
   contractSteps: 1_000_000,
   // Not listed in 14.1 but required so validation work is bounded: derived from the 1 MiB import cap.

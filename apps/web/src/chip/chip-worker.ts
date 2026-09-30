@@ -3,6 +3,7 @@
 // here re-implements execution. Each step returns the exact microsteps the engine performed.
 
 import { validateBytes } from "@llmtobinary/validate";
+import { INTERACTIVE_RUN_LIMITS } from "@llmtobinary/spec";
 import { disassemble } from "@llmtobinary/decode";
 import { createFiniteMachine, type FiniteMachine } from "@llmtobinary/runtime";
 import { AnmrMachine, anmrClaim, validateAnmr } from "@llmtobinary/research";
@@ -116,7 +117,7 @@ export function handleChip(m: ToChip, post: (r: FromChip) => void): void {
         if (m.isa === "ANMA-1") {
           const v = validateBytes(bytes, { allowedFeatures: m.allowedFeatures });
           if (!v.ok || !v.module) throw new Error(v.diagnostics.find((d) => d.severity === "error")?.message ?? "invalid executable");
-          s.anma = createFiniteMachine(v.module, m.inputs, { config: { fastSlots: m.fastSlots, policy: "fifo-v1", trace: false }, allowedFeatures: m.allowedFeatures, ticks: m.ticks, onEvent: (e) => s.sink?.(e) });
+          s.anma = createFiniteMachine(v.module, m.inputs, { config: { fastSlots: m.fastSlots, policy: "fifo-v1", trace: false }, allowedFeatures: m.allowedFeatures, ticks: m.ticks, limits: INTERACTIVE_RUN_LIMITS, onEvent: (e) => s.sink?.(e) });
         } else {
           const v = validateAnmr(bytes);
           if (!v.ok) throw new Error(v.diagnostics[0]?.message ?? "invalid ANMR-1 program");

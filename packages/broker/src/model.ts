@@ -1,12 +1,16 @@
 // Provider-neutral model-turn interface used by the loop controller, plus the normalized events
 // a turn yields. The OpenAI adapter and the test-only scripted fake implement it.
 
+export type ReasoningEffort = "none" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
+
 export interface ModelProfile {
   id: string;
   label: string;
   /** Requested model ID (an explicit snapshot when available). */
   model: string;
-  reasoningEffort: "minimal" | "low" | "medium" | "high" | null;
+  reasoningEffort: ReasoningEffort | null;
+  /** Effort for visitor-written (open) tasks, which need a whole program designed from prose. */
+  openTaskReasoningEffort?: ReasoningEffort | null;
   carryReasoning: boolean;
   /** USD per million tokens, from the versioned price policy. */
   inputPerMTok: number;

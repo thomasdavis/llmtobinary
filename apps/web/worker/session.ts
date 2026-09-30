@@ -4,7 +4,7 @@
 // number, and purges session content with an alarm when the recovery TTL expires.
 
 import { DurableObject } from "cloudflare:workers";
-import { FakeModelClient, OpenAIModelClient, cancelSession, createSession, runAttempt, LoopError, type BudgetGate, type ModelClient, type ModelProfile, type ScriptedTurn, type SessionState } from "@llmtobinary/broker";
+import { FakeModelClient, OpenAIModelClient, cancelSession, createSession, recoverLostAttempt, runAttempt, LoopError, type BudgetGate, type ModelClient, type ModelProfile, type ScriptedTurn, type SessionState } from "@llmtobinary/broker";
 import type { AttemptRequest, CreateSessionRequest, LoopBudget, LoopEvent, SessionSummary } from "@llmtobinary/protocol";
 
 const enc = new TextEncoder();
@@ -24,29 +24,66 @@ function log(fields: Record<string, unknown>): void {
   console.log(JSON.stringify({ component: "generation-session", ...fields }));
 }
 
+/** Conversation JSON is stored in chunks of this many characters (UTF-16 ≤ 2 bytes each, under 2 MiB). */
+const ITEM_CHUNK_CHARS = 900_000;
+
 export class GenerationSession extends DurableObject<Env> {
   private state: SessionState | null = null;
   private running: AbortController | null = null;
+  private savedCandidates = new Set<number>();
+  private itemChunks = 0;
 
   private async load(): Promise<SessionState | null> {
     if (this.state) return this.state;
-    const s = await this.ctx.storage.get<SessionState>("state");
+    const s = await this.ctx.storage.get<SessionState & { itemChunks?: number }>("state");
     if (s) {
       const cands = await this.ctx.storage.list<SessionState["candidates"][number]>({ prefix: "c:" });
       s.candidates = [...cands.values()];
+      for (const c of s.candidates) this.savedCandidates.add(c.seq);
+      if (s.itemChunks) {
+        const parts = await this.ctx.storage.get<string>(Array.from({ length: s.itemChunks }, (_, i) => `i:${pad(i)}`));
+        s.items = JSON.parse(Array.from({ length: s.itemChunks }, (_, i) => parts.get(`i:${pad(i)}`) ?? "").join(""));
+        this.itemChunks = s.itemChunks;
+        delete s.itemChunks;
+      }
     }
     this.state = s ?? null;
+    // A fresh instance never has an attempt in flight: one persisted as running died with a previous
+    // instance (a deploy or a platform limit). Record that so the browser can resume the session.
+    if (this.state && !this.running) {
+      const lost = recoverLostAttempt(this.state, Date.now());
+      if (lost) {
+        const st = this.state;
+        const ev = { type: "attempt.error", sessionId: st.sessionId, attemptId: lost.attemptId, seq: ++st.seq, at: Date.now(), code: "attempt_lost", message: "the server restarted during this attempt; it was stopped at the last saved point and can be resumed", retryable: true } as LoopEvent;
+        await this.ctx.storage.put(`e:${pad(ev.seq)}`, ev);
+        await this.save();
+        log({ event: "attempt-lost", sessionId: st.sessionId, attemptId: lost.attemptId });
+      }
+    }
     return this.state;
   }
 
-  /** Persist state; candidates (which carry full raw text) are stored one per key. */
+  /**
+   * Persist state within Durable Object value limits (2 MiB per value, 128 keys per put):
+   * candidates (full raw text) one per key and written once; the conversation (which holds large
+   * drafts) as JSON chunks next to a small state record.
+   */
   private async save(): Promise<void> {
     const s = this.state;
     if (!s) return;
-    const { candidates, ...rest } = s;
-    const puts: Record<string, unknown> = { state: { ...rest, candidates: [] } };
-    for (const c of candidates) puts[`c:${pad(c.seq)}`] = c;
-    await this.ctx.storage.put(puts);
+    const { candidates, items, ...rest } = s;
+    const json = JSON.stringify(items);
+    const chunks: string[] = [];
+    for (let i = 0; i < json.length; i += ITEM_CHUNK_CHARS) chunks.push(json.slice(i, i + ITEM_CHUNK_CHARS));
+    const puts: Record<string, unknown> = { state: { ...rest, items: [], candidates: [], itemChunks: chunks.length } };
+    chunks.forEach((c, i) => (puts[`i:${pad(i)}`] = c));
+    const fresh = candidates.filter((c) => !this.savedCandidates.has(c.seq));
+    for (const c of fresh) puts[`c:${pad(c.seq)}`] = c;
+    const entries = Object.entries(puts);
+    for (let i = 0; i < entries.length; i += 100) await this.ctx.storage.put(Object.fromEntries(entries.slice(i, i + 100)));
+    for (const c of fresh) this.savedCandidates.add(c.seq);
+    if (this.itemChunks > chunks.length) await this.ctx.storage.delete(Array.from({ length: this.itemChunks - chunks.length }, (_, k) => `i:${pad(chunks.length + k)}`));
+    this.itemChunks = chunks.length;
   }
 
   private model(s: SessionState): ModelClient {

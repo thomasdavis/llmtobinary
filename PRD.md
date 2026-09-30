@@ -410,15 +410,17 @@ After `budget-exhausted` or `stalled`, the best candidate so far stays inspectab
 
 | Limit | Default |
 |---|---:|
-| Output tokens per model turn | 32,768 |
-| Output tokens per session | 393,216 |
-| Model turns per session (inner + outer) | 40 |
-| `check_candidate` calls per session | 32 |
-| `submit_candidate` calls (outer iterations) per session | 8 |
-| Session wall-clock | 20 minutes |
+| Output tokens per model turn | 100,000 |
+| Output tokens per session | 2,000,000 |
+| Model turns per session (inner + outer) | 100 |
+| `check_candidate` calls per session | 64 |
+| `submit_candidate` calls (outer iterations) per session | 16 |
+| Session wall-clock | 60 minutes |
 | Per-session spend cap | Set by the versioned price/budget policy |
 
 OpenAI's output limit includes reasoning and other non-visible tokens as well as visible bytes; do not infer token usage from hex length. [O6]
+
+These defaults were raised on 2026-09-30 so visitor prompts can ask for complex programs (games, animations): the model may emit up to 128k output tokens per response. The loop context is 2,000,000 characters. When context is tight, older full drafts are elided first, keeping the latest two and every check report. Visitor-written tasks may use a higher reasoning effort (`OPENAI_OPEN_TASK_REASONING_EFFORT`). Dollar caps still bound every session and day.
 
 The server reserves each turn's worst-case allowance in the `BudgetLedger` Durable Object before issuing it, reconciles provider usage afterward, and records unknown usage on interrupted requests. Never display unknown usage as zero cost. Disable automatic opaque SDK retries; any retry is separately identified, budgeted, and visible. The `GenerationSession` Durable Object serializes turns, so there are never parallel turns within a session. A client reconnect resumes the event stream by sequence number and must not silently purchase another turn.
 
@@ -794,8 +796,8 @@ These are safeguards to validate and tune, not performance promises.
 | Resource | Public default |
 |---|---:|
 | Imported executable | 1 MiB |
-| Live-generation candidate | 64 KiB binary, additionally bounded by output-token budget |
-| Model-response text buffer | 256 KiB UTF-8 |
+| Live-generation candidate | 192 KiB binary, additionally bounded by output-token budget |
+| Model-response text buffer | 1 MiB UTF-8 |
 | Values per block | 65,536 |
 | Parameters per function/block | 256 |
 | Active function frames | 256 |
@@ -805,16 +807,16 @@ These are safeguards to validate and tune, not performance promises.
 | Frame/argument-staging payload | 4 MiB |
 | Modeled metadata | 32 MiB |
 | Heap allocations | 65,536 |
-| Executed guest instructions | 5,000,000 |
-| Internal microsteps | 50,000,000 |
+| Executed guest instructions | 5,000,000 per test run (task tests carry their own fuel; model examples 20,000,000); unbounded for runs the visitor starts and can pause or stop |
+| Internal microsteps | 50,000,000 per test run; unbounded for visitor-started runs |
 | Cumulative terminal output | 1 MiB |
 | Detailed trace ring | 10,000 events |
 | Input event queue | 4,096 events |
-| Annotation sidecar (UTF-8 JSON) | 128 KiB |
+| Annotation sidecar (UTF-8 JSON) | 1 MiB |
 | Record claims / notes | one per record; 512 bytes each |
 | Contract/invariant expression | 4 KiB each, AST depth 64 |
 | Model examples per candidate | 32 |
-| Diagnostic report returned to the model | 24 KiB, ≤ 12 reported errors |
+| Diagnostic report returned to the model | 32 KiB, ≤ 12 reported errors |
 | Runtime contract evaluation | charged to the run's fuel; separate cap of 1,000,000 contract steps |
 | SMT query (P2) | 10 s wall-clock and bounded memory per verification condition |
 
@@ -822,7 +824,7 @@ Cap validation work, encoded declarations, checkpoints, snapshots, response even
 
 Interactive execution can use bounded successive slices with a visible cumulative ceiling; no automatic unlimited fuel renewal. Renderer speed does not determine semantics. Timeout outcomes and instruction-fuel outcomes are recorded separately.
 
-Server-side, the Cloudflare Worker enforces the 256 KiB model-response buffer and the event/body size caps independently of the browser. It must never buffer an unbounded upstream response in Durable Object memory or storage.
+Server-side, the Cloudflare Worker enforces the 1 MiB model-response buffer and the event/body size caps independently of the browser. It must never buffer an unbounded upstream response in Durable Object memory or storage.
 
 ## 14A. Chip view and the declared cost model
 

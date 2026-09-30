@@ -4,6 +4,7 @@
 // guest-derived code and has no credentials. Snapshots are throttled, never per instruction.
 
 import { validateBytes, type Module } from "@llmtobinary/validate";
+import { INTERACTIVE_RUN_LIMITS } from "@llmtobinary/spec";
 import { createFiniteMachine, type FiniteMachine } from "@llmtobinary/runtime";
 import { runTaskTests, redactForModel, TASK_BY_ID } from "@llmtobinary/tasks";
 import { parseAnnotations } from "@llmtobinary/annotations";
@@ -166,7 +167,7 @@ self.onmessage = (ev: MessageEvent<ToMachine | ToChip>) => {
         running = false;
         lastFrames = -1;
         const module = validated(copy(m.bytes), m.allowedFeatures);
-        machine = createFiniteMachine(module, m.inputs, { config: m.config, allowedFeatures: m.allowedFeatures, ticks: m.ticks });
+        machine = createFiniteMachine(module, m.inputs, { config: m.config, allowedFeatures: m.allowedFeatures, ticks: m.ticks, limits: INTERACTIVE_RUN_LIMITS });
         setWatch(watch);
         post({ type: "loaded", runId });
         sendState(true);

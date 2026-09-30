@@ -260,7 +260,7 @@ export type LoopEvent =
   | (EventBase & { type: "check.result"; candidateSeq: number; report: CheckReport })
   | (EventBase & { type: "candidate.submitted"; candidate: Candidate; envelopeText: string })
   | (EventBase & { type: "loop.budget"; counters: LoopCounters; budget: LoopBudget })
-  | (EventBase & { type: "loop.elided"; elidedChecks: number })
+  | (EventBase & { type: "loop.elided"; elidedChecks: number; elidedDrafts?: number })
   | (EventBase & { type: "attempt.completed"; providerStatus: string; responseIds: string[] })
   | (EventBase & { type: "attempt.refused"; message: string })
   | (EventBase & { type: "attempt.incomplete"; reason: string })
@@ -278,7 +278,7 @@ export interface ConfigResponse {
   deploymentId: string | null;
   environment: string;
   liveGeneration: boolean;
-  profiles: { id: string; label: string; model: string; reasoningEffort: string | null }[];
+  profiles: { id: string; label: string; model: string; reasoningEffort: string | null; openTaskReasoningEffort?: string | null }[];
   allowedFeatures: number;
   budget: LoopBudget;
   recoveryTtlSeconds: number;

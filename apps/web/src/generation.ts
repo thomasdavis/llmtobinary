@@ -115,6 +115,7 @@ export class GenerationController {
       this.token = s.token;
       this.set({ sessionId: s.sessionId, budget: s.budget, phase: "streaming" });
       let feedback: BrowserFeedback | null = null;
+      let resumes = 0;
       while (true) {
         this.set({ phase: "streaming" });
         const evs = await this.attempt(crypto.randomUUID(), feedback);
@@ -122,6 +123,11 @@ export class GenerationController {
         const sub = [...evs].reverse().find((e): e is Extract<LoopEvent, { type: "candidate.submitted" }> => e.type === "candidate.submitted");
         if (!sub) {
           const err = [...evs].reverse().find((e): e is Extract<LoopEvent, { type: "attempt.error" }> => e.type === "attempt.error");
+          // The server lost the attempt (it restarted mid-attempt): resume from its last saved point.
+          if (err?.code === "attempt_lost" && resumes < 2) {
+            resumes++;
+            continue;
+          }
           this.set({ phase: "error", error: err ? `the server stopped this attempt: ${err.message}` : "the attempt ended without a submission or a stop outcome" });
           return;
         }

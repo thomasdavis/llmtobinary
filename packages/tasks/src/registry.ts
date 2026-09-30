@@ -380,7 +380,13 @@ export function openTaskPromptText(description: string, params: readonly ParamTy
     `Entry signature: ${signatureText(params, returns)}`,
     `Permitted devices: ${featureText(features)}. Declare exactly the feature bits you use.`,
     "Include examples in the annotations so the program can be checked against your own claims.",
+    "Build the program the visitor described as completely and faithfully as the budget allows. A placeholder (a single colour, a blank screen, a fixed picture where motion was asked for, or a stub that ignores most of the description) does not satisfy the task; you may use many turns and checks to get there.",
   ];
+  if (features & 4) {
+    lines.push(
+      "Drawing: loops over x and y that call display.pixel draw rectangles, shapes and sprites compactly; carry per-frame state (positions, velocities, scores) as block parameters; draw each complete frame, call display.present, then input.wait_tick for the next frame.",
+    );
+  }
   if (features & 8) {
     lines.push(
       "Examples run once with the given inputs and NO input ticks. A program that loops on input.wait_tick (for example one meant to run until the visitor quits, or forever) never finishes such a run: that is accepted when the example claims no result and no terminal text (use null for both), but a claimed result can never be observed.",

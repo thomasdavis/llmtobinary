@@ -8,7 +8,7 @@ import { FIXTURES } from "./fixtures.ts";
 import type { GenState, SubmittedCandidate } from "./generation.ts";
 import { DiagnosticList } from "./Diagnostics.tsx";
 
-const MAX_DESCRIPTION = 4000;
+const MAX_DESCRIPTION = 16_000;
 const MAX_INPUTS = 8;
 const DRAFT_KEY = "llmtobinary.customPrompt.v1";
 
@@ -162,7 +162,7 @@ export function TaskPanel(props: {
           <select value={mode} onChange={(e) => setMode(e.target.value as "tools" | "raw-hex")}><option value="tools">Literal bytes · checker-assisted loop</option><option value="raw-hex">Raw hex (research profile)</option></select>
         </label>
       </div>
-      {b && <p className="small muted">Budget per session: {b.maxTurns} turns · {b.maxChecks} checks · {b.maxSubmissions} submissions · {b.maxOutputTokensPerSession.toLocaleString()} output tokens · {Math.round(b.maxWallClockMs / 60000)} min. Model: {props.config?.profiles[0]?.label ?? "not configured"}.</p>}
+      {b && <p className="small muted">Budget per session: {b.maxTurns} turns · {b.maxChecks} checks · {b.maxSubmissions} submissions · {b.maxOutputTokensPerSession.toLocaleString()} output tokens · {Math.round(b.maxWallClockMs / 60000)} min. Model: {props.config?.profiles[0]?.label ?? "not configured"}{source === "custom" && props.config?.profiles[0]?.openTaskReasoningEffort && props.config.profiles[0].openTaskReasoningEffort !== props.config.profiles[0].reasoningEffort ? `; your own prompts use ${props.config.profiles[0].openTaskReasoningEffort} reasoning` : ""}.</p>}
       <label className="check consent"><input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} /> I understand my task text and any failing test results are sent through this site's Cloudflare-hosted server to OpenAI. Runtime inputs are not sent.</label>
       <div className="row">
         <button className="primary" disabled={!live || !consent || busy || (!task && !description.trim())} onClick={() => props.onGenerate(request())}>Generate</button>

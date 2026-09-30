@@ -15,8 +15,8 @@
         "functionId": null,
         "blockId": null
       },
-      "found": "66560 bytes",
-      "expected": "at most 65536 bytes",
+      "found": "196609 bytes",
+      "expected": "at most 196608 bytes",
       "derived": null,
       "context": null,
       "claim": null,

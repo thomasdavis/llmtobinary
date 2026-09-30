@@ -47,6 +47,15 @@ Legend: **verified** = automated tests in this repo pass · **live** = exercised
   - The framebuffer panel says when nothing has been presented.
   - Found live: a model's "snake" drew 48 pixels a tick and never presented, so the screen stayed empty.
 
+- **live** Limits for complex programs (PRD 7.x/14.1):
+  - Loop budget: 100 turns, 64 checks, 16 submissions, 100k output tokens per turn, 2M per session, 60 min.
+  - Context and sizes: 2M-character context with older drafts elided first; candidates up to 192 KiB; response text 1 MiB; annotations 1 MiB.
+  - Fuel: unbounded for visitor-started runs; open-task examples get 20M instructions.
+  - Server and prompts: open tasks use `high` reasoning and a no-placeholder instruction; prompts up to 16,000 characters; recovery TTL 2 h; Worker `cpu_ms` 300,000.
+  - Storage: the Durable Object stores the conversation in chunks under the 2 MiB value limit and writes candidates once.
+- **live** Lost-attempt recovery: a fresh Durable Object that finds an attempt persisted as running marks it lost, answers any dangling tool call, and stores an `attempt_lost` event; the browser resumes up to twice. Unit-tested; a live redeploy-mid-attempt probe finished before the restart, so the live path is not yet exercised.
+- **open** Root cause of attempts that end silently mid-session: seen twice on long custom prompts (turn 6, around 33k output tokens, 262 s). Needs Worker logs from a failing run.
+
 ## Chip view (PRD 14A)
 - **live** `/chip`: a modeled floorplan driven only by executed micro-events (`onEvent` on the finite machine and on ANMR-1), with declared `anma-cost/1` modeled ticks, a logic analyzer, heat mode, step instruction/microstep, trace export, and deep links. The ANMA-1 vs ANMR-1 capstone compare is implemented but hidden (`SHOW_ANMR_COMPARE`).
 - **live** Live chip in the machine panel: instruments the panel's own run (`setEventSink` on the running machine), with speeds from full down to 2 instr/s. It has the terminal and framebuffer beside the die, live keys, and full screen with its own controls.
