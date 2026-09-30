@@ -185,6 +185,15 @@ export const RULES: readonly RuleInfo[] = [
   r("ANMA-K-007", "CONTRACT_REFUTED", "the verifier found a counterexample to a contract", "§15.5"),
   r("ANMA-K-008", "CONTRACT_UNPROVEN", "the verifier could not decide a contract", "§15.5", "warning"),
   r("ANMA-K-009", "RESOURCE_EXHAUSTED", "a test run stopped on a resource or fuel limit", "§14.1"),
+  // ANMR-1 matched register control (research, Section 18.5)
+  r("ANMR-V-001", "BAD_HEADER", "ANMR header is invalid (magic ANMR, version 1, features/data/entry 0, R >= 1)", "§18.5"),
+  r("ANMR-V-002", "LENGTH_MISMATCH", "ANMR file length does not equal 32 + 16*recordCount", "§18.5"),
+  r("ANMR-V-003", "BAD_RECORD_GRAMMAR", "ANMR program must be FUNC fn0 1 u64, BLOCK block0 1 0, PARAM r0 u64 0, instructions, RETURN, END_FUNC", "§18.5"),
+  r("ANMR-V-004", "INVALID_ID", "register index is outside 0..R-1", "§18.5"),
+  r("ANMR-V-005", "INVALID_ID", "spill slot is outside 0..S-1", "§18.5"),
+  r("ANMR-V-006", "UNKNOWN_OPCODE", "opcode is not part of ANMR-1", "§18.5"),
+  r("ANMR-R-001", "BOUNDS", "read of an uninitialized register", "§18.5"),
+  r("ANMR-R-002", "BOUNDS", "RESTORE of an uninitialized spill slot", "§18.5"),
   // Loop
   r("ANMA-L-001", "LOOP_BUDGET_EXHAUSTED", "the generation loop budget is exhausted", "§7.6"),
   r("ANMA-L-002", "LOOP_STALLED", "the loop is repeating the same candidate or the same errors", "§7.6"),

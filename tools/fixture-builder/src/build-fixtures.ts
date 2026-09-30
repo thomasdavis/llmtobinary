@@ -8,6 +8,8 @@ import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { validateBytes } from "@llmtobinary/validate";
 import { FIXTURES } from "./fixtures.ts";
 import { BUILDER_VERSION } from "./builder.ts";
+import { ANMR_REGISTER_COUNTS, anmrCapstone } from "./anmr.ts";
+import { validateAnmr } from "../../../packages/research/src/anmr.ts";
 
 const root = new URL("../../../fixtures/", import.meta.url);
 const check = process.argv.includes("--check");
@@ -40,6 +42,28 @@ for (const def of FIXTURES) {
     bytes: bytes.length,
     sha256,
     provenance: { kind: "tool-created-fixture", origin: `tools/fixture-builder (${BUILDER_VERSION}): ${def.note}`, modelOutput: false },
+  });
+}
+
+// ANMR-1 matched-control fixtures (research, Section 18.5)
+for (const R of ANMR_REGISTER_COUNTS) {
+  const file = `anmr-capstone-r${R}.anmr`;
+  const bytes = anmrCapstone(R);
+  const v = validateAnmr(bytes);
+  if (!v.ok) throw new Error(`${file} does not validate: ${v.diagnostics.map((d) => d.message).join("; ")}`);
+  const url = new URL(file, root);
+  const existing = existsSync(url) ? new Uint8Array(readFileSync(url)) : null;
+  if (existing === null || Buffer.compare(Buffer.from(existing), Buffer.from(bytes)) !== 0) {
+    stale++;
+    if (!check) writeFileSync(url, bytes);
+  }
+  entries.push({
+    file,
+    task: "anmr-capstone-40",
+    isa: "ANMR-1",
+    bytes: bytes.length,
+    sha256: createHash("sha256").update(bytes).digest("hex"),
+    provenance: { kind: "tool-created-fixture", origin: `tools/fixture-builder (${BUILDER_VERSION}): ANMR-1 capstone at R=${R}, keep-then-spill`, modelOutput: false },
   });
 }
 

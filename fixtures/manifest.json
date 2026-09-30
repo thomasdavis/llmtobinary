@@ -277,6 +277,54 @@
         "origin": "tools/fixture-builder (fixture-builder/1): upstream ring-mix workload (research)",
         "modelOutput": false
       }
+    },
+    {
+      "file": "anmr-capstone-r4.anmr",
+      "task": "anmr-capstone-40",
+      "isa": "ANMR-1",
+      "bytes": 3984,
+      "sha256": "64f5dee33bfc414ac0d40f8bad5b411d0bd3335da5080980b9bb9c2359e54163",
+      "provenance": {
+        "kind": "tool-created-fixture",
+        "origin": "tools/fixture-builder (fixture-builder/1): ANMR-1 capstone at R=4, keep-then-spill",
+        "modelOutput": false
+      }
+    },
+    {
+      "file": "anmr-capstone-r8.anmr",
+      "task": "anmr-capstone-40",
+      "isa": "ANMR-1",
+      "bytes": 3856,
+      "sha256": "20b49960c95fe5008ff858c3868975ddef18a4e4b21fccd5e0a4fcb92be2b764",
+      "provenance": {
+        "kind": "tool-created-fixture",
+        "origin": "tools/fixture-builder (fixture-builder/1): ANMR-1 capstone at R=8, keep-then-spill",
+        "modelOutput": false
+      }
+    },
+    {
+      "file": "anmr-capstone-r16.anmr",
+      "task": "anmr-capstone-40",
+      "isa": "ANMR-1",
+      "bytes": 3600,
+      "sha256": "e8456e6417a1ece3d7f7ce283d1f2ea21d98271f18ead944a7eaa36a19d696a6",
+      "provenance": {
+        "kind": "tool-created-fixture",
+        "origin": "tools/fixture-builder (fixture-builder/1): ANMR-1 capstone at R=16, keep-then-spill",
+        "modelOutput": false
+      }
+    },
+    {
+      "file": "anmr-capstone-r32.anmr",
+      "task": "anmr-capstone-40",
+      "isa": "ANMR-1",
+      "bytes": 3088,
+      "sha256": "072c23bafe9955d7181de196123a673bf3890410d1f7d6240a23a0a5f06408b3",
+      "provenance": {
+        "kind": "tool-created-fixture",
+        "origin": "tools/fixture-builder (fixture-builder/1): ANMR-1 capstone at R=32, keep-then-spill",
+        "modelOutput": false
+      }
     }
   ]
 }

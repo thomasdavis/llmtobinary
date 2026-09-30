@@ -11,12 +11,11 @@
   },
   "dependencies": {
     "@llmtobinary/spec": "workspace:*",
-    "@llmtobinary/decode": "workspace:*",
     "@llmtobinary/validate": "workspace:*",
+    "@llmtobinary/diagnostics": "workspace:*",
     "@llmtobinary/reference": "workspace:*",
     "@llmtobinary/runtime": "workspace:*",
-    "@llmtobinary/tasks": "workspace:*",
-    "@llmtobinary/protocol": "workspace:*",
-    "@llmtobinary/diagnostics": "workspace:*"
+    "@llmtobinary/devices": "workspace:*",
+    "@llmtobinary/protocol": "workspace:*"
   }
 }

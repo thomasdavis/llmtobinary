@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { describe, expect, it } from "vitest";
 import { mustValidate, validateBytes } from "@llmtobinary/validate";
+import { validateAnmr } from "@llmtobinary/research";
 import { parseAnnotations } from "@llmtobinary/annotations";
 import { capstoneK } from "../../../tools/fixture-builder/src/fixtures.ts";
 import { ModuleBuilder } from "@llmtobinary/fixture-builder";
@@ -130,7 +131,7 @@ describe("fixtures and prompts", () => {
     for (const f of manifest.fixtures) {
       const b = bytes(f.file);
       expect(b.length).toBe(f.bytes);
-      expect(validateBytes(b).ok, f.file).toBe(true);
+      expect(f.isa === "ANMR-1" ? validateAnmr(b).ok : validateBytes(b).ok, f.file).toBe(true);
       expect(f.provenance.modelOutput).toBe(false);
     }
   });
