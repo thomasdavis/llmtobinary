@@ -3,7 +3,9 @@
   "private": true,
   "type": "module",
   "packageManager": "pnpm@12.6.0",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "typecheck": "pnpm -r --workspace-concurrency=2 run typecheck",
     "test": "vitest run",
@@ -12,12 +14,15 @@
     "check:spec": "node scripts/spec-hash.mjs --check",
     "build": "pnpm --filter @llmtobinary/web build",
     "dev": "pnpm --filter @llmtobinary/web dev",
-    "ci": "pnpm check:spec && pnpm check:deps && pnpm typecheck && pnpm test && pnpm test:worker && pnpm build"
+    "ci": "pnpm check:spec && pnpm check:deps && pnpm typecheck && pnpm test && pnpm test:worker && pnpm build",
+    "e2e": "node tests/e2e/browser-e2e.mjs",
+    "live-test": "node scripts/live-test.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.19.0",
     "fast-check": "4.10.2",
     "typescript": "7.0.2",
-    "vitest": "4.1.11"
+    "vitest": "4.1.11",
+    "playwright-core": "1.56.1"
   }
 }

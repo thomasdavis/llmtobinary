@@ -17,5 +17,6 @@ export default defineConfig({
   plugins: [react(), cloudflare()],
   define: { __BUILD_COMMIT__: JSON.stringify(commit) },
   worker: { format: "es" },
-  build: { target: "es2022", sourcemap: false, chunkSizeWarningLimit: 2000 },
+  // Fixtures stay separate same-origin files: the CSP (connect-src 'self') forbids fetching data: URLs.
+  build: { target: "es2022", sourcemap: false, chunkSizeWarningLimit: 2000, assetsInlineLimit: (file) => (file.endsWith(".anma") ? false : undefined) },
 });
