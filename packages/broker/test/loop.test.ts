@@ -5,7 +5,7 @@ import { ModuleBuilder } from "@llmtobinary/fixture-builder";
 import { runToCompletion } from "@llmtobinary/reference";
 import { parseHex, toHex } from "@llmtobinary/decode";
 import type { BrowserFeedback, CheckReport, LoopEvent } from "@llmtobinary/protocol";
-import { EXAMPLE_A_HEX, EXAMPLE_B_HEX, FakeModelClient, TOOLS, createSession, generationInstructions, recoverLostAttempt, runAttempt, type BudgetGate, type ModelProfile, type ScriptedTurn, type SessionState } from "../src/index.ts";
+import { EXAMPLE_A_HEX, EXAMPLE_B_HEX, FakeModelClient, TOOLS, buildDebugArchive, createSession, generationInstructions, recoverLostAttempt, runAttempt, type BudgetGate, type ModelProfile, type ScriptedTurn, type SessionState } from "../src/index.ts";
 
 const root = new URL("../../../fixtures/", import.meta.url);
 const sqHex = toHex(new Uint8Array(readFileSync(new URL("square-plus-two.anma", root))));
@@ -145,6 +145,22 @@ describe("agentic loop", () => {
     const a = await runAttempt(h.state, { idempotencyKey: "k1", feedback: null }, h.deps);
     expect(a.status).toBe("awaiting-feedback");
     expect(a.iteration).toBe(0);
+  });
+
+  it("debug archive: every draft in full, stream deltas omitted, conversation and attempts included", async () => {
+    const h = harness([{ kind: "check", envelope: env(badHex) }, { kind: "submit", envelope: env(sqHex) }]);
+    await runAttempt(h.state, { idempotencyKey: "k1", feedback: null }, h.deps);
+    const archive = buildDebugArchive({ state: h.state, events: h.events, reason: "attempt-end", environment: "test", build: "abc", archivedAt: 5_000, browserSharedAt: null });
+    const cands = archive.candidates as { kind: string; rawText: string }[];
+    expect(cands.map((c) => c.kind)).toEqual(["check", "submit"]);
+    expect(cands[0]!.rawText).toContain(badHex.slice(0, 64));
+    const evs = archive.events as { type: string }[];
+    expect(evs.some((e) => e.type === "model.tool_args.delta")).toBe(false);
+    expect(evs.map((e) => e.type)).toContain("candidate.submitted");
+    expect((archive.summary as { attempts: unknown[] }).attempts).toHaveLength(1);
+    expect(Array.isArray(archive.conversation)).toBe(true);
+    expect((archive.session as Record<string, unknown>).items).toBeUndefined();
+    expect(JSON.stringify(archive)).not.toMatch(/sk-[A-Za-z0-9]{10,}/);
   });
 
   it("outer loop: failing browser tests are sent back as untrusted data on the submit call", async () => {

@@ -68,6 +68,16 @@ Live generation is enabled per environment by `LIVE_GENERATION_ENABLED`, `OPENAI
 
 `/chip` shows a modeled floorplan of the machine: fetch/decode, value directory, fast slots, latches, ALU, backing SRAM, staging, stack and I/O. Units light up as the engine executes each microstep. Every light is an event the engine actually emitted. Time is in **modeled ticks** from the declared cost model `anma-cost/1`, not measured cycles. The same chip also runs **live in the machine panel**. It lights up for the run you start there. The speed control slows the machine down to 2 instructions per second, the terminal and framebuffer sit beside the die, and **Full screen** has its own controls. You can play ball/paddle and watch the chip at the same time.
 
+## Debugging a generation session
+
+Every generation session is archived privately to R2 after each attempt, on crash recovery, and before the session expires. The buckets are `llmtobinary-debug` (production) and `llmtobinary-debug-staging`. The archive holds the task, the model conversation, every draft and submission in full, and all loop events except per-token deltas.
+
+**Share for debugging** in the generation panel adds the browser's side: full test reports, machine state, terminal, framebuffer PNG and the client event log. It also gives you a line like `llmtobinary debug production <session-id>`. To inspect it:
+
+```sh
+node scripts/debug-session.mjs llmtobinary debug production <session-id>   # timeline + saved JSON in debug-sessions/
+```
+
 ## What this does and does not show
 
 An OpenAI model generates these executable bytes, working in a visible loop against a checker that explains its mistakes but never writes bytes for it. A TypeScript virtual machine executes them in the browser. The same file runs with fewer fast-value slots because the machine — not the model — manages backing storage. It does not show a native chip, compiler-free computation, or a universal register limit on LLM programming.

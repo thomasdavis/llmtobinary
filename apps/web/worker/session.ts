@@ -4,7 +4,7 @@
 // number, and purges session content with an alarm when the recovery TTL expires.
 
 import { DurableObject } from "cloudflare:workers";
-import { FakeModelClient, OpenAIModelClient, cancelSession, createSession, recoverLostAttempt, runAttempt, LoopError, type BudgetGate, type ModelClient, type ModelProfile, type ScriptedTurn, type SessionState } from "@llmtobinary/broker";
+import { FakeModelClient, OpenAIModelClient, MAX_DEBUG_BROWSER_BYTES, buildDebugArchive, cancelSession, createSession, recoverLostAttempt, runAttempt, LoopError, type BudgetGate, type ModelClient, type ModelProfile, type ScriptedTurn, type SessionState } from "@llmtobinary/broker";
 import type { AttemptRequest, CreateSessionRequest, LoopBudget, LoopEvent, SessionSummary } from "@llmtobinary/protocol";
 
 const enc = new TextEncoder();
@@ -58,6 +58,7 @@ export class GenerationSession extends DurableObject<Env> {
         await this.ctx.storage.put(`e:${pad(ev.seq)}`, ev);
         await this.save();
         log({ event: "attempt-lost", sessionId: st.sessionId, attemptId: lost.attemptId });
+        this.ctx.waitUntil(this.archive("lost"));
       }
     }
     return this.state;
@@ -119,6 +120,8 @@ export class GenerationSession extends DurableObject<Env> {
           return await this.cancel();
         case "/summary":
           return await this.summary();
+        case "/debug":
+          return await this.share(await request.text());
       }
       return Response.json({ error: "not found" }, { status: 404 });
     } catch (e) {
@@ -195,6 +198,7 @@ export class GenerationSession extends DurableObject<Env> {
         clearInterval(heartbeat);
         this.running = null;
         await this.save();
+        await this.archive(s.status === "stopped" ? `stopped:${s.outcome}` : "attempt-end");
         log({ event: "attempt-end", sessionId: s.sessionId, ms: Date.now() - started, status: s.status, outcome: s.outcome, turns: s.counters.turns, outputTokens: s.counters.outputTokens, inputTokens: s.counters.inputTokens, unknownUsageTurns: s.counters.unknownUsageTurns });
         try {
           await writer.close();
@@ -238,11 +242,52 @@ export class GenerationSession extends DurableObject<Env> {
     return Response.json({ ...body, attempts: s.attempts, requestedModel: s.requestedModel, returnedModels: s.returnedModels, promptVersion: s.promptVersion, usdSpent: s.usdSpent, unknownUsageTurns: s.usdUnknownTurns });
   }
 
+  /**
+   * Write the debug archive (sessions/<id>.json) to the private R2 bucket. Best-effort: archiving
+   * must never break a session, so failures are logged and swallowed.
+   */
+  private async archive(reason: string): Promise<{ key: string; bytes: number } | null> {
+    const bucket = this.env.DEBUG_ARCHIVE;
+    const s = await this.load();
+    if (!bucket || !s) return null;
+    try {
+      const evs = await this.ctx.storage.list<LoopEvent>({ prefix: "e:" });
+      const sharedAt = (await this.ctx.storage.get<number>("browserSharedAt")) ?? null;
+      const body = JSON.stringify(buildDebugArchive({ state: s, events: [...evs.values()], reason, environment: this.env.ENVIRONMENT ?? "unknown", build: this.env.CF_VERSION_METADATA?.id ?? null, archivedAt: Date.now(), browserSharedAt: sharedAt }));
+      const key = `sessions/${s.sessionId}.json`;
+      await bucket.put(key, body, { httpMetadata: { contentType: "application/json" }, customMetadata: { reason, status: s.status, outcome: s.outcome ?? "" } });
+      return { key, bytes: body.length };
+    } catch (e) {
+      log({ event: "archive-failed", sessionId: s.sessionId, reason, name: (e as Error)?.name });
+      return null;
+    }
+  }
+
+  /** "Share for debugging": store the browser's own record next to the server archive. */
+  private async share(browserJson: string): Promise<Response> {
+    const s = await this.load();
+    if (!s) throw new LoopError("no such session", 404);
+    if (!this.env.DEBUG_ARCHIVE) throw new LoopError("debug archiving is not configured here", 503);
+    if (browserJson.length > MAX_DEBUG_BROWSER_BYTES) throw new LoopError("browser bundle too large", 413);
+    try {
+      JSON.parse(browserJson);
+    } catch {
+      throw new LoopError("browser bundle must be JSON", 400);
+    }
+    await this.env.DEBUG_ARCHIVE.put(`sessions/${s.sessionId}.browser.json`, browserJson, { httpMetadata: { contentType: "application/json" } });
+    await this.ctx.storage.put("browserSharedAt", Date.now());
+    const a = await this.archive("shared");
+    if (!a) throw new LoopError("the debug archive could not be written", 502);
+    log({ event: "debug-shared", sessionId: s.sessionId, bytes: a.bytes + browserJson.length });
+    return Response.json({ debugId: s.sessionId, environment: this.env.ENVIRONMENT ?? "unknown", archived: true });
+  }
+
   override async alarm(): Promise<void> {
     if (this.running) {
       await this.ctx.storage.setAlarm(Date.now() + 60_000);
       return;
     }
+    await this.archive("purge");
     log({ event: "purged", sessionId: this.state?.sessionId ?? null });
     this.state = null;
     await this.ctx.storage.deleteAll();

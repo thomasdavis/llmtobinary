@@ -83,6 +83,9 @@ button.icon { padding: 2px 7px; line-height: 1.2; }
 .prompt, .preview { background: #f4f6f9; padding: 6px 8px; border-radius: 5px; max-height: 220px; overflow: auto; }
 .consent { background: #f2f6ff; padding: 6px 8px; border-radius: 6px; }
 .gen { margin-top: 8px; }
+.share-debug { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin: 4px 0 6px; }
+.share-debug p { flex-basis: 100%; margin: 2px 0; }
+.debug-line { user-select: all; background: #f4f6f9; padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
 .attempts { padding-left: 18px; }
 .outcome { font-size: 15px; }
 .fixtures, .history { list-style: none; padding: 0; margin: 4px 0; max-height: 240px; overflow: auto; }

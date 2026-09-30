@@ -75,3 +75,8 @@ export async function cancelSession(sessionId: string, token: string): Promise<v
 export async function sessionSummary(sessionId: string, token: string): Promise<Record<string, unknown>> {
   return jsonOrThrow(await fetch(`/api/generation-sessions/${sessionId}`, { headers: { authorization: `Bearer ${token}` } }));
 }
+
+/** "Share for debugging": upload the browser's own record; the server archives the whole session. */
+export async function shareDebug(sessionId: string, token: string, bundle: unknown): Promise<{ debugId: string; environment: string }> {
+  return jsonOrThrow(await fetch(`/api/generation-sessions/${sessionId}/debug`, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${token}` }, body: JSON.stringify(bundle) }));
+}

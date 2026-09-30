@@ -226,6 +226,32 @@ export function App() {
     setNotice("Local history cleared.");
   };
 
+  // "Share for debugging": what only this browser knows, next to the server's session archive.
+  const onShareDebug = async (): Promise<{ debugId: string; environment: string }> => {
+    const r = view.result;
+    const s = view.snapshot;
+    const text = (b: Uint8Array | undefined) => (b ? new TextDecoder().decode(b.length > 65_536 ? b.subarray(b.length - 65_536) : b) : "");
+    return gen.share({
+      app: { build: config?.buildCommit ?? null, environment: config?.environment ?? null, specSha256: config?.specSha256 ?? null, promptVersion: config?.promptVersion ?? null, url: location.href, userAgent: navigator.userAgent, viewport: [innerWidth, innerHeight] },
+      artifact: artifact ? { name: artifact.record.name, sha256: artifact.record.sha256, status: artifact.record.status, provenance: artifact.record.provenance, byteLength: artifact.record.byteLength, check: artifact.check, test: artifact.test } : null,
+      machine: {
+        status: view.status,
+        error: view.error,
+        F,
+        inputs: inputTexts,
+        lastRun,
+        ticksRecorded: view.ticks.length,
+        ticks: view.ticks.slice(-10_000),
+        position: s?.position ?? null,
+        counters: s?.counters ?? null,
+        backing: s ? { used: s.backing.used, capacity: s.backing.capacity, highWater: s.backing.highWater } : null,
+        terminal: view.terminal.length > 65_536 ? view.terminal.slice(-65_536) : view.terminal,
+        result: r ? { status: r.status, returnValue: r.returnValue, trap: r.trap, counters: r.counters, effectCount: r.effectCount, effectsHash: r.effectsHash, framebufferHash: r.framebufferHash, framesPresented: r.framesPresented, terminal: text(r.terminal) } : null,
+        framebufferPng: view.frame ? await frameToPng(view.frame) : null,
+      },
+    });
+  };
+
   const running = view.status === "running" || view.status === "waiting-input";
   return (
     <div className="app">
@@ -246,7 +272,7 @@ export function App() {
       </div>
       <main className={`layout show-${tab}`}>
         <div className="col col-program">
-          <TaskPanel config={config} configError={configError} gen={genState} history={history} onFixture={onFixture} onGenerate={(req: CreateSessionRequest) => void gen.start(req)} onCancel={() => void gen.cancel()} onSelectSubmission={(c) => void onSubmission(c)} onSelectHistory={(h) => void loadArtifact({ bytes: h.bytes, annotations: h.annotations, name: h.name, taskId: h.taskId, provenance: h.provenance, responseText: h.responseText, allowedFeatures: allowed }).then((a) => select(a))} onImport={(f) => void onImport(f)} onExport={(w) => void onExport(w)} onDownload={onDownload} onClearHistory={() => void onClearHistory()} hasArtifact={!!artifact} />
+          <TaskPanel config={config} configError={configError} gen={genState} history={history} onFixture={onFixture} onGenerate={(req: CreateSessionRequest) => void gen.start(req)} onCancel={() => void gen.cancel()} onSelectSubmission={(c) => void onSubmission(c)} onSelectHistory={(h) => void loadArtifact({ bytes: h.bytes, annotations: h.annotations, name: h.name, taskId: h.taskId, provenance: h.provenance, responseText: h.responseText, allowedFeatures: allowed }).then((a) => select(a))} onImport={(f) => void onImport(f)} onExport={(w) => void onExport(w)} onDownload={onDownload} onClearHistory={() => void onClearHistory()} hasArtifact={!!artifact} onShareDebug={onShareDebug} />
         </div>
         <div className="col col-executable">
           <Inspector
@@ -271,4 +297,19 @@ export function App() {
       </footer>
     </div>
   );
+}
+
+/** The presented 256×144 frame as a PNG data URL (for the debug bundle). */
+async function frameToPng(frame: Uint8ClampedArray): Promise<string | null> {
+  try {
+    const c = document.createElement("canvas");
+    c.width = 256;
+    c.height = 144;
+    const buf = new Uint8ClampedArray(frame.length);
+    buf.set(frame);
+    c.getContext("2d")!.putImageData(new ImageData(buf, 256, 144), 0, 0);
+    return c.toDataURL("image/png");
+  } catch {
+    return null;
+  }
 }

@@ -56,6 +56,8 @@ Legend: **verified** = automated tests in this repo pass · **live** = exercised
 - **live** Lost-attempt recovery: a fresh Durable Object that finds an attempt persisted as running marks it lost, answers any dangling tool call, and stores an `attempt_lost` event; the browser resumes up to twice. Unit-tested; a live redeploy-mid-attempt probe finished before the restart, so the live path is not yet exercised.
 - **open** Root cause of attempts that end silently mid-session: seen twice on long custom prompts (turn 6, around 33k output tokens, 262 s). Needs Worker logs from a failing run.
 
+- **live** Session debug archive: every session is archived to R2 (`llmtobinary-debug`, `-staging`) after each attempt, on lost-attempt recovery, and before purge. **Share for debugging** adds the browser record and yields `llmtobinary debug <env> <id>`; `scripts/debug-session.mjs` fetches and summarizes it. The consent text discloses the archive. Verified live on staging.
+
 ## Chip view (PRD 14A)
 - **live** `/chip`: a modeled floorplan driven only by executed micro-events (`onEvent` on the finite machine and on ANMR-1), with declared `anma-cost/1` modeled ticks, a logic analyzer, heat mode, step instruction/microstep, trace export, and deep links. The ANMA-1 vs ANMR-1 capstone compare is implemented but hidden (`SHOW_ANMR_COMPARE`).
 - **live** Live chip in the machine panel: instruments the panel's own run (`setEventSink` on the running machine), with speeds from full down to 2 instr/s. It has the terminal and framebuffer beside the die, live keys, and full screen with its own controls.

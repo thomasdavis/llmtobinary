@@ -4,7 +4,7 @@
 
 import { checkCandidate } from "@llmtobinary/check";
 import type { BrowserFeedback, CheckReport, CreateSessionRequest, LoopBudget, LoopCounters, LoopEvent, StopOutcome, TestReport } from "@llmtobinary/protocol";
-import { cancelSession, createSession, resumeEvents, streamAttempt } from "./api.ts";
+import { cancelSession, createSession, resumeEvents, shareDebug, streamAttempt } from "./api.ts";
 import type { MachineClient } from "./machine-client.ts";
 
 export interface SubmittedCandidate {
@@ -186,6 +186,42 @@ export class GenerationController {
     }
     this.set({ submissions: this.state.submissions.map((c) => (c.seq === cand.seq ? { ...cand } : c)) });
     return cand;
+  }
+
+  /** The loop as this browser saw it (per-token stream deltas omitted), for the debug archive. */
+  debugBundle(): Record<string, unknown> {
+    const s = this.state;
+    return {
+      phase: s.phase,
+      sessionId: s.sessionId,
+      request: s.request,
+      outcome: s.outcome,
+      stopDetail: s.stopDetail,
+      error: s.error,
+      reconnects: s.reconnects,
+      counters: s.counters,
+      budget: s.budget,
+      lastSeq: this.lastSeq,
+      events: s.events.filter((e) => e.type !== "model.tool_args.delta" && e.type !== "model.text.delta"),
+      submissions: s.submissions.map((c) => ({
+        seq: c.seq,
+        attemptId: c.attemptId,
+        sha256: c.sha256,
+        status: c.status,
+        envelopeText: c.envelopeText,
+        byteLength: c.bytes?.length ?? null,
+        check: c.check,
+        modelTest: c.test,
+        fullTest: (c as SubmittedCandidate & { fullTest?: TestReport }).fullTest ?? null,
+        witness: c.witness,
+      })),
+    };
+  }
+
+  /** Upload the browser's record for this session; returns the debug ID (the session ID). */
+  async share(extra: Record<string, unknown>): Promise<{ debugId: string; environment: string }> {
+    if (!this.state.sessionId || !this.token) throw new Error("there is no generation session in this tab to share");
+    return shareDebug(this.state.sessionId, this.token, { kind: "llmtobinary-browser/1", sharedAt: new Date().toISOString(), generation: this.debugBundle(), ...extra });
   }
 
   async cancel(): Promise<void> {

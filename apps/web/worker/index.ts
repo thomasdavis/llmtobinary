@@ -3,7 +3,7 @@
 
 import { CATALOG_VERSION } from "@llmtobinary/diagnostics";
 import { SPEC_ID, SPEC_SHA256, KNOWN_FEATURES } from "@llmtobinary/spec";
-import { DEFAULT_BUDGET, PRICE_POLICY_VERSION, PROMPT_VERSION, profileFromEnv } from "@llmtobinary/broker";
+import { DEFAULT_BUDGET, MAX_DEBUG_BROWSER_BYTES, PRICE_POLICY_VERSION, PROMPT_VERSION, profileFromEnv } from "@llmtobinary/broker";
 import { TASK_BY_ID } from "@llmtobinary/tasks/registry";
 import { PROTOCOL_VERSION, type ConfigResponse, type CreateSessionRequest, type CreateSessionResponse, type AttemptRequest } from "@llmtobinary/protocol";
 import { signToken, verifyToken } from "./auth.ts";
@@ -135,7 +135,7 @@ async function route(request: Request, env: Env): Promise<Response> {
     return json({ sessionId, token, budget: created.budget, expiresAt: created.expiresAt } satisfies CreateSessionResponse, 201);
   }
 
-  const m = /^\/api\/generation-sessions\/([0-9a-f-]{36})(\/attempts|\/events|\/cancel)?$/.exec(path);
+  const m = /^\/api\/generation-sessions\/([0-9a-f-]{36})(\/attempts|\/events|\/cancel|\/debug)?$/.exec(path);
   if (m) {
     const sessionId = m[1]!;
     const sub = m[2] ?? "";
@@ -158,6 +158,11 @@ async function route(request: Request, env: Env): Promise<Response> {
     if (sub === "/cancel" && request.method === "POST") {
       checkOrigin(request);
       return withApiHeaders(await stub.fetch("https://session/cancel", { method: "POST" }));
+    }
+    if (sub === "/debug" && request.method === "POST") {
+      checkOrigin(request);
+      const bundle = await readJson<unknown>(request, MAX_DEBUG_BROWSER_BYTES);
+      return withApiHeaders(await stub.fetch("https://session/debug", { method: "POST", body: JSON.stringify(bundle) }));
     }
     if (sub === "" && request.method === "GET") return withApiHeaders(await stub.fetch("https://session/summary"));
   }

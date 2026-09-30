@@ -50,6 +50,7 @@ export function TaskPanel(props: {
   onDownload: (kind: "anma" | "hex") => void;
   onClearHistory: () => void;
   hasArtifact: boolean;
+  onShareDebug: () => Promise<{ debugId: string; environment: string }>;
 }) {
   const draft = useState(loadDraft)[0];
   const [source, setSource] = useState<"task" | "custom">(draft?.description.trim() ? "custom" : "task");
@@ -163,12 +164,12 @@ export function TaskPanel(props: {
         </label>
       </div>
       {b && <p className="small muted">Budget per session: {b.maxTurns} turns · {b.maxChecks} checks · {b.maxSubmissions} submissions · {b.maxOutputTokensPerSession.toLocaleString()} output tokens · {Math.round(b.maxWallClockMs / 60000)} min. Model: {props.config?.profiles[0]?.label ?? "not configured"}{source === "custom" && props.config?.profiles[0]?.openTaskReasoningEffort && props.config.profiles[0].openTaskReasoningEffort !== props.config.profiles[0].reasoningEffort ? `; your own prompts use ${props.config.profiles[0].openTaskReasoningEffort} reasoning` : ""}.</p>}
-      <label className="check consent"><input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} /> I understand my task text and any failing test results are sent through this site's Cloudflare-hosted server to OpenAI. Runtime inputs are not sent.</label>
+      <label className="check consent"><input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} /> I understand my task text and any failing test results are sent through this site's Cloudflare-hosted server to OpenAI, and that each session (task text, the model's drafts and submissions, loop events) is archived privately on that server for debugging. Runtime inputs are not sent unless I press “Share for debugging”.</label>
       <div className="row">
         <button className="primary" disabled={!live || !consent || busy || (!task && !description.trim())} onClick={() => props.onGenerate(request())}>Generate</button>
         <button onClick={props.onCancel} disabled={!busy}>Cancel generation</button>
       </div>
-      <GenerationView gen={props.gen} onSelect={props.onSelectSubmission} />
+      <GenerationView gen={props.gen} onSelect={props.onSelectSubmission} onShareDebug={props.onShareDebug} />
 
       <h3>Artifacts</h3>
       <div className="row wrap">
@@ -203,8 +204,27 @@ function outcomeText(o: string | null): string {
   }
 }
 
-function GenerationView({ gen, onSelect }: { gen: GenState; onSelect: (c: SubmittedCandidate) => void }) {
+function GenerationView({ gen, onSelect, onShareDebug }: { gen: GenState; onSelect: (c: SubmittedCandidate) => void; onShareDebug: () => Promise<{ debugId: string; environment: string }> }) {
+  const [share, setShare] = useState<{ state: "idle" | "sharing" | "done" | "error"; text: string; copied?: boolean }>({ state: "idle", text: "" });
+  useEffect(() => setShare({ state: "idle", text: "" }), [gen.sessionId]);
   if (gen.phase === "idle") return null;
+  const doShare = async () => {
+    setShare({ state: "sharing", text: "" });
+    try {
+      const r = await onShareDebug();
+      const line = `llmtobinary debug ${r.environment} ${r.debugId}`;
+      let copied = false;
+      try {
+        await navigator.clipboard.writeText(line);
+        copied = true;
+      } catch {
+        /* clipboard unavailable: the line is shown for manual copy */
+      }
+      setShare({ state: "done", text: line, copied });
+    } catch (e) {
+      setShare({ state: "error", text: (e as Error).message });
+    }
+  };
   const checks = gen.events.filter((e): e is Extract<LoopEvent, { type: "check.result" }> => e.type === "check.result");
   const errors = gen.events.filter((e): e is Extract<LoopEvent, { type: "attempt.error" }> => e.type === "attempt.error");
   const c = gen.counters;
@@ -215,6 +235,18 @@ function GenerationView({ gen, onSelect }: { gen: GenState; onSelect: (c: Submit
         {c && gen.budget && <> · turn {c.turns}/{gen.budget.maxTurns} · checks {c.checks}/{gen.budget.maxChecks} · submissions {c.submissions}/{gen.budget.maxSubmissions} · output tokens {c.outputTokens.toLocaleString()}{c.unknownUsageTurns ? ` · ${c.unknownUsageTurns} turn(s) with unknown usage` : ""}</>}
         {gen.reconnects > 0 && <> · reconnected {gen.reconnects}×</>}
       </p>
+      {gen.sessionId && (
+        <div className="share-debug">
+          <span className="muted small">session <code>{gen.sessionId}</code></span>
+          <button onClick={() => void doShare()} disabled={share.state === "sharing" || gen.phase === "creating"}>{share.state === "sharing" ? "Sharing…" : "Share for debugging"}</button>
+          {share.state === "done" && (
+            <p className="small" role="status">
+              Archived. Paste this to Claude{share.copied ? " (copied to your clipboard)" : ""}: <code className="debug-line" tabIndex={0}>{share.text}</code>
+            </p>
+          )}
+          {share.state === "error" && <p className="error small" role="alert">Could not share: {share.text}</p>}
+        </div>
+      )}
       {gen.outcome && <p className="outcome"><strong>{outcomeText(gen.outcome)}</strong>{gen.stopDetail ? ` — ${gen.stopDetail}` : ""}</p>}
       {gen.error && <p className="error">{gen.error}</p>}
       {errors.map((e) => <p key={e.seq} className="error small">{e.code}: {e.message}{e.retryable ? " (one visible retry follows)" : ""}</p>)}

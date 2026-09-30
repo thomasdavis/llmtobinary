@@ -8,6 +8,8 @@ interface Env {
   ASSETS: Fetcher;
   GENERATION_SESSION: DurableObjectNamespace<import("./session.ts").GenerationSession>;
   BUDGET_LEDGER: DurableObjectNamespace<import("./ledger.ts").BudgetLedger>;
+  /** Private debug archive of generation sessions (R2). */
+  DEBUG_ARCHIVE?: R2Bucket;
   ADMISSION_LIMITER?: RateLimit;
   CF_VERSION_METADATA?: { id: string; tag: string; timestamp: string };
   // vars

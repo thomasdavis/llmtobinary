@@ -68,6 +68,10 @@ if (live) {
   await page.getByText(/✓ executed; intent not independently verified|✓ passed|■ stopped/).first().waitFor({ timeout: 360_000 });
   const outcome = await page.locator(".outcome").first().textContent();
   ok(/executed; intent not independently verified/.test(outcome ?? ""), `custom prompt generates a program (${outcome?.trim()})`);
+  await page.getByRole("button", { name: "Share for debugging" }).click();
+  const line = await page.locator("code.debug-line").textContent({ timeout: 30_000 }).catch(() => null);
+  ok(/^llmtobinary debug \w+ [0-9a-f-]{36}$/.test(line ?? ""), `Share for debugging returns a debug line (${line})`);
+  if (line) console.log(`DEBUG_LINE ${line}`);
   if (/executed/.test(outcome ?? "")) {
     await page.locator('label:has-text("input 0") input').fill("9875");
     await page.getByRole("button", { name: "▶ Run" }).click();

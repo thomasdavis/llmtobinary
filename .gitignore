@@ -8,3 +8,4 @@ dist/
 *.log
 .DS_Store
 apps/web/public/z3/
+debug-sessions/
