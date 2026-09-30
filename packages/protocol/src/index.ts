@@ -282,3 +282,72 @@ export interface SessionSummary {
   events: number;
   expiresAt: number;
 }
+
+// ---------------------------------------------------------------------------
+// Engine contract (implemented by @llmtobinary/reference and @llmtobinary/runtime)
+
+/** In-engine value: u64 as bigint, bool as boolean, handles as opaque run-local tokens. */
+export type RuntimeValue = bigint | boolean | { readonly handle: number; readonly elem: "u8" | "u64" };
+
+/**
+ * Observation hooks used by T2 contract monitoring (reference engine only; the finite machine
+ * never runs contract checks so its modeled counters stay unperturbed). Hooks must not mutate
+ * engine state. `entryArgs` are the arguments of the current function activation.
+ */
+export interface EngineHooks {
+  onCall?(fn: number, args: readonly RuntimeValue[], depth: number): void;
+  onBlockEnter?(fn: number, block: number, params: readonly RuntimeValue[], entryArgs: readonly RuntimeValue[]): void;
+  onReturn?(fn: number, entryArgs: readonly RuntimeValue[], result: RuntimeValue | null): void;
+}
+
+export interface EngineOptions {
+  /** Override public limits (Section 14.1); each limit is enforced independently. */
+  limits?: Partial<import("@llmtobinary/spec").Limits>;
+  /** Host policy: granted features; HOST calls outside it trap CAPABILITY_DENIED. */
+  allowedFeatures?: number;
+  /** Pre-recorded tick events for deterministic replay (Section 13). */
+  ticks?: TickEvent[];
+  hooks?: EngineHooks;
+}
+
+export interface Engine {
+  readonly status: RunStatus;
+  /** Execute up to `maxInstructions` guest instructions, stopping early on halt/trap/wait. */
+  run(maxInstructions: number): RunStatus;
+  /** Execute exactly one guest instruction (or terminator). */
+  step(): RunStatus;
+  /** Queue a tick event (browser input). Consumed only by input.wait_tick. */
+  pushTick(event: TickEvent): void;
+  cancel(): void;
+  /** Final (or current, for inspection) result. */
+  result(): RunResult;
+  /** Current guest position, for inspectors. */
+  position(): { functionId: number; blockId: number; recordIndex: number; depth: number } | null;
+}
+
+export interface SlotView {
+  index: number;
+  /** Logical value identity "f<fnAct>.b<blockAct>.v<id>" or null when empty. */
+  value: string | null;
+  payload: string | null; // decimal / bool / handle token
+  type: string | null;
+  insertedAt: number | null; // FIFO order stamp
+  remainingUses: number | null;
+}
+
+export interface MachineSnapshot {
+  status: RunStatus;
+  position: { functionId: number; blockId: number; recordIndex: number; depth: number } | null;
+  config: MachineConfig;
+  slots: SlotView[];
+  latches: { A: string | null; B: string | null; R: string | null };
+  backing: { used: number; capacity: number; sample: { entry: number; value: string; payload: string }[] };
+  staging: { usedBytes: number; capacityBytes: number };
+  frames: { functionId: number; blockId: number; blockActivation: number; liveValues: number }[];
+  liveValues: number;
+  counters: MachineCounters;
+  /** Microsteps of the last executed guest instruction (bounded). */
+  lastMicrosteps: string[];
+  trace: { seq: number; text: string }[];
+  traceTruncated: boolean;
+}
