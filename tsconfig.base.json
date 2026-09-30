@@ -29,6 +29,12 @@
       "@llmtobinary/tasks/registry": [
         "./packages/tasks/src/registry.ts"
       ],
+      "@llmtobinary/verify/node": [
+        "./packages/verify/src/node-backend.ts"
+      ],
+      "@llmtobinary/verify/browser": [
+        "./packages/verify/src/browser-backend.ts"
+      ],
       "@llmtobinary/*": [
         "./packages/*/src/index.ts"
       ]

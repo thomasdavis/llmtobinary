@@ -12,6 +12,8 @@ export default defineConfig({
     alias: [
       { find: "@llmtobinary/fixture-builder", replacement: here("./tools/fixture-builder/src/index.ts") },
       { find: "@llmtobinary/tasks/registry", replacement: here("./packages/tasks/src/registry.ts") },
+      { find: "@llmtobinary/verify/node", replacement: here("./packages/verify/src/node-backend.ts") },
+      { find: "@llmtobinary/verify/browser", replacement: here("./packages/verify/src/browser-backend.ts") },
       { find: /^@llmtobinary\/([a-z-]+)$/, replacement: here("./packages/$1/src/index.ts") },
     ],
   },
