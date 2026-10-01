@@ -69,6 +69,9 @@ if (await page.getByRole("checkbox", { name: "terminal" }).isChecked()) await pa
 
 if (live) {
   await page.getByText(/I understand my task text/).click();
+  // Test runs never seed the public program list.
+  const publish = page.getByLabel(/list the program and my prompt publicly/);
+  if (await publish.isChecked()) await publish.uncheck();
   await page.getByRole("button", { name: "Generate" }).click();
   const modal = page.locator("dialog.genmodal");
   await modal.waitFor({ timeout: 10_000 });

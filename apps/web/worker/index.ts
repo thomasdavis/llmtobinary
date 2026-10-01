@@ -9,6 +9,7 @@ import { PROTOCOL_VERSION, type ConfigResponse, type CreateSessionRequest, type 
 import { signToken, verifyToken } from "./auth.ts";
 import { HttpError, checkOrigin, errorResponse, json, readJson, API_HEADERS } from "./http.ts";
 import type { CreatePayload } from "./session.ts";
+import { getGalleryEntry, isGalleryId, listGallery } from "./gallery.ts";
 
 export { GenerationSession } from "./session.ts";
 export { BudgetLedger } from "./ledger.ts";
@@ -62,6 +63,7 @@ function validateCreate(body: unknown, env: Env): CreateSessionRequest {
   const b = body as Partial<CreateSessionRequest> | null;
   if (!b || typeof b !== "object") throw new HttpError(400, "body must be an object");
   if (b.mode !== "tools" && b.mode !== "raw-hex") throw new HttpError(400, 'mode must be "tools" or "raw-hex"');
+  if (b.publish !== undefined && typeof b.publish !== "boolean") throw new HttpError(400, "publish must be a boolean");
   if (b.profile !== "default") throw new HttpError(400, "unknown model profile (clients cannot choose models outside the allowlist)");
   const t = b.task as CreateSessionRequest["task"] | undefined;
   if (!t || typeof t !== "object") throw new HttpError(400, "task is required");
@@ -82,7 +84,7 @@ function validateCreate(body: unknown, env: Env): CreateSessionRequest {
   }
   // Curated tasks use the registry's own feature set; clients cannot widen it.
   const task = t.taskId ? { ...t, description: null, allowedFeatures: TASK_BY_ID.get(t.taskId)!.features & t.allowedFeatures } : t;
-  return { task, mode: b.mode, profile: "default" };
+  return { task, mode: b.mode, profile: "default", publish: b.publish === true };
 }
 
 async function admit(request: Request, env: Env, what: string): Promise<void> {
@@ -113,6 +115,21 @@ async function route(request: Request, env: Env): Promise<Response> {
   if (!path.startsWith("/api/")) return env.ASSETS.fetch(request);
 
   if (path === "/api/config" && request.method === "GET") return json(config(env));
+
+  // The public gallery: programs visitors chose to publish (read-only, cacheable briefly).
+  if (path === "/api/gallery" && request.method === "GET") {
+    if (!env.DEBUG_ARCHIVE) return json({ items: [], cursor: null });
+    const cursor = url.searchParams.get("cursor");
+    const limit = Math.min(Math.max(Number(url.searchParams.get("limit") ?? "100") || 100, 1), 500);
+    return json(await listGallery(env.DEBUG_ARCHIVE, cursor && cursor.length < 1024 ? cursor : null, limit), 200, { "cache-control": "public, max-age=15" });
+  }
+  const g = /^\/api\/gallery\/([0-9a-f-]+)$/.exec(path);
+  if (g && request.method === "GET") {
+    if (!env.DEBUG_ARCHIVE || !isGalleryId(g[1]!)) return json({ error: "not found" }, 404);
+    const body = await getGalleryEntry(env.DEBUG_ARCHIVE, g[1]!);
+    if (!body) return json({ error: "not found" }, 404);
+    return new Response(body, { headers: { ...API_HEADERS, "content-type": "application/json", "cache-control": "public, max-age=3600" } });
+  }
 
   if (path === "/api/generation-sessions" && request.method === "POST") {
     checkOrigin(request);

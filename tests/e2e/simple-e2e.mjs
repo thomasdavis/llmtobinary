@@ -72,6 +72,33 @@ for (const [label, viewport] of [["desktop", { width: 1440, height: 900 }], ["ph
   ok((await page.getByRole("radio", { name: "Simple", exact: true }).getAttribute("aria-checked")) === "true", `${label}: the top bar shows Simple selected`);
   await page.mouse.wheel(0, -3000);
 
+  // The program bar: one dropdown with the presets and everything visitors published.
+  const pbar = await page.locator("nav.programbar").boundingBox();
+  ok(!!pbar && Math.abs(pbar.y - (bar?.height ?? 48)) <= 2, `${label}: the program bar sits under the top bar`);
+  await page.locator(".picker-trigger").click();
+  const pop = page.getByRole("dialog", { name: "Choose a program" });
+  ok(await pop.isVisible(), `${label}: the program dropdown opens`);
+  ok((await pop.getByRole("group", { name: "Featured" }).count()) === 1 && (await pop.getByRole("group", { name: "Published by visitors" }).count()) === 1 && (await pop.getByRole("group", { name: "Reference programs" }).count()) === 1, `${label}: it groups featured, published and reference programs`);
+  ok(/build a good looking version/.test((await pop.locator(".picker-row").first().textContent()) ?? ""), `${label}: rows show the prompt`);
+  await page.keyboard.type("pong");
+  ok((await pop.locator(".picker-row").count()) === 1, `${label}: search narrows the list`);
+  await page.keyboard.press("Enter");
+  await page.locator(".program-card").waitFor({ timeout: 20_000 });
+  ok(!(await pop.isVisible()), `${label}: Enter loads the program and closes the dropdown`);
+  ok((await page.locator(".picker-trigger-main").textContent()) === "Pong", `${label}: the bar names the loaded program`);
+  ok(/not the AI/.test((await page.locator(".program-card").textContent()) ?? ""), `${label}: the card says a reference program was not written by the AI`);
+  await page.getByRole("button", { name: "■ Stop execution" }).click({ timeout: 3000 }).catch(() => undefined);
+  const gallery = await (await page.request.get(new URL("/api/gallery", base).href)).json();
+  if (gallery.items.length > 0) {
+    const g = gallery.items[0];
+    await page.goto(new URL(`/?program=${g.id}`, base).href, { waitUntil: "networkidle" });
+    await page.locator(".program-card").waitFor({ timeout: 20_000 });
+    ok((await page.locator(".program-card-prompt").textContent())?.trim().startsWith(g.prompt.slice(0, 40)) === true, `${label}: a shared ?program= link opens a published program with its prompt`);
+    ok(/asked by a visitor/.test((await page.locator(".program-card-by").textContent()) ?? ""), `${label}: the card credits the visitor's prompt`);
+    await page.getByRole("button", { name: "■ Stop execution" }).click({ timeout: 3000 }).catch(() => undefined);
+    await page.goto(base, { waitUntil: "networkidle" });
+  } else ok(true, `${label}: (no published programs yet; shared-link check skipped)`);
+
   // Simple view hides the instrument's expert controls.
   ok((await page.getByLabel("Bundled fixture").count()) === 0, `${label}: the fixture picker is hidden`);
   ok((await page.getByText("output mode").count()) === 0, `${label}: generation research options are hidden`);

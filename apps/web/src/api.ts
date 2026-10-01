@@ -2,7 +2,7 @@
 // with fetch (EventSource cannot send a request body). Reconnects resume by sequence number and
 // never start a new turn.
 
-import type { AttemptRequest, ConfigResponse, CreateSessionRequest, CreateSessionResponse, LoopEvent } from "@llmtobinary/protocol";
+import type { AttemptRequest, ConfigResponse, CreateSessionRequest, CreateSessionResponse, GalleryEntry, GalleryPage, LoopEvent } from "@llmtobinary/protocol";
 
 export type Config = ConfigResponse & { liveReason?: string | null; pricePolicy?: string; promptVersion?: string };
 
@@ -23,6 +23,16 @@ async function jsonOrThrow<T>(res: Response): Promise<T> {
 
 export async function getConfig(): Promise<Config> {
   return jsonOrThrow<Config>(await fetch("/api/config"));
+}
+
+/** One page of the public gallery, newest first. */
+export async function getGallery(cursor: string | null = null): Promise<GalleryPage> {
+  return jsonOrThrow<GalleryPage>(await fetch(`/api/gallery${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`));
+}
+
+/** A published program in full: its bytes (hex), the AI's annotations and the whole prompt. */
+export async function getGalleryEntry(id: string): Promise<GalleryEntry> {
+  return jsonOrThrow<GalleryEntry>(await fetch(`/api/gallery/${encodeURIComponent(id)}`));
 }
 
 export async function createSession(req: CreateSessionRequest): Promise<CreateSessionResponse> {

@@ -86,6 +86,37 @@ describe("agentic loop through the Durable Object", () => {
     expect(end.find((e) => e.type === "loop.stopped")).toMatchObject({ outcome: "passed" });
   });
 
+  it("lists a passing program in the public gallery only when the visitor opted in", async () => {
+    const run = async (publish: boolean, key: string) => {
+      const s = await create({ ...curated, publish });
+      const auth = { authorization: `Bearer ${s.token}` };
+      const events = await ndjson(await post(`/api/generation-sessions/${s.sessionId}/attempts`, { idempotencyKey: `${key}-1`, feedback: null }, auth));
+      const sub = events.find((e) => e.type === "candidate.submitted") as { candidate: { sha256: string } };
+      const fb = {
+        candidateSha256: sub.candidate.sha256,
+        validation: { ok: true, byteLength: 192, sha256: sub.candidate.sha256, errors: [], warnings: [], suppressed: 0, omitted: 0, listing: null, listingTruncated: false, annotations: { present: false, records: 0, claimsChecked: 0, claimsMatched: 0, contracts: 0, invariants: 0, examples: 0, sha256: null }, catalogVersion: "x" },
+        tests: { taskId: "square-plus-two", passed: true, cases: [], diagnostics: [], tier: "T0", contractOwner: null },
+      };
+      await ndjson(await post(`/api/generation-sessions/${s.sessionId}/attempts`, { idempotencyKey: `${key}-2`, feedback: fb }, auth));
+      return { sessionId: s.sessionId, sha: sub.candidate.sha256 };
+    };
+    expect((await post("/api/generation-sessions", { ...curated, publish: "yes" })).status).toBe(400);
+    const pub = await run(true, "gallery-pub");
+    const priv = await run(false, "gallery-priv");
+    const list = (await (await fetchApi("/api/gallery")).json()) as { items: { id: string; sessionId: string; label: string; prompt: string; outcome: string; bytes: number; instructions: number }[] };
+    expect(list.items.some((i) => i.sessionId === priv.sessionId)).toBe(false);
+    const item = list.items.find((i) => i.sessionId === pub.sessionId)!;
+    expect(item).toMatchObject({ outcome: "passed", bytes: 192, instructions: 10 });
+    expect(item.label.length).toBeGreaterThan(0);
+    expect(item.prompt.length).toBeGreaterThan(0);
+    const full = (await (await fetchApi(`/api/gallery/${item.id}`)).json()) as { hex: string; sha256: string };
+    expect(full.sha256).toBe(pub.sha);
+    const bytes = new Uint8Array(full.hex.match(/../g)!.map((h) => parseInt(h, 16)));
+    const digest = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)), (x) => x.toString(16).padStart(2, "0")).join("");
+    expect(digest).toBe(pub.sha);
+    expect((await fetchApi("/api/gallery/not-an-id")).status).toBe(404);
+  });
+
   it("cancel propagates to the running upstream request", async () => {
     const s = await create({ task: { taskId: null, description: "fake:hang", params: [], returns: "u64", allowedFeatures: 0, requireClaims: false }, mode: "tools", profile: "default" });
     const auth = { authorization: `Bearer ${s.token}` };

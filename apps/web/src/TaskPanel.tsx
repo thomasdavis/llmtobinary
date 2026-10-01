@@ -5,7 +5,6 @@ import type { CreateSessionRequest, LoopEvent } from "@llmtobinary/protocol";
 import type { ArtifactRecord } from "@llmtobinary/artifacts";
 import type { Config } from "./api.ts";
 import { FIXTURES } from "./fixtures.ts";
-import { AI_EXAMPLES, REFERENCE_EXAMPLES, type AiExample } from "./examples.ts";
 import type { GenState, SubmittedCandidate } from "./generation.ts";
 import { DiagnosticList } from "./Diagnostics.tsx";
 import { isBool, oneOf, usePersistentState } from "./settings.ts";
@@ -62,9 +61,10 @@ export function TaskPanel(props: {
   hasArtifact: boolean;
   onShareDebug: () => Promise<{ debugId: string; environment: string }>;
   expert: boolean;
-  onExample: (e: { kind: "ai"; example: AiExample } | { kind: "ref"; file: string; task: string }) => void;
   /** Incremented to bring the prompt box into view and focus it. */
   promptFocus: number;
+  /** "Use this prompt" from the program card: fills the prompt and its settings. */
+  remix: { n: number; value: { description: string; params: ("u64" | "bool")[]; returns: "unit" | "u64" | "bool"; features: number } } | null;
 }) {
   const draft = useState(loadDraft)[0];
   const [source, setSource] = usePersistentState<"task" | "custom">("generateSource", draft?.description.trim() ? "custom" : "task", oneOf("task", "custom"));
@@ -84,6 +84,7 @@ export function TaskPanel(props: {
   const [requireClaims, setRequireClaims] = usePersistentState("requireClaims", false, isBool);
   const [mode, setMode] = usePersistentState<"tools" | "raw-hex">("outputMode", "tools", oneOf("tools", "raw-hex"));
   const [consent, setConsent] = useState(false);
+  const [publish, setPublish] = usePersistentState("publish", true, isBool);
   const [withPrompts, setWithPrompts] = usePersistentState("exportWithPrompts", false, isBool);
   const live = !!props.config?.liveGeneration;
   // The simple view always writes its own prompt; curated tasks live in the expert view.
@@ -96,6 +97,15 @@ export function TaskPanel(props: {
     promptRef.current?.focus({ preventScroll: true });
   }, [props.promptFocus]);
   const allowed = props.config?.allowedFeatures ?? 15;
+  useEffect(() => {
+    if (!props.remix) return;
+    const r = props.remix.value;
+    setDescription(r.description);
+    setParams([...r.params]);
+    setReturns(r.returns);
+    setFeatures(r.features & allowed);
+    setSource("custom");
+  }, [props.remix]); // eslint-disable-line react-hooks/exhaustive-deps
   const editAsCustom = () => {
     if (!task) return;
     setDescription(task.prompt);
@@ -107,36 +117,13 @@ export function TaskPanel(props: {
   const busy = props.gen.phase === "creating" || props.gen.phase === "streaming" || props.gen.phase === "testing";
   const request = (): CreateSessionRequest =>
     task
-      ? { task: { taskId: task.id, description: null, params: task.params, returns: task.returns, allowedFeatures: task.features, requireClaims }, mode, profile: "default" }
-      : { task: { taskId: null, description, params, returns, allowedFeatures: features & (props.config?.allowedFeatures ?? 15), requireClaims }, mode, profile: "default" };
+      ? { task: { taskId: task.id, description: null, params: task.params, returns: task.returns, allowedFeatures: task.features, requireClaims }, mode, profile: "default", publish }
+      : { task: { taskId: null, description, params, returns, allowedFeatures: features & (props.config?.allowedFeatures ?? 15), requireClaims }, mode, profile: "default", publish };
   const b = props.config?.budget;
   return (
     <section className="panel" aria-label="Task">
-      <h2>{props.expert ? "Program" : "1. Choose a program"}</h2>
-      {!props.expert && (
-        <div className="examples">
-          <p className="examples-lead">Written by the AI, byte by byte:</p>
-          <ul className="ai-examples">
-            {AI_EXAMPLES.slice(0, 1).map((e) => (
-              <li key={e.file}>
-                <button className="ai-example" onClick={() => props.onExample({ kind: "ai", example: e })}>
-                  <span className="ai-example-title">▶ {e.title}</span>
-                  <span className="ai-example-prompt">“{e.prompt}”</span>
-                  <span className="ai-example-meta">{e.bytes.toLocaleString()} bytes · written by {e.provenance.requestedModel} in {e.counters.turns} turns · controls: {e.controls}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-          <p className="examples-lead">Reference programs, made by our own tools for comparison (not by the AI):</p>
-          <ul className="ref-examples">
-            {REFERENCE_EXAMPLES.map((r) => (
-              <li key={r.file}>
-                <button className="link" onClick={() => props.onExample({ kind: "ref", file: r.file, task: r.task })}>{r.title}</button> <span className="muted small">{r.about}{r.controls ? ` (${r.controls})` : ""}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+      <h2>{props.expert ? "Program" : "1. Ask the AI for a program"}</h2>
+      {!props.expert && <p className="muted small panel-lead">Pick any program from the bar at the top, or describe a new one here and watch the AI write it.</p>}
       {props.expert && (
         <div className="fixture-picker">
           <div className="row wrap">
@@ -161,7 +148,7 @@ export function TaskPanel(props: {
         </div>
       )}
 
-      <h3>{props.expert ? "Generate with OpenAI" : "…or ask the AI to write one"}</h3>
+      {props.expert && <h3>Generate with OpenAI</h3>}
       {!live && <p className="notice">Live generation is unavailable here{props.config?.liveReason ? `: ${props.config.liveReason}` : props.configError ? `: ${props.configError}` : ""}. Fixtures and saved artifacts still run in your browser.</p>}
       {props.expert && (
         <div className="segmented" role="radiogroup" aria-label="What to generate">
@@ -232,6 +219,7 @@ export function TaskPanel(props: {
       {b && !props.expert && <p className="small muted">The AI ({props.config?.profiles[0]?.model ?? "not configured"}) works in a loop: it drafts, the checker points out mistakes, it fixes them. This can take a few minutes.</p>}
       {b && props.expert && <p className="small muted">Budget per session: {b.maxTurns} turns · {b.maxChecks} checks · {b.maxSubmissions} submissions · {b.maxOutputTokensPerSession.toLocaleString()} output tokens · {Math.round(b.maxWallClockMs / 60000)} min. Model: {props.config?.profiles[0]?.label ?? "not configured"}{effSource === "custom" && props.config?.profiles[0]?.openTaskReasoningEffort && props.config.profiles[0].openTaskReasoningEffort !== props.config.profiles[0].reasoningEffort ? `; your own prompts use ${props.config.profiles[0].openTaskReasoningEffort} reasoning` : ""}.</p>}
       <label className="check consent"><input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} /> I understand my task text and any failing test results are sent through this site's Cloudflare-hosted server to OpenAI, and that each session (task text, the model's drafts and submissions, loop events) is archived privately on that server for debugging. Runtime inputs are not sent unless I press “Share for debugging”.</label>
+      <label className="check publish"><input type="checkbox" checked={publish} onChange={(e) => setPublish(e.target.checked)} /> If it works, list the program and my prompt publicly in the program list, so anyone can run it.</label>
       <div className="row">
         <button className="primary" disabled={!live || !consent || busy || (!task && !description.trim())} onClick={() => props.onGenerate(request())}>Generate</button>
         <button onClick={props.onCancel} disabled={!busy}>Cancel generation</button>

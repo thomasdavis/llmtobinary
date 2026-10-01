@@ -3,8 +3,8 @@ import { parseHex } from "@llmtobinary/decode";
 import { TASK_BY_ID } from "@llmtobinary/tasks/registry";
 import { CHECKER_ID } from "@llmtobinary/check";
 import { buildManifest, exportBundle, importBundle, openStore, memoryStore, type ArtifactRecord, type ArtifactStore, type Provenance } from "@llmtobinary/artifacts";
-import type { CreateSessionRequest, RunResult } from "@llmtobinary/protocol";
-import { getConfig, type Config } from "./api.ts";
+import type { CreateSessionRequest, GalleryEntry, RunResult } from "@llmtobinary/protocol";
+import { getConfig, getGalleryEntry, type Config } from "./api.ts";
 import { loadArtifact, type LoadedArtifact } from "./artifact.ts";
 import { loadFixture } from "./fixtures.ts";
 import { GenerationController, type GenState, type SubmittedCandidate } from "./generation.ts";
@@ -15,12 +15,79 @@ import { isBool, oneOf, usePersistentState } from "./settings.ts";
 import { Intro, type IntroAction } from "./Intro.tsx";
 import { GenerationModal } from "./GenerationModal.tsx";
 import { BinaryView } from "./BinaryView.tsx";
-import { AI_EXAMPLES, loadExample, type AiExample } from "./examples.ts";
+import { AI_EXAMPLES, REFERENCE_EXAMPLES, loadExample, type AiExample } from "./examples.ts";
+import { ProgramBar, ProgramCard, devices, duration, ago, type ChosenProgram, type Pick, type RefExample } from "./ProgramPicker.tsx";
 import { MachineClient, type MachineView } from "./machine-client.ts";
 import { TaskPanel } from "./TaskPanel.tsx";
 import type { CompareRow, EngineKind } from "./worker-protocol.ts";
 
 const ALL_FEATURES = 15;
+const PROGRAM_PARAM = "program";
+const REF_BY_FILE = new Map(REFERENCE_EXAMPLES.map((r) => [r.file, r]));
+
+/** Keep ?program=<id> in the address bar for a published program, so the page can be shared. */
+function setProgramParam(id: string | null): void {
+  try {
+    const u = new URL(window.location.href);
+    if (id) u.searchParams.set(PROGRAM_PARAM, id);
+    else u.searchParams.delete(PROGRAM_PARAM);
+    window.history.replaceState(null, "", u);
+  } catch {
+    /* no history API: the link just is not updated */
+  }
+}
+
+const programLink = (id: string) => `${window.location.origin}/?${PROGRAM_PARAM}=${encodeURIComponent(id)}`;
+
+function chosenFeatured(e: AiExample): ChosenProgram {
+  const when = (e.counters as { startedAt?: number }).startedAt;
+  return {
+    key: `featured:${e.file}`,
+    label: e.title,
+    by: "ai",
+    askedBy: "this project",
+    prompt: e.prompt,
+    facts: [
+      ...(when ? [{ k: "Generated", v: ago(when) }] : []),
+      { k: "Model", v: `${e.provenance.requestedModel ?? "?"}${e.reasoningEffort ? `, ${e.reasoningEffort} reasoning` : ""}` },
+      { k: "Work", v: `${e.counters.turns} turns · ${e.counters.checks} checks` },
+      { k: "Size", v: `${e.bytes.toLocaleString()} bytes` },
+      { k: "Controls", v: e.controls },
+    ],
+  };
+}
+
+function chosenRef(r: RefExample): ChosenProgram {
+  return { key: `ref:${r.file}`, label: r.title, by: "tools", askedBy: "this project", prompt: null, facts: [{ k: "What it does", v: r.about }, ...(r.controls ? [{ k: "Controls", v: r.controls }] : [])] };
+}
+
+function chosenPublic(g: GalleryEntry): ChosenProgram {
+  const took = duration(g.finishedAt - g.createdAt);
+  return {
+    key: `public:${g.id}`,
+    label: g.label || "Untitled program",
+    by: "ai",
+    askedBy: "a visitor",
+    prompt: g.prompt,
+    facts: [
+      { k: "Generated", v: `${ago(g.finishedAt)}${took ? ` · took ${took}` : ""}` },
+      { k: "Model", v: `${g.model}${g.reasoningEffort ? `, ${g.reasoningEffort} reasoning` : ""}` },
+      { k: "Work", v: `${g.turns} turns · ${g.checks} checks · ${g.outputTokens.toLocaleString()} tokens` },
+      { k: "Size", v: `${g.bytes.toLocaleString()} bytes · ${g.instructions.toLocaleString()} instructions` },
+      { k: "Devices", v: devices(g.features).join(", ") || "none" },
+      { k: "Result", v: g.outcome === "passed" ? "passed every test" : "runs; its own examples hold" },
+    ],
+    link: programLink(g.id),
+    remix: g.taskId ? undefined : { description: g.prompt, params: parseSignature(g.signature).params, returns: parseSignature(g.signature).returns, features: g.features },
+  };
+}
+
+/** "(u64, bool) -> u64" back into the entry signature (written by gallery.ts on the server). */
+function parseSignature(sig: string): { params: ("u64" | "bool")[]; returns: "unit" | "u64" | "bool" } {
+  const m = /^\((.*)\) -> (unit|u64|bool)$/.exec(sig);
+  const params = (m?.[1] ?? "").split(",").map((x) => x.trim()).filter((x): x is "u64" | "bool" => x === "u64" || x === "bool");
+  return { params, returns: (m?.[2] as "unit" | "u64" | "bool" | undefined) ?? "u64" };
+}
 
 function download(name: string, data: BlobPart, type: string): void {
   const url = URL.createObjectURL(new Blob([data], { type }));
@@ -51,6 +118,10 @@ export function App() {
   const [introOpen, setIntroOpen] = useState(!introSeen);
   const [promptFocus, setPromptFocus] = useState(0);
   const [genOpen, setGenOpen] = useState(false);
+  /** The program picked in the program bar, and the bytes it loaded (the card hides once others load). */
+  const [chosen, setChosen] = useState<{ program: ChosenProgram; sha: string } | null>(null);
+  const [galleryRefresh, setGalleryRefresh] = useState(0);
+  const [remix, setRemix] = useState<{ n: number; value: NonNullable<ChosenProgram["remix"]> } | null>(null);
   const closeIntro = () => {
     setIntroOpen(false);
     setIntroSeen(true);
@@ -130,11 +201,41 @@ export function App() {
         a = await loadArtifact({ bytes, name: e.file, taskId: TASK_BY_ID.has(e.task) ? e.task : null, provenance: { kind: "bundled-fixture", file: e.file, origin: "fixtures/manifest.json", modelOutput: false }, allowedFeatures: allowed });
       }
       setAutoRun(a.record.sha256);
+      setChosen({ program: e.kind === "ai" ? chosenFeatured(e.example) : chosenRef(REF_BY_FILE.get(e.file)!), sha: a.record.sha256 });
+      setProgramParam(null);
       await select(a);
     } catch (err) {
       setNotice((err as Error).message);
     }
   };
+
+  const openPublic = async (id: string) => {
+    try {
+      const g = await getGalleryEntry(id);
+      const h = parseHex(g.hex);
+      if (!h.ok) throw new Error("the published program's bytes could not be read");
+      const provenance: Provenance = { kind: "model-generated", sessionId: g.sessionId, attemptId: g.attemptId, candidateSeq: g.candidateSeq, requestedModel: g.model, returnedModels: g.returnedModels, mode: g.mode, promptVersion: g.promptVersion, modelOutput: true };
+      const a = await loadArtifact({ bytes: h.bytes, annotations: g.annotations, name: `published-${g.sha256.slice(0, 8)}.anma`, taskId: g.taskId && TASK_BY_ID.has(g.taskId) ? g.taskId : null, provenance, allowedFeatures: g.features & allowed });
+      setAutoRun(a.record.sha256);
+      setChosen({ program: chosenPublic(g), sha: a.record.sha256 });
+      setProgramParam(g.id);
+      await select(a);
+    } catch (err) {
+      setNotice(`That published program could not be loaded: ${(err as Error).message}`);
+    }
+  };
+
+  const onPick = async (p: Pick) => {
+    if (p.kind === "featured") await onExample({ kind: "ai", example: p.example });
+    else if (p.kind === "ref") await onExample({ kind: "ref", file: p.ref.file, task: p.ref.task });
+    else await openPublic(p.summary.id);
+  };
+
+  // A shared link (?program=<id>) opens that published program.
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get(PROGRAM_PARAM);
+    if (id) void openPublic(id);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const onSubmission = useCallback(
     async (c: SubmittedCandidate) => {
@@ -147,8 +248,42 @@ export function App() {
     [gen, config, select, allowed],
   );
   useEffect(() => {
-    gen.onPassed = (c) => void onSubmission(c);
-  }, [gen, onSubmission]);
+    gen.onPassed = (c) => {
+      void onSubmission(c);
+      // The visitor's own program: show what they asked, like any other program.
+      const req = gen.state.request;
+      if (!req || !c.sha256) return;
+      const task = req.task.taskId ? TASK_BY_ID.get(req.task.taskId) : null;
+      const summary = c.annotations && typeof c.annotations === "object" ? (c.annotations as { summary?: unknown }).summary : null;
+      const s = gen.state;
+      setProgramParam(null);
+      setChosen({
+        sha: c.sha256,
+        program: {
+          key: `mine:${c.sha256}`,
+          label: typeof summary === "string" && summary.trim() ? (summary.trim().length > 90 ? `${summary.trim().slice(0, 89)}…` : summary.trim()) : (task?.title ?? "Your program"),
+          by: "ai",
+          askedBy: "you",
+          prompt: task ? task.prompt : req.task.description,
+          facts: [
+            { k: "Generated", v: `just now${s.startedAt ? ` · took ${duration(Date.now() - s.startedAt)}` : ""}` },
+            { k: "Model", v: config?.profiles[0]?.model ?? "?" },
+            ...(s.counters ? [{ k: "Work", v: `${s.counters.turns} turns · ${s.counters.checks} checks` }] : []),
+            ...(c.bytes ? [{ k: "Size", v: `${c.bytes.length.toLocaleString()} bytes` }] : []),
+            { k: "Listed publicly", v: req.publish ? "yes, in the program list" : "no" },
+          ],
+        },
+      });
+    };
+  }, [gen, onSubmission, config]);
+
+  // A program the visitor published shows up in the list once the session finishes.
+  useEffect(() => {
+    if (genState.phase === "stopped" && (genState.outcome === "passed" || genState.outcome === "passed-unverified") && genState.request?.publish) {
+      const t = setTimeout(() => setGalleryRefresh((n) => n + 1), 1500);
+      return () => clearTimeout(t);
+    }
+  }, [genState.phase, genState.outcome, genState.request]);
 
   // Record finished generation sessions locally (the transcript is exported only on opt-in).
   useEffect(() => {
@@ -331,6 +466,7 @@ export function App() {
         </div>
       </div>
     </nav>
+    <ProgramBar chosen={chosen && artifact?.record.sha256 === chosen.sha ? chosen.program : null} onPick={onPick} onAsk={() => { setTab("program"); setPromptFocus((n) => n + 1); }} refresh={galleryRefresh} />
     <div className={`app${expert ? " is-expert" : " is-simple"}`}>
       <Intro open={introOpen} onClose={closeIntro} onAction={onIntroAction} canGenerate={!!config?.liveGeneration} />
       <GenerationModal
@@ -355,6 +491,7 @@ export function App() {
           </p>
         )}
       </header>
+      {chosen && artifact?.record.sha256 === chosen.sha && <ProgramCard chosen={chosen.program} onRemix={(r) => { setTab("program"); setRemix((x) => ({ n: (x?.n ?? 0) + 1, value: r })); setPromptFocus((n) => n + 1); }} />}
       {notice && <p className="notice" role="status">{notice} <button className="link" onClick={() => setNotice(null)}>dismiss</button></p>}
       <nav className="tabs mobile" role="tablist" aria-label="Panels">
         {(["program", "executable", "machine"] as const).map((t) => <button key={t} role="tab" aria-selected={tab === t} className={tab === t ? "on" : ""} onClick={() => setTab(t)}>{t}</button>)}
@@ -368,7 +505,7 @@ export function App() {
           <TaskPanel config={config} configError={configError} gen={genState} history={history} onFixture={onFixture} onGenerate={(req: CreateSessionRequest) => {
               setGenOpen(true);
               void gen.start(req);
-            }} onCancel={() => void gen.cancel()} onSelectSubmission={(c) => void onSubmission(c)} onSelectHistory={(h) => void loadArtifact({ bytes: h.bytes, annotations: h.annotations, name: h.name, taskId: h.taskId, provenance: h.provenance, responseText: h.responseText, allowedFeatures: allowed }).then((a) => select(a))} onImport={(f) => void onImport(f)} onExport={(w) => void onExport(w)} onDownload={onDownload} onClearHistory={() => void onClearHistory()} hasArtifact={!!artifact} onShareDebug={onShareDebug} expert={expert} onExample={(e) => void onExample(e)} promptFocus={promptFocus} />
+            }} onCancel={() => void gen.cancel()} onSelectSubmission={(c) => void onSubmission(c)} onSelectHistory={(h) => void loadArtifact({ bytes: h.bytes, annotations: h.annotations, name: h.name, taskId: h.taskId, provenance: h.provenance, responseText: h.responseText, allowedFeatures: allowed }).then((a) => select(a))} onImport={(f) => void onImport(f)} onExport={(w) => void onExport(w)} onDownload={onDownload} onClearHistory={() => void onClearHistory()} hasArtifact={!!artifact} onShareDebug={onShareDebug} expert={expert} promptFocus={promptFocus} remix={remix} />
         </div>
         <div className="col col-executable">
           {!expert ? <BinaryView artifact={artifact} onExpert={() => setExpert(true)} /> : <Inspector

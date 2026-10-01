@@ -78,6 +78,16 @@ New visitors see a short explainer (what binary is, why AI might write it direct
 
 **Exact** is the finite-machine interpreter: it simulates storage, drives the chip lights, and allows Step. **Fast** translates the same bytes to WebAssembly (binary to binary, like an emulator) and gives identical results about 10× faster. The live chip panel shows modeled chip time per frame at 100 MHz, 1 GHz or 3 GHz; it is modeled, not measured. Settings are remembered in your browser.
 
+## The program list
+
+The bar under the top bar is one dropdown with every program a visitor can run: the featured AI-written programs, everything visitors chose to publish (newest first, with the prompt, age, model, turns, size, devices and result), and the reference programs made by this project's tools. Loading a published program shows its prompt in a card, and `?program=<id>` links straight to it.
+
+A program is published only when the visitor leaves **"If it works, list the program and my prompt publicly"** ticked (it is on by default) and the program passes. The server writes `gallery/<id>.json` to the same R2 bucket as the debug archive. The bytes come from the server's own record of the model's submission, never from the browser, and every visitor's browser re-validates and re-tests them on load. Endpoints: `GET /api/gallery?cursor=` (list) and `GET /api/gallery/<id>` (one program). To take an entry down:
+
+```sh
+cd apps/web && npx wrangler r2 object delete llmtobinary-debug/gallery/<id>.json --remote
+```
+
 ## Debugging a generation session
 
 Every generation session is archived privately to R2 after each attempt, on crash recovery, and before the session expires. The buckets are `llmtobinary-debug` (production) and `llmtobinary-debug-staging`. The archive holds the task, the model conversation, every draft and submission in full, and all loop events except per-token deltas.

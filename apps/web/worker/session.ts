@@ -6,6 +6,7 @@
 import { DurableObject } from "cloudflare:workers";
 import { FakeModelClient, OpenAIModelClient, MAX_DEBUG_BROWSER_BYTES, buildDebugArchive, cancelSession, createSession, recoverLostAttempt, runAttempt, LoopError, type BudgetGate, type ModelClient, type ModelProfile, type ScriptedTurn, type SessionState } from "@llmtobinary/broker";
 import type { AttemptRequest, CreateSessionRequest, LoopBudget, LoopEvent, SessionSummary } from "@llmtobinary/protocol";
+import { buildGalleryEntry, putGalleryEntry } from "./gallery.ts";
 
 const enc = new TextEncoder();
 const pad = (n: number) => String(n).padStart(10, "0");
@@ -136,6 +137,7 @@ export class GenerationSession extends DurableObject<Env> {
     const now = Date.now();
     this.state = createSession({ sessionId: p.sessionId, task: p.request.task, mode: p.request.mode, profile: p.profile, budget: p.budget, now, ttlMs: p.ttlMs });
     await this.save();
+    if (p.request.publish === true) await this.ctx.storage.put("publish", true);
     await this.ctx.storage.setAlarm(this.state.expiresAt);
     log({ event: "created", sessionId: p.sessionId, mode: p.request.mode, task: p.request.task.taskId ?? "open" });
     return Response.json({ sessionId: p.sessionId, budget: this.state.budget, expiresAt: this.state.expiresAt });
@@ -199,6 +201,7 @@ export class GenerationSession extends DurableObject<Env> {
         this.running = null;
         await this.save();
         await this.archive(s.status === "stopped" ? `stopped:${s.outcome}` : "attempt-end");
+        if (req.feedback && (s.outcome === "passed" || s.outcome === "passed-unverified")) await this.publish(s, req.feedback.candidateSha256);
         log({ event: "attempt-end", sessionId: s.sessionId, ms: Date.now() - started, status: s.status, outcome: s.outcome, turns: s.counters.turns, outputTokens: s.counters.outputTokens, inputTokens: s.counters.inputTokens, unknownUsageTurns: s.counters.unknownUsageTurns });
         try {
           await writer.close();
@@ -260,6 +263,20 @@ export class GenerationSession extends DurableObject<Env> {
     } catch (e) {
       log({ event: "archive-failed", sessionId: s.sessionId, reason, name: (e as Error)?.name });
       return null;
+    }
+  }
+
+  /** List a passing program in the public gallery when the visitor opted in. Best-effort, like the archive. */
+  private async publish(s: SessionState, sha: string): Promise<void> {
+    const bucket = this.env.DEBUG_ARCHIVE;
+    if (!bucket || !(await this.ctx.storage.get<boolean>("publish"))) return;
+    try {
+      const entry = buildGalleryEntry(s, sha, Date.now());
+      if (!entry) return;
+      await putGalleryEntry(bucket, entry);
+      log({ event: "published", sessionId: s.sessionId, bytes: entry.bytes });
+    } catch (e) {
+      log({ event: "publish-failed", sessionId: s.sessionId, name: (e as Error)?.name });
     }
   }
 

@@ -194,6 +194,8 @@ export interface CreateSessionRequest {
   task: TaskRequest;
   mode: OutputMode;
   profile: string;
+  /** The visitor agreed to list a passing program, with its prompt, in the public gallery. */
+  publish?: boolean;
 }
 
 export interface CreateSessionResponse {
@@ -415,3 +417,48 @@ export type MicroEvent = { at: number; ticks: number } & (
 );
 
 export type MicroEventKind = MicroEvent["u"];
+
+// ---------------------------------------------------------------------------
+// Public gallery (programs visitors chose to publish)
+
+export const GALLERY_VERSION = "llmtobinary-gallery/1";
+
+export interface GallerySummary {
+  /** `<inverted time>-<sessionId>`: the key under gallery/ and the id clients fetch by. */
+  id: string;
+  sessionId: string;
+  label: string;
+  /** The visitor's prompt (open tasks) or the curated task's own prompt, shortened for the list. */
+  prompt: string;
+  taskId: string | null;
+  outcome: "passed" | "passed-unverified";
+  createdAt: number;
+  finishedAt: number;
+  bytes: number;
+  instructions: number;
+  model: string;
+  reasoningEffort: string | null;
+  turns: number;
+  checks: number;
+  outputTokens: number;
+  features: number;
+  signature: string;
+}
+
+export interface GalleryEntry extends GallerySummary {
+  version: typeof GALLERY_VERSION;
+  hex: string;
+  annotations: unknown;
+  sha256: string;
+  candidateSeq: number;
+  attemptId: string;
+  mode: "tools" | "raw-hex";
+  promptVersion: string;
+  returnedModels: string[];
+}
+
+export interface GalleryPage {
+  items: GallerySummary[];
+  /** Pass back to fetch older entries; null at the end. */
+  cursor: string | null;
+}
