@@ -58,7 +58,7 @@ const statusIs = (s, timeout = 30_000) => page.getByText(new RegExp(`state: ${s}
 
 await page.goto(base, { waitUntil: "networkidle" });
 ok((await page.title()) === "llmtobinary", "page title");
-ok(await page.getByText("OpenAI generation · TypeScript virtual-machine execution in your browser.").isVisible(), "execution-location disclosure visible");
+ok(await page.getByText("AI-written machine code, run in your browser").isVisible(), "execution-location byline visible in the top bar");
 await page.getByText(/spec ANMA-1\/prd-3\.2/).waitFor({ timeout: 15_000 });
 
 // Fixture: square-plus-two at F=16 then F=1 (same bytes, fresh machine)

@@ -124,6 +124,8 @@ footer { margin-top: 16px; }
 .topbar { position: sticky; top: 0; z-index: 3; height: var(--topbar-h); background: var(--panel); border-bottom: 1px solid var(--line); }
 .topbar-inner { max-width: 1680px; height: 100%; margin: 0 auto; padding: 0 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .topbar-brand { margin: 0; font-size: 18px; letter-spacing: -0.01em; }
+.topbar-id { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.topbar-byline { font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .topbar-actions { display: flex; align-items: center; gap: 10px; }
 .topbar-help { font-size: 13px; }
 .view-toggle { margin: 0; }
@@ -447,3 +449,5 @@ dialog.genmodal[open] { animation: intro-in 220ms cubic-bezier(0.22, 1, 0.36, 1)
   .bar-search { display: none; }
   .pop-search { display: block; flex-basis: 100%; }
 }
+
+@media (max-width: 720px) { .topbar-byline { display: none; } }

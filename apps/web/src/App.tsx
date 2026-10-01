@@ -467,7 +467,10 @@ export function App() {
     <>
     <nav className="topbar" aria-label="Site">
       <div className="topbar-inner">
-        <h1 className="topbar-brand">llmtobinary</h1>
+        <div className="topbar-id">
+          <h1 className="topbar-brand">llmtobinary</h1>
+          <span className="topbar-byline">AI-written machine code, run in your browser</span>
+        </div>
         <div className="topbar-actions">
           <button className="topbar-help" onClick={() => setIntroOpen(true)}>What is this?</button>
           <div className="segmented view-toggle" role="radiogroup" aria-label="View">
@@ -491,17 +494,13 @@ export function App() {
         }}
         onShareDebug={onShareDebug}
       />
-      <header className="site-head">
-        <div className="site-title">
-          <p className="pitch">An AI writes machine code directly, byte by byte, for ANMA-1: a processor designed so that AI can program it. No source code, no compiler.</p>
-          <p className="tagline">OpenAI generation · TypeScript virtual-machine execution in your browser.</p>
-        </div>
-        {expert && (
+      {expert && (
+        <header className="site-head">
           <p className="muted small site-meta">
             {config ? <>spec {config.specId} ({config.specSha256.slice(0, 12)}) · build {config.buildCommit} · {config.environment} · {config.liveGeneration ? "live generation available" : "fixture mode"}</> : configError ? `offline or API unavailable (${configError}) — fixtures and saved artifacts still run` : "loading configuration…"}
           </p>
-        )}
-      </header>
+        </header>
+      )}
       {chosenShown && <ProgramCard chosen={chosen.program} onRemix={(r) => { setTab("program"); setRemix((x) => ({ n: (x?.n ?? 0) + 1, value: r })); setPromptFocus((n) => n + 1); }} />}
       {notice && <p className="notice" role="status">{notice} <button className="link" onClick={() => setNotice(null)}>dismiss</button></p>}
       <nav className="tabs mobile" role="tablist" aria-label="Panels">
