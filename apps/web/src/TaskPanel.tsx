@@ -30,6 +30,14 @@ function loadDraft(): Draft | null {
   }
 }
 
+/** The fixture dropdown, grouped so its 25 entries scan quickly. */
+const FIXTURE_GROUPS: { label: string; items: typeof FIXTURES }[] = [
+  { label: "PRD fixtures", items: FIXTURES.filter((f) => f.provenance.kind === "specification-fixture") },
+  { label: "Programs", items: FIXTURES.filter((f) => f.provenance.kind !== "specification-fixture" && !/^(capstone|ring-mix)-k/.test(f.file)) },
+  { label: "Capstone variants", items: FIXTURES.filter((f) => f.file.startsWith("capstone-k")) },
+  { label: "Ring-mix variants", items: FIXTURES.filter((f) => f.file.startsWith("ring-mix-k")) },
+].filter((g) => g.items.length > 0);
+
 const DEVICES: [number, string][] = [
   [Feature.TERMINAL, "terminal"],
   [Feature.FRAMEBUFFER, "framebuffer"],
@@ -72,6 +80,7 @@ export function TaskPanel(props: {
       /* storage unavailable: the draft just is not remembered */
     }
   }, [description, params, returns, features]);
+  const [fixtureFile, setFixtureFile] = usePersistentState("fixtureFile", "square-plus-two.anma", (v) => typeof v === "string" && FIXTURES.some((f) => f.file === v));
   const [requireClaims, setRequireClaims] = usePersistentState("requireClaims", false, isBool);
   const [mode, setMode] = usePersistentState<"tools" | "raw-hex">("outputMode", "tools", oneOf("tools", "raw-hex"));
   const [consent, setConsent] = useState(false);
@@ -128,15 +137,29 @@ export function TaskPanel(props: {
           </ul>
         </div>
       )}
-      {props.expert && <details open>
-        <summary>Run a bundled fixture</summary>
-        <p className="muted small">Bundled fixtures are specification- or tool-created bytes — not model output.</p>
-        <ul className="fixtures">
-          {FIXTURES.map((f) => (
-            <li key={f.file}><button className="link" onClick={() => props.onFixture(f.file, f.task)}>{f.file}</button> <span className="muted small">{f.bytes} B · {f.provenance.kind === "specification-fixture" ? "PRD fixture" : "tool-created"}</span></li>
-          ))}
-        </ul>
-      </details>}
+      {props.expert && (
+        <div className="fixture-picker">
+          <div className="row wrap">
+            <label className="field">
+              <span>Bundled fixture</span>
+              <select value={fixtureFile} onChange={(e) => setFixtureFile(e.target.value)}>
+                {FIXTURE_GROUPS.map((g) => (
+                  <optgroup key={g.label} label={g.label}>
+                    {g.items.map((f) => (
+                      <option key={f.file} value={f.file}>{`${f.file.replace(/\.anma$/, "")} · ${f.bytes.toLocaleString()} B`}</option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+            </label>
+            <button onClick={() => {
+              const f = FIXTURES.find((x) => x.file === fixtureFile);
+              if (f) props.onFixture(f.file, f.task);
+            }}>Load</button>
+          </div>
+          <p className="muted small">Bundled fixtures are specification- or tool-created bytes, not model output.</p>
+        </div>
+      )}
 
       <h3>{props.expert ? "Generate with OpenAI" : "…or ask the AI to write one"}</h3>
       {!live && <p className="notice">Live generation is unavailable here{props.config?.liveReason ? `: ${props.config.liveReason}` : props.configError ? `: ${props.configError}` : ""}. Fixtures and saved artifacts still run in your browser.</p>}

@@ -149,7 +149,8 @@ const num = (s) => Number(String(s).replace(/[^0-9]/g, ""));
   const liveCount = async (label) => num(await live.locator(".rail-counters dt", { hasText: label }).first().locator("xpath=following-sibling::dd[1]").textContent());
 
   // Slowed run: the machine itself runs at 10 instructions per second and every microstep is shown.
-  await page.getByRole("button", { name: "square-plus-two.anma" }).click();
+  await page.getByLabel("Bundled fixture").selectOption("square-plus-two.anma");
+  await page.getByRole("button", { name: "Load", exact: true }).click();
   await page.getByText(/✓ task-passed/).waitFor({ timeout: 60_000 });
   await live.waitFor({ timeout: 10_000 });
   await live.getByRole("combobox", { name: "Speed" }).selectOption({ label: "10 instr/s" });
@@ -166,7 +167,8 @@ const num = (s) => Number(String(s).replace(/[^0-9]/g, ""));
   await live.getByRole("combobox", { name: "Speed" }).selectOption({ label: "Full speed" });
 
   // Full speed: the chip adopts the machine's own state, including hardware evictions.
-  await page.getByRole("button", { name: "upstream-capstone-40.anma" }).click();
+  await page.getByLabel("Bundled fixture").selectOption("upstream-capstone-40.anma");
+  await page.getByRole("button", { name: "Load", exact: true }).click();
   await page.getByText("d6e710f149bac62226ad57f9d3a2f4e4bf958cebbf3727994f0ec5477013e88a").waitFor();
   await page.getByText(/✓ task-passed/).waitFor({ timeout: 60_000 });
   await page.locator('label:has-text("fast slots F") select').selectOption("4");
@@ -175,7 +177,8 @@ const num = (s) => Number(String(s).replace(/[^0-9]/g, ""));
   ok((await liveCount("Evictions")) > 0, `full-speed capstone at F = 4 shows hardware evictions on the chip (${await liveCount("Evictions")})`);
 
   // Pong at full speed with live keys: activity glow and the framebuffer beside the die in full screen.
-  await page.getByRole("button", { name: "ball-paddle.anma" }).click();
+  await page.getByLabel("Bundled fixture").selectOption("ball-paddle.anma");
+  await page.getByRole("button", { name: "Load", exact: true }).click();
   await page.getByText("d87054b75358754cdbd3a671962ed6f783669794bdda8491be2440cd19b7b64a").waitFor({ timeout: 30_000 });
   await page.getByText(/✓ task-passed|✕ task-failed/).first().waitFor({ timeout: 60_000 });
   await page.getByRole("button", { name: "▶ Run" }).click();

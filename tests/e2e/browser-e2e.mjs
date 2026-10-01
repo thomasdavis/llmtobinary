@@ -62,7 +62,8 @@ ok(await page.getByText("OpenAI generation · TypeScript virtual-machine executi
 await page.getByText(/spec ANMA-1\/prd-3\.2/).waitFor({ timeout: 15_000 });
 
 // Fixture: square-plus-two at F=16 then F=1 (same bytes, fresh machine)
-await page.getByRole("button", { name: "square-plus-two.anma" }).click();
+await page.getByLabel("Bundled fixture").selectOption("square-plus-two.anma");
+  await page.getByRole("button", { name: "Load", exact: true }).click();
 await page.getByText("d3f7f9e0446680bd1f5d20534d2a413df893e891f7e78f26f37cbe75b48405c1").waitFor();
 ok(true, "fixture loaded; inspector shows the exact SHA-256");
 await page.getByText(/✓ task-passed/).waitFor({ timeout: 60_000 });
@@ -85,7 +86,8 @@ await page.locator("details.verify").getByText(/proved to meet|refuted|unproven|
 ok((await page.locator("details.verify").textContent()).includes("✓ proved to meet the task specification for all inputs (partial correctness)"), "T3 proves square-plus-two against its task contract in the browser");
 
 // Capstone: real backing traffic at F = 4
-await page.getByRole("button", { name: "upstream-capstone-40.anma" }).click();
+await page.getByLabel("Bundled fixture").selectOption("upstream-capstone-40.anma");
+  await page.getByRole("button", { name: "Load", exact: true }).click();
 await page.getByText("d6e710f149bac62226ad57f9d3a2f4e4bf958cebbf3727994f0ec5477013e88a").waitFor();
 await page.getByText(/✓ task-passed/).waitFor({ timeout: 60_000 });
 await page.locator('label:has-text("fast slots F") select').selectOption("4");
@@ -111,7 +113,8 @@ const stopped = await page.locator("p.status").last().textContent();
 ok(/cancelled|FUEL_EXHAUSTED/.test(stopped), `a runaway program ends by Stop or by its fuel limit, never hangs (${stopped.slice(0, 80)})`);
 
 // Interactive: ball/paddle with keys; ticks are recorded for replay
-await page.getByRole("button", { name: "ball-paddle.anma" }).click();
+await page.getByLabel("Bundled fixture").selectOption("ball-paddle.anma");
+  await page.getByRole("button", { name: "Load", exact: true }).click();
 await page.getByText(/✓ task-passed|✕ task-failed/).first().waitFor({ timeout: 60_000 });
 await page.getByRole("button", { name: "▶ Run" }).click();
 await page.getByText(/state: (running|waiting-input)/).waitFor({ timeout: 10_000 });

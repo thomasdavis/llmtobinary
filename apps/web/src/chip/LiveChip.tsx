@@ -67,7 +67,7 @@ function useReducedMotion(): boolean {
   return r;
 }
 
-export function LiveChip(props: { artifact: LoadedArtifact; view: MachineView; machine: MachineClient; F: number; engine: EngineKind; interactive: boolean; hasFramebuffer: boolean; controls: LiveChipControls }) {
+export function LiveChip(props: { artifact: LoadedArtifact; view: MachineView; machine: MachineClient; F: number; engine: EngineKind; onEngine: (e: EngineKind) => void; interactive: boolean; hasFramebuffer: boolean; controls: LiveChipControls }) {
   const { artifact, view, machine, controls } = props;
   const reducedMotion = useReducedMotion();
   const [speed, setSpeed] = usePersistentState("chipSpeed", 0, (v) => Number.isInteger(v) && (v as number) >= 0 && (v as number) < SPEEDS.length);
@@ -287,7 +287,23 @@ export function LiveChip(props: { artifact: LoadedArtifact; view: MachineView; m
 
       <div className="livechip-body">
         <div className="livechip-stage">
-          <Die plan={ANMA_PLAN} vm={g.vm} active={active} glows={g.glows} records={records} memCapacity={view.snapshot?.backing.capacity ?? 0} reducedMotion={reducedMotion || heatView} label={`ANMA-1 chip, F = ${g.vm.cells.length} fast slots, modeled tick ${Math.floor(g.t)}`} />
+          <div className={`livechip-diewrap${fast || !lights ? " is-dark" : ""}`}>
+            <Die plan={ANMA_PLAN} vm={g.vm} active={active} glows={g.glows} records={records} memCapacity={view.snapshot?.backing.capacity ?? 0} reducedMotion={reducedMotion || heatView} label={`ANMA-1 chip, F = ${g.vm.cells.length} fast slots, modeled tick ${Math.floor(g.t)}`} />
+            {fast ? (
+              <div className="livechip-callout" role="note">
+                <p>
+                  <strong>The chip only lights up on the Exact engine.</strong> Exact simulates every step of the chip; Fast runs the program translated into your computer's own machine code, so there is nothing here to light up.
+                </p>
+                <button className="chip-btn is-primary" onClick={() => props.onEngine("exact")}>Light it up: switch to Exact</button>
+                <span className="livechip-callout-note">Exact is slower; games play best on Fast.</span>
+              </div>
+            ) : !lights ? (
+              <div className="livechip-callout" role="note">
+                <p><strong>Lights are off.</strong> The program runs a little faster without them.</p>
+                <button className="chip-btn is-primary" onClick={() => setLights(true)}>Turn the lights on</button>
+              </div>
+            ) : null}
+          </div>
           {expanded && !heatView && <Analyzer tracks={[{ label: `ANMA-1 · F = ${g.vm.cells.length}`, isa: "ANMA-1", events: g.history, t: g.t }]} windowTicks={120} />}
           <p className="livechip-status">
             <span>{`state ${view.status}`}</span>

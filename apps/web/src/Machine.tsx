@@ -138,6 +138,7 @@ export function MachinePanel(props: {
             machine={machine}
             F={F}
             engine={props.engine}
+            onEngine={props.setEngine}
             interactive={!!interactive}
             hasFramebuffer={(a.module.features & Feature.FRAMEBUFFER) !== 0}
             controls={{ run: () => props.onLoadRun(false), pause: () => machine.pause(), resume: () => machine.run(), step: () => machine.step(), stop: () => machine.stop(), canRun: !parsed.error }}

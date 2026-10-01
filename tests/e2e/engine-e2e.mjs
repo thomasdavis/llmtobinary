@@ -49,7 +49,8 @@ const manifest = JSON.parse(readFileSync(new URL("../../fixtures/manifest.json",
 /** Load a bundled fixture and wait until THAT program is selected and tested (not a stale badge). */
 async function loadFixture(file) {
   const sha = manifest.fixtures.find((f) => f.file === file).sha256;
-  await page.getByRole("button", { name: file, exact: true }).first().click();
+  await page.getByLabel("Bundled fixture").selectOption(file);
+  await page.getByRole("button", { name: "Load", exact: true }).click();
   await page.getByText(sha).waitFor({ timeout: 30_000 });
   await page.getByText(/✓ task-passed|✕ task-failed/).first().waitFor({ timeout: 60_000 });
 }
@@ -79,6 +80,13 @@ await page.keyboard.up("ArrowRight");
 const ticks = async () => Number(/\((\d+)\)/.exec((await page.getByRole("button", { name: /Replay ticks/ }).textContent()) ?? "")?.[1] ?? 0);
 ok((await ticks()) > 20, `pong runs on the fast engine (${await ticks()} ticks in ~2 s)`);
 ok(await page.locator("section.livechip input[type=checkbox]").first().isDisabled(), "lights are off on the fast engine");
+ok(await page.getByText("The chip only lights up on the Exact engine.").isVisible(), "the chip says why it is dark on the fast engine");
+await page.getByRole("button", { name: "Light it up: switch to Exact" }).click();
+await page.waitForTimeout(2500);
+ok((await engine("Exact").getAttribute("aria-checked")) === "true", "one click switches to the exact engine");
+ok((await page.locator("section.livechip .unit-glow").count()) > 0, "and the chip lights up");
+await engine("Fast").click();
+await page.waitForTimeout(2500); // the run restarts on the fast engine
 ok(/per frame/.test((await page.locator(".chip-time-big").textContent()) ?? ""), `chip time per frame: ${(await page.locator(".chip-time-big").textContent())?.trim()}`);
 await page.getByRole("button", { name: "■ Stop execution" }).click();
 

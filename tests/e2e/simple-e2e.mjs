@@ -73,7 +73,7 @@ for (const [label, viewport] of [["desktop", { width: 1440, height: 900 }], ["ph
   await page.mouse.wheel(0, -3000);
 
   // Simple view hides the instrument's expert controls.
-  ok((await page.getByText("Run a bundled fixture").count()) === 0, `${label}: raw fixture list is hidden`);
+  ok((await page.getByLabel("Bundled fixture").count()) === 0, `${label}: the fixture picker is hidden`);
   ok((await page.getByText("output mode").count()) === 0, `${label}: generation research options are hidden`);
 
   // The last step's call to action runs the AI-written game.
@@ -96,7 +96,7 @@ for (const [label, viewport] of [["desktop", { width: 1440, height: 900 }], ["ph
 
   // Expert view brings everything back.
   await page.getByRole("radio", { name: "Expert", exact: true }).click();
-  ok((await page.getByText("Run a bundled fixture").count()) === 1, `${label}: expert view shows the fixture list`);
+  ok((await page.getByLabel("Bundled fixture").count()) === 1, `${label}: expert view shows the fixture picker`);
   ok((await page.locator('label:has-text("fast slots F")').count()) === 1, `${label}: expert view shows F`);
   ok(errors.length === 0, `${label}: no page errors (${errors.join(" | ")})`);
   await ctx.close();
