@@ -316,19 +316,25 @@ export function App() {
     if (a === "ask") setPromptFocus((n) => n + 1);
   };
   return (
+    <>
+    <nav className="topbar" aria-label="Site">
+      <div className="topbar-inner">
+        <h1 className="topbar-brand">llmtobinary</h1>
+        <div className="topbar-actions">
+          <button className="topbar-help" onClick={() => setIntroOpen(true)}>What is this?</button>
+          <div className="segmented view-toggle" role="radiogroup" aria-label="View">
+            <button role="radio" aria-checked={!expert} className={!expert ? "on" : ""} onClick={() => setExpert(false)} title="The guided view: choose a program, read its binary in plain English, run it">Simple</button>
+            <button role="radio" aria-checked={expert} className={expert ? "on" : ""} onClick={() => setExpert(true)} title="The full instrument: hex inspector, diagnostics, counters, trace, curated tasks, export">Expert</button>
+          </div>
+        </div>
+      </div>
+    </nav>
     <div className={`app${expert ? " is-expert" : " is-simple"}`}>
       <Intro open={introOpen} onClose={closeIntro} onAction={onIntroAction} canGenerate={!!config?.liveGeneration} />
       <header className="site-head">
         <div className="site-title">
-          <h1>llmtobinary</h1>
           <p className="pitch">An AI writes machine code directly, byte by byte, for ANMA-1: a processor designed so that AI can program it. No source code, no compiler.</p>
           <p className="tagline">OpenAI generation · TypeScript virtual-machine execution in your browser.</p>
-        </div>
-        <div className="site-actions">
-          <button className="primary" onClick={() => setIntroOpen(true)}>What is this?</button>
-          <label className="check expert-toggle" title="Show the full instrument: hex inspector, diagnostics, counters, trace, curated tasks, export">
-            <input type="checkbox" checked={expert} onChange={(e) => setExpert(e.target.checked)} /> Expert view
-          </label>
         </div>
         {expert && (
           <p className="muted small site-meta">
@@ -370,6 +376,7 @@ export function App() {
         A truthful claim: the model generates bytes; your browser runs them, either through this TypeScript virtual machine or translated binary-to-binary into WebAssembly (identical results); the machine — not the model — manages storage. Not a native chip, not compiler-free, not a universal register limit.
       </footer>
     </div>
+    </>
   );
 }
 

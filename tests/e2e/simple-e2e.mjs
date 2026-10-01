@@ -63,6 +63,14 @@ for (const [label, viewport] of [["desktop", { width: 1440, height: 900 }], ["ph
   await page.keyboard.press("Escape");
   ok(!(await page.getByRole("dialog").isVisible()), `${label}: Escape closes it`);
 
+  // The top bar stays in view and carries the view switch.
+  await page.mouse.wheel(0, 1500);
+  await page.waitForTimeout(300);
+  const bar = await page.locator("nav.topbar").boundingBox();
+  ok(!!bar && bar.y <= 1, `${label}: the top bar stays pinned while scrolling`);
+  ok((await page.getByRole("radio", { name: "Simple", exact: true }).getAttribute("aria-checked")) === "true", `${label}: the top bar shows Simple selected`);
+  await page.mouse.wheel(0, -3000);
+
   // Simple view hides the instrument's expert controls.
   ok((await page.getByText("Run a bundled fixture").count()) === 0, `${label}: raw fixture list is hidden`);
   ok((await page.getByText("output mode").count()) === 0, `${label}: generation research options are hidden`);
@@ -86,7 +94,7 @@ for (const [label, viewport] of [["desktop", { width: 1440, height: 900 }], ["ph
   await page.getByRole("button", { name: "■ Stop execution" }).click();
 
   // Expert view brings everything back.
-  await page.getByLabel("Expert view").check();
+  await page.getByRole("radio", { name: "Expert", exact: true }).click();
   ok((await page.getByText("Run a bundled fixture").count()) === 1, `${label}: expert view shows the fixture list`);
   ok((await page.locator('label:has-text("fast slots F")').count()) === 1, `${label}: expert view shows F`);
   ok(errors.length === 0, `${label}: no page errors (${errors.join(" | ")})`);

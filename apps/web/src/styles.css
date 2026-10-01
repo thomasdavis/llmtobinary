@@ -106,15 +106,33 @@ button.icon { padding: 2px 7px; line-height: 1.2; }
 footer { margin-top: 16px; }
 @media (max-width: 1100px) {
   .layout { grid-template-columns: minmax(0, 1fr); }
-  .tabs.mobile { display: flex; position: sticky; top: 0; z-index: 2; background: var(--bg); padding: 4px 0; }
-  .execbar { display: flex; gap: 10px; align-items: center; position: sticky; top: 36px; z-index: 2; background: var(--bg); padding: 2px 0 6px; }
+  .tabs.mobile { display: flex; position: sticky; top: var(--topbar-h); z-index: 2; background: var(--bg); padding: 4px 0; }
+  .execbar { display: flex; gap: 10px; align-items: center; position: sticky; top: calc(var(--topbar-h) + 36px); z-index: 2; background: var(--bg); padding: 2px 0 6px; }
   .layout .col { display: none; }
   .layout.show-program .col-program, .layout.show-executable .col-executable, .layout.show-machine .col-machine { display: block; }
   .grid2 { grid-template-columns: 1fr; }
 }
 
+/* ---------- top bar ---------- */
+:root { --topbar-h: 48px; }
+.topbar { position: sticky; top: 0; z-index: 3; height: var(--topbar-h); background: var(--panel); border-bottom: 1px solid var(--line); }
+.topbar-inner { max-width: 1680px; height: 100%; margin: 0 auto; padding: 0 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.topbar-brand { margin: 0; font-size: 18px; letter-spacing: -0.01em; }
+.topbar-actions { display: flex; align-items: center; gap: 10px; }
+.topbar-help { font-size: 13px; }
+.view-toggle { margin: 0; }
+.view-toggle button { padding: 5px 14px; font-size: 13px; }
+.topbar-help { white-space: nowrap; }
+@media (max-width: 440px) {
+  .topbar-inner { padding: 0 10px; gap: 8px; }
+  .topbar-brand { font-size: 16px; }
+  .topbar-actions { gap: 6px; }
+  .topbar-help { padding: 5px 8px; }
+  .view-toggle button { padding: 5px 9px; }
+}
+
 /* ---------- site header ---------- */
-.site-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 16px; align-items: start; }
+.site-head { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px 16px; align-items: start; }
 .site-title h1 { margin: 0; font-size: 24px; }
 .pitch { margin: 4px 0 2px; font-size: 16px; line-height: 1.45; max-width: 70ch; color: var(--ink); text-wrap: pretty; }
 .site-head .tagline { margin: 0; font-weight: 400; font-size: 13px; color: var(--muted); }
