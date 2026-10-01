@@ -1,5 +1,6 @@
 import { env as rawEnv, exports as rawExports } from "cloudflare:workers";
 import { describe, expect, it } from "vitest";
+import { programHead, rewriteHead } from "./seo.ts";
 
 const env = rawEnv as unknown as Env;
 const worker = (rawExports as unknown as { default: { fetch(r: Request): Promise<Response> } }).default;
@@ -171,5 +172,20 @@ describe("budget ledger", () => {
     const stub = env.BUDGET_LEDGER.get(env.BUDGET_LEDGER.idFromName("session-cap"));
     expect((await stub.reserve("one", "a", 0.6)).ok).toBe(true);
     expect((await stub.reserve("one", "b", 0.6)).ok).toBe(false);
+  });
+});
+
+describe("search and link previews", () => {
+  it("writes a generation's own title, description and canonical URL, escaped", async () => {
+    const html = `<html><head><title>llmtobinary</title><meta name="description" content="x"><link rel="canonical" href="https://llmtobinary.com/"><meta property="og:title" content="x"><meta property="og:description" content="x"><meta property="og:url" content="x"><meta name="twitter:title" content="x"><meta name="twitter:description" content="x"></head><body></body></html>`;
+    const head = programHead({ label: 'Pong <b>"fast"</b> & fun', prompt: 'a "quoted" prompt & <tags>', outcome: "passed-unverified" }, "https://llmtobinary.com/?program=123");
+    const res = rewriteHead(new Response(html, { headers: { "content-type": "text/html", etag: '"abc"' } }), head);
+    const out = await res.text();
+    expect(res.headers.get("etag")).toBeNull();
+    expect(out).toContain('<title>Pong &lt;b&gt;"fast"&lt;/b&gt; &amp; fun · llmtobinary</title>');
+    expect(out).toContain('<link rel="canonical" href="https://llmtobinary.com/?program=123">');
+    expect(out).toContain('<meta property="og:description" content="“a &quot;quoted&quot; prompt &amp; <tags>” An AI wrote this program');
+    expect(out).toContain('<meta property="og:title" content="Pong <b>&quot;fast&quot;</b> &amp; fun · llmtobinary">');
+    expect(out).not.toContain('content="x"');
   });
 });

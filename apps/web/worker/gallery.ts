@@ -24,7 +24,7 @@ function shorten(text: string, max: number): string {
   if (t.length <= max) return t;
   const cut = t.slice(0, max - 1);
   const sp = cut.lastIndexOf(" ");
-  return `${sp > max * 0.6 ? cut.slice(0, sp) : cut}…`;
+  return `${(sp > max * 0.6 ? cut.slice(0, sp) : cut).replace(/[\s.,;:!?…-]+$/, "")}…`;
 }
 
 /** The label: the AI's own one-line summary of its program, else the curated title, else the prompt. */

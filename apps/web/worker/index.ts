@@ -9,6 +9,7 @@ import { PROTOCOL_VERSION, type ConfigResponse, type CreateSessionRequest, type 
 import { signToken, verifyToken } from "./auth.ts";
 import { HttpError, checkOrigin, errorResponse, json, readJson, API_HEADERS } from "./http.ts";
 import type { CreatePayload } from "./session.ts";
+import { programPage, sitemap } from "./seo.ts";
 import { getGalleryEntry, hideGalleryEntry, isGalleryId, listGallery, rebuildFromArchives } from "./gallery.ts";
 
 export { GenerationSession } from "./session.ts";
@@ -123,6 +124,16 @@ async function route(request: Request, env: Env): Promise<Response> {
   const canonical = env.CANONICAL_HOST;
   if (canonical && url.hostname !== canonical && !path.startsWith("/api/") && (request.method === "GET" || request.method === "HEAD")) {
     return Response.redirect(`https://${canonical}${path}${url.search}`, 301);
+  }
+  const siteOrigin = canonical ? `https://${canonical}` : url.origin;
+  if (path === "/sitemap.xml" && request.method === "GET") return sitemap(env, siteOrigin);
+  if (path === "/" && (request.method === "GET" || request.method === "HEAD")) {
+    const page = await programPage(request, env, siteOrigin);
+    if (env.ENVIRONMENT === "production") return page;
+    // Staging and test deployments stay out of search results.
+    const headers = new Headers(page.headers);
+    headers.set("x-robots-tag", "noindex, nofollow");
+    return new Response(page.body, { status: page.status, headers });
   }
   if (!path.startsWith("/api/")) return env.ASSETS.fetch(request);
 

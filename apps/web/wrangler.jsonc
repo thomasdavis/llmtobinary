@@ -11,7 +11,7 @@
     "directory": "./dist/client",
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/api/*", "/"]
+    "run_worker_first": ["/api/*", "/", "/sitemap.xml"]
   },
   // Production serves llmtobinary.com (www redirects to it). Named environments must not inherit these.
   // workers.dev stays on so older links keep working (they redirect to the domain).
