@@ -253,3 +253,88 @@ dialog.intro { overflow: hidden; }
 .notes li { display: grid; grid-template-columns: 7.5em minmax(0, 1fr); gap: 10px; align-items: baseline; }
 .note-kind { font-weight: 600; color: var(--accent); }
 @media (max-width: 640px) { .notes li { grid-template-columns: minmax(0, 1fr); gap: 2px; } }
+
+/* ---------- generation modal ---------- */
+dialog.genmodal {
+  width: min(1120px, calc(100% - 24px));
+  max-height: calc(100dvh - 24px);
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+  color: var(--ink);
+  overflow: hidden;
+  box-shadow: 0 24px 64px rgb(15 20 30 / 0.3);
+}
+dialog.genmodal::backdrop { background: rgb(15 20 30 / 0.6); }
+dialog.genmodal[open] { animation: intro-in 220ms cubic-bezier(0.22, 1, 0.36, 1); }
+.genmodal-inner { display: flex; flex-direction: column; gap: 14px; padding: 20px 24px 18px; max-height: calc(100dvh - 26px); }
+.genmodal-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 24px; align-items: start; }
+.genmodal-head h2 { margin: 0; font-size: 24px; letter-spacing: -0.01em; }
+.genmodal-prompt { margin: 6px 0 0; color: var(--muted); font-style: italic; max-width: 70ch; }
+.genmodal-stats { display: grid; grid-template-columns: repeat(4, auto); gap: 0 18px; margin: 0; }
+.genmodal-stats dt { grid-row: 1; font-size: 12px; color: var(--muted); }
+.genmodal-stats dd { grid-row: 2; margin: 0; font: 600 16px var(--mono); font-variant-numeric: tabular-nums; }
+
+.genmodal-stages { list-style: none; margin: 0; padding: 0; display: flex; gap: 0; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.genmodal-stages li { flex: 1; display: flex; align-items: center; gap: 8px; padding: 9px 12px; font-size: 13px; color: var(--muted); background: #fbfcfd; }
+.genmodal-stages li + li { border-left: 1px solid var(--line); }
+.genmodal-stages .stage-dot { width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid currentColor; flex: none; }
+.genmodal-stages li.is-past { color: var(--ink); }
+.genmodal-stages li.is-past .stage-dot { background: var(--ok); border-color: var(--ok); }
+.genmodal-stages li.is-current { color: var(--accent); background: var(--sel); font-weight: 600; }
+.genmodal-stages li.is-current .stage-dot { background: var(--accent); border-color: var(--accent); animation: stage-pulse 1.4s ease-in-out infinite; }
+@keyframes stage-pulse { 0%, 100% { box-shadow: 0 0 0 0 rgb(36 86 166 / 0.45); } 50% { box-shadow: 0 0 0 5px rgb(36 86 166 / 0); } }
+
+.genmodal-body { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: 14px; min-height: 0; flex: 1 1 auto; }
+.genmodal-stream { display: flex; flex-direction: column; min-height: 0; background: #10151c; border-radius: 8px; padding: 10px 12px; color: #c9d4e0; }
+.stream-head { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; font-size: 12px; color: #8d9aab; margin-bottom: 6px; }
+.stream-count { font-family: var(--mono); color: oklch(0.83 0.155 75); }
+.stream-bytes { flex: 1; min-height: 260px; max-height: 46vh; overflow: hidden; margin: 0; font: 13px/1.55 var(--mono); color: oklch(0.83 0.155 75); white-space: pre; }
+.stream-caret { animation: caret 1s steps(1) infinite; color: #fff; }
+@keyframes caret { 50% { opacity: 0; } }
+.stream-wait { color: #8d9aab; font-family: var(--sans); white-space: normal; }
+.stream-wait::after { content: ""; display: inline-block; width: 1.2em; text-align: left; animation: dots 1.4s steps(4) infinite; }
+@keyframes dots { 0% { content: ""; } 25% { content: "."; } 50% { content: ".."; } 75% { content: "..."; } }
+.stream-note { margin: 6px 0 0; font-size: 12px; color: #8d9aab; }
+
+.genmodal-timeline { min-height: 0; display: flex; flex-direction: column; }
+.genmodal-timeline ol { list-style: none; margin: 0; padding: 2px 4px 2px 0; overflow-y: auto; max-height: 52vh; display: flex; flex-direction: column; gap: 8px; }
+.genmodal-timeline li { position: relative; padding: 2px 0 2px 24px; display: flex; flex-direction: column; gap: 2px; animation: tl-in 260ms cubic-bezier(0.22, 1, 0.36, 1); }
+@keyframes tl-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.genmodal-timeline li::before { position: absolute; left: 0; top: 2px; width: 16px; height: 16px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; font-weight: 700; color: #fff; }
+.tl-info::before { content: ""; background: #c8d0da; transform: scale(0.55); }
+.tl-ok::before { content: "✓"; background: var(--ok); }
+.tl-bad::before { content: "!"; background: var(--bad); }
+.tl-warn::before { content: "!"; background: var(--warn); }
+.tl-live::before { content: ""; background: var(--accent); animation: stage-pulse 1.4s ease-in-out infinite; transform: scale(0.7); }
+.tl-title { font-size: 14px; }
+.tl-live .tl-title { color: var(--accent); font-weight: 600; }
+.tl-detail { font-size: 12.5px; color: var(--muted); overflow-wrap: anywhere; }
+
+.genmodal-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; border-top: 1px solid var(--line); padding-top: 12px; }
+.genmodal-hint { margin: 0; color: var(--muted); font-size: 13px; }
+.genmodal-outcome { margin: 0; font-size: 16px; font-weight: 600; max-width: 70ch; }
+.genmodal-outcome.is-ok { color: var(--ok); }
+.genmodal-outcome.is-bad { color: var(--bad); }
+.outcome-size { font-weight: 400; color: var(--ink); }
+.outcome-detail { display: block; font-weight: 400; font-size: 13px; color: var(--muted); }
+.genmodal-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.genmodal-actions button { font-size: 14px; padding: 7px 14px; }
+.genmodal-share { flex-basis: 100%; margin: 0; }
+.genmodal-share code { user-select: all; }
+
+@media (max-width: 820px) {
+  .genmodal-head { grid-template-columns: minmax(0, 1fr); }
+  .genmodal-stats { grid-template-columns: repeat(4, auto); justify-content: start; }
+  .genmodal-stages { flex-wrap: wrap; }
+  .genmodal-stages li { flex: 1 1 33%; padding: 7px 8px; font-size: 12px; }
+  .genmodal-body { grid-template-columns: minmax(0, 1fr); overflow-y: auto; }
+  .stream-bytes { min-height: 140px; max-height: 26vh; font-size: 11.5px; }
+  .genmodal-timeline ol { max-height: none; }
+  .genmodal-inner { padding: 14px 14px 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  dialog.genmodal[open], .genmodal-timeline li { animation: none; }
+  .genmodal-stages li.is-current .stage-dot, .tl-live::before, .stream-caret { animation: none; }
+}

@@ -13,6 +13,7 @@ import { verify } from "./verify-client.ts";
 import { F_CHOICES, MachinePanel, parseEntryInputs } from "./Machine.tsx";
 import { isBool, oneOf, usePersistentState } from "./settings.ts";
 import { Intro, type IntroAction } from "./Intro.tsx";
+import { GenerationModal } from "./GenerationModal.tsx";
 import { BinaryView } from "./BinaryView.tsx";
 import { AI_EXAMPLES, loadExample, type AiExample } from "./examples.ts";
 import { MachineClient, type MachineView } from "./machine-client.ts";
@@ -49,6 +50,7 @@ export function App() {
   const [introSeen, setIntroSeen] = usePersistentState("introSeen", false, isBool);
   const [introOpen, setIntroOpen] = useState(!introSeen);
   const [promptFocus, setPromptFocus] = useState(0);
+  const [genOpen, setGenOpen] = useState(false);
   const closeIntro = () => {
     setIntroOpen(false);
     setIntroSeen(true);
@@ -331,6 +333,17 @@ export function App() {
     </nav>
     <div className={`app${expert ? " is-expert" : " is-simple"}`}>
       <Intro open={introOpen} onClose={closeIntro} onAction={onIntroAction} canGenerate={!!config?.liveGeneration} />
+      <GenerationModal
+        gen={genState}
+        open={genOpen}
+        onClose={() => setGenOpen(false)}
+        onCancel={() => void gen.cancel()}
+        onRun={(sha) => {
+          setGenOpen(false);
+          setAutoRun(sha);
+        }}
+        onShareDebug={onShareDebug}
+      />
       <header className="site-head">
         <div className="site-title">
           <p className="pitch">An AI writes machine code directly, byte by byte, for ANMA-1: a processor designed so that AI can program it. No source code, no compiler.</p>
@@ -352,7 +365,10 @@ export function App() {
       </div>
       <main className={`layout show-${tab}`}>
         <div className="col col-program">
-          <TaskPanel config={config} configError={configError} gen={genState} history={history} onFixture={onFixture} onGenerate={(req: CreateSessionRequest) => void gen.start(req)} onCancel={() => void gen.cancel()} onSelectSubmission={(c) => void onSubmission(c)} onSelectHistory={(h) => void loadArtifact({ bytes: h.bytes, annotations: h.annotations, name: h.name, taskId: h.taskId, provenance: h.provenance, responseText: h.responseText, allowedFeatures: allowed }).then((a) => select(a))} onImport={(f) => void onImport(f)} onExport={(w) => void onExport(w)} onDownload={onDownload} onClearHistory={() => void onClearHistory()} hasArtifact={!!artifact} onShareDebug={onShareDebug} expert={expert} onExample={(e) => void onExample(e)} promptFocus={promptFocus} />
+          <TaskPanel config={config} configError={configError} gen={genState} history={history} onFixture={onFixture} onGenerate={(req: CreateSessionRequest) => {
+              setGenOpen(true);
+              void gen.start(req);
+            }} onCancel={() => void gen.cancel()} onSelectSubmission={(c) => void onSubmission(c)} onSelectHistory={(h) => void loadArtifact({ bytes: h.bytes, annotations: h.annotations, name: h.name, taskId: h.taskId, provenance: h.provenance, responseText: h.responseText, allowedFeatures: allowed }).then((a) => select(a))} onImport={(f) => void onImport(f)} onExport={(w) => void onExport(w)} onDownload={onDownload} onClearHistory={() => void onClearHistory()} hasArtifact={!!artifact} onShareDebug={onShareDebug} expert={expert} onExample={(e) => void onExample(e)} promptFocus={promptFocus} />
         </div>
         <div className="col col-executable">
           {!expert ? <BinaryView artifact={artifact} onExpert={() => setExpert(true)} /> : <Inspector

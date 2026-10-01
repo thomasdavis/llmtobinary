@@ -70,7 +70,15 @@ if (await page.getByRole("checkbox", { name: "terminal" }).isChecked()) await pa
 if (live) {
   await page.getByText(/I understand my task text/).click();
   await page.getByRole("button", { name: "Generate" }).click();
-  await page.getByText(/✓ executed; intent not independently verified|✓ passed|■ stopped/).first().waitFor({ timeout: 360_000 });
+  const modal = page.locator("dialog.genmodal");
+  await modal.waitFor({ timeout: 10_000 });
+  ok(await modal.isVisible(), "Generate opens the progress modal");
+  await page.keyboard.press("Escape");
+  ok(await modal.isVisible(), "the modal cannot be dismissed while the AI works");
+  await modal.getByRole("heading", { name: "Finished" }).waitFor({ timeout: 360_000 });
+  ok((await modal.locator(".genmodal-timeline li").count()) >= 3, "the modal shows the loop's steps");
+  await modal.getByRole("button", { name: "Close" }).click();
+  await page.getByText(/✓ executed; intent not independently verified|✓ passed|■ stopped/).first().waitFor({ timeout: 30_000 });
   const outcome = await page.locator(".outcome").first().textContent();
   ok(/executed; intent not independently verified/.test(outcome ?? ""), `custom prompt generates a program (${outcome?.trim()})`);
   await page.getByRole("button", { name: "Share for debugging" }).click();

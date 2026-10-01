@@ -33,12 +33,17 @@ export interface GenState {
   counters: LoopCounters | null;
   budget: LoopBudget | null;
   reconnects: number;
+  /** Everything the model has streamed in the current turn (its draft, as it is written). */
+  turnText: string;
+  /** Client clock (ms) when the session and the current turn started. */
+  startedAt: number | null;
+  turnStartedAt: number | null;
 }
 
 const MAX_EVENTS_KEPT = 4000;
 
 export class GenerationController {
-  state: GenState = { phase: "idle", request: null, sessionId: null, events: [], preview: "", submissions: [], outcome: null, stopDetail: null, error: null, counters: null, budget: null, reconnects: 0 };
+  state: GenState = { phase: "idle", request: null, sessionId: null, events: [], preview: "", submissions: [], outcome: null, stopDetail: null, error: null, counters: null, budget: null, reconnects: 0, turnText: "", startedAt: null, turnStartedAt: null };
   private listeners = new Set<(s: GenState) => void>();
   private abort: AbortController | null = null;
   private token: string | null = null;
@@ -64,9 +69,18 @@ export class GenerationController {
     if (e.seq <= this.lastSeq && e.type !== "heartbeat") return;
     if (e.type !== "heartbeat") this.lastSeq = e.seq;
     else return;
+    if (e.type === "model.tool_args.delta" || e.type === "model.text.delta") {
+      // Stream fragments only feed the live preview; keeping them as events would crowd out the
+      // checks and submissions the timeline needs.
+      this.set({ preview: (this.state.preview + e.delta).slice(-24_000), turnText: this.state.turnText.length < 4_000_000 ? this.state.turnText + e.delta : this.state.turnText });
+      return;
+    }
     const events = this.state.events.length >= MAX_EVENTS_KEPT ? [...this.state.events.slice(-MAX_EVENTS_KEPT + 1), e] : [...this.state.events, e];
     const p: Partial<GenState> = { events };
-    if (e.type === "model.tool_args.delta" || e.type === "model.text.delta") p.preview = (this.state.preview + e.delta).slice(-24_000);
+    if (e.type === "turn.started") {
+      p.turnText = "";
+      p.turnStartedAt = Date.now();
+    }
     if (e.type === "turn.started" || e.type === "check.result" || e.type === "candidate.submitted") p.preview = e.type === "turn.started" ? "" : this.state.preview;
     if (e.type === "loop.budget") {
       p.counters = e.counters;
@@ -109,7 +123,7 @@ export class GenerationController {
 
   async start(req: CreateSessionRequest): Promise<void> {
     this.lastSeq = 0;
-    this.set({ phase: "creating", request: req, sessionId: null, events: [], preview: "", submissions: [], outcome: null, stopDetail: null, error: null, counters: null, budget: null, reconnects: 0 });
+    this.set({ phase: "creating", request: req, sessionId: null, events: [], preview: "", submissions: [], outcome: null, stopDetail: null, error: null, counters: null, budget: null, reconnects: 0, turnText: "", startedAt: Date.now(), turnStartedAt: null });
     try {
       const s = await createSession(req);
       this.token = s.token;
