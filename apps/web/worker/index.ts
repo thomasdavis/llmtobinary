@@ -9,7 +9,7 @@ import { PROTOCOL_VERSION, type ConfigResponse, type CreateSessionRequest, type 
 import { signToken, verifyToken } from "./auth.ts";
 import { HttpError, checkOrigin, errorResponse, json, readJson, API_HEADERS } from "./http.ts";
 import type { CreatePayload } from "./session.ts";
-import { getGalleryEntry, isGalleryId, listGallery, rebuildFromArchives } from "./gallery.ts";
+import { getGalleryEntry, hideGalleryEntry, isGalleryId, listGallery, rebuildFromArchives } from "./gallery.ts";
 
 export { GenerationSession } from "./session.ts";
 export { BudgetLedger } from "./ledger.ts";
@@ -118,6 +118,12 @@ function withApiHeaders(res: Response): Response {
 async function route(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
   const path = url.pathname;
+  // One public address: page loads on any other host (www, workers.dev) move to the canonical one.
+  // API calls are served wherever they arrive, so open tabs and links keep working.
+  const canonical = env.CANONICAL_HOST;
+  if (canonical && url.hostname !== canonical && !path.startsWith("/api/") && (request.method === "GET" || request.method === "HEAD")) {
+    return Response.redirect(`https://${canonical}${path}${url.search}`, 301);
+  }
   if (!path.startsWith("/api/")) return env.ASSETS.fetch(request);
 
   if (path === "/api/config" && request.method === "GET") return json(config(env));
@@ -127,13 +133,22 @@ async function route(request: Request, env: Env): Promise<Response> {
     return json({ promptVersion: PROMPT_VERSION, instructions: generationInstructions(), tools: TOOLS }, 200, { "cache-control": "public, max-age=300" });
   }
 
-  // Operator only: list generations made before the program list existed, from the debug archive.
-  if (path === "/api/admin/gallery/rebuild" && request.method === "POST") {
+  // Operator only (GALLERY_ADMIN_KEY): rebuild the list from the debug archive, or take an entry down.
+  if (path.startsWith("/api/admin/")) {
     const key = env.GALLERY_ADMIN_KEY;
     const auth = request.headers.get("authorization") ?? "";
     if (!key || !env.DEBUG_ARCHIVE || !(await sameSecret(auth, `Bearer ${key}`))) return json({ error: "not found" }, 404);
-    const cursor = url.searchParams.get("cursor");
-    return json(await rebuildFromArchives(env.DEBUG_ARCHIVE, cursor || null, 100));
+    if (path === "/api/admin/gallery/rebuild" && request.method === "POST") {
+      const cursor = url.searchParams.get("cursor");
+      return json(await rebuildFromArchives(env.DEBUG_ARCHIVE, cursor || null, 100));
+    }
+    const del = /^\/api\/admin\/gallery\/([0-9a-f-]+)$/.exec(path);
+    if (del && request.method === "DELETE" && isGalleryId(del[1]!)) {
+      // Removes the public entry for good (later archive writes skip it); the private archive is kept.
+      await hideGalleryEntry(env.DEBUG_ARCHIVE, del[1]!);
+      return json({ deleted: del[1] });
+    }
+    return json({ error: "not found" }, 404);
   }
 
   // The public program list: every generation (read-only, cacheable briefly).
@@ -211,6 +226,8 @@ export default {
     try {
       return await route(request, env);
     } catch (e) {
+      if (!(e instanceof HttpError)) console.error(JSON.stringify({ component: "worker", event: "unhandled", path: new URL(request.url).pathname, name: (e as Error)?.name, message: (e as Error)?.message }));
+      if (env.ENVIRONMENT === "staging" && !(e instanceof HttpError)) return json({ error: "internal error", detail: `${(e as Error)?.name}: ${(e as Error)?.message}` }, 500);
       return errorResponse(e);
     }
   },

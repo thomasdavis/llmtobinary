@@ -2,7 +2,7 @@
 
 Describe a program; an OpenAI model writes its **literal ANMA-1 bytes** in a checker-assisted agentic loop; a **TypeScript virtual machine runs those exact bytes in your browser** — and reruns the same file with fewer fast-value slots, showing the real backing-store traffic the machine (not the model) manages.
 
-- Production (live OpenAI generation, $4.00/session and $20.00/day caps): https://llmtobinary.thomasalwyndavis.workers.dev
+- Production (live OpenAI generation, $4.00/session and $20.00/day caps): https://llmtobinary.com (www and the old `llmtobinary.thomasalwyndavis.workers.dev` address redirect page loads here; their API calls still work)
 - Staging (live OpenAI generation, hard spend caps): https://llmtobinary-staging.thomasalwyndavis.workers.dev
 
 The authority is [`PRD.md`](PRD.md) (v3.2). What is implemented, verified, tested live, and not yet tested is in [`docs/STATUS.md`](docs/STATUS.md).
@@ -88,9 +88,9 @@ Operator tasks (the admin key is the `GALLERY_ADMIN_KEY` Worker secret; this box
 
 ```sh
 # rebuild entries from the debug archives (idempotent; pages with ?cursor=)
-curl -X POST -H "authorization: Bearer $(cat ~/.config/llmtobinary/gallery-admin-key)" https://llmtobinary.thomasalwyndavis.workers.dev/api/admin/gallery/rebuild
-# take an entry down
-cd apps/web && npx wrangler r2 object delete llmtobinary-debug/gallery/<id>.json --remote
+curl -X POST -H "authorization: Bearer $(cat ~/.config/llmtobinary/gallery-admin-key)" https://llmtobinary.com/api/admin/gallery/rebuild
+# take an entry down for good (later archive writes skip it; the private archive is kept)
+curl -X DELETE -H "authorization: Bearer $(cat ~/.config/llmtobinary/gallery-admin-key)" https://llmtobinary.com/api/admin/gallery/<id>
 ```
 
 ## Debugging a generation session

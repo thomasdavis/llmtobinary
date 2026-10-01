@@ -39,6 +39,7 @@ export default defineConfig({
           TEST_FAKE_MODEL: "1",
           TEST_FAKE_SCRIPT: JSON.stringify(scripts),
           SESSION_SIGNING_KEY: "test-signing-key-not-a-secret",
+          GALLERY_ADMIN_KEY: "test-admin-key-not-a-secret",
           SESSION_USD_CAP: "1.00",
           DAILY_USD_CAP: "5.00",
         },

@@ -27,6 +27,8 @@ interface Env {
   RECOVERY_TTL_SECONDS?: string;
   ALLOWED_FEATURES?: string;
   MAX_CONTEXT_CHARS?: string;
+  /** Production only: page loads on any other host redirect here (e.g. "llmtobinary.com"). */
+  CANONICAL_HOST?: string;
   // secrets (wrangler secret put / .dev.vars) — never in wrangler.jsonc
   OPENAI_API_KEY?: string;
   SESSION_SIGNING_KEY?: string;

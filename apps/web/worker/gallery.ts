@@ -54,7 +54,8 @@ export function buildGalleryEntry(i: GalleryInput): GalleryEntry | null {
   const drafts = s.candidates.filter((c) => c.kind === "check");
   let program: GalleryEntry["program"] = null;
   const passedSha = passed ? passedShaFromDetail(s.stopDetail) : null;
-  let cand = passedSha ? submits.find((c) => c.sha256 === passedSha) : undefined;
+  // The last submission with the passing bytes (an earlier one may carry annotations that failed).
+  let cand = passedSha ? submits.findLast((c) => c.sha256 === passedSha) : undefined;
   if (cand) program = "passed";
   else if ((cand = submits.at(-1))) program = "submission";
   else if ((cand = drafts.at(-1))) program = "draft";
@@ -183,7 +184,16 @@ function fromMeta(key: string, m: Record<string, string> | undefined): GallerySu
   };
 }
 
+/** Taken-down sessions leave a marker so later archive writes never list them again. */
+const hiddenKey = (sessionId: string) => `gallery-hidden/${sessionId}`;
+
+export async function hideGalleryEntry(bucket: R2Bucket, id: string): Promise<void> {
+  await bucket.put(hiddenKey(id.slice(14)), String(Date.now()));
+  await bucket.delete(`${PREFIX}${id}.json`);
+}
+
 export async function putGalleryEntry(bucket: R2Bucket, e: GalleryEntry): Promise<void> {
+  if (await bucket.head(hiddenKey(e.sessionId))) return;
   await bucket.put(`${PREFIX}${e.id}.json`, JSON.stringify(e), { httpMetadata: { contentType: "application/json" }, customMetadata: toMeta(e) });
 }
 

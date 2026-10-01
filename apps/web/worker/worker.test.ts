@@ -113,9 +113,25 @@ describe("agentic loop through the Durable Object", () => {
     expect((await fetchApi("/api/gallery/not-an-id")).status).toBe(404);
   });
 
-  it("hides the operator rebuild route without the admin key", async () => {
+  it("hides the operator routes without the admin key", async () => {
     expect((await post("/api/admin/gallery/rebuild", {})).status).toBe(404);
     expect((await post("/api/admin/gallery/rebuild", {}, { authorization: "Bearer wrong" })).status).toBe(404);
+    expect((await fetchApi("/api/admin/gallery/0000000000000-00000000-0000-0000-0000-000000000000", { method: "DELETE" })).status).toBe(404);
+  });
+
+  it("a taken-down generation stays down when its session is archived again", async () => {
+    const s = await create();
+    const auth = { authorization: `Bearer ${s.token}` };
+    const list = async () => ((await (await fetchApi("/api/gallery")).json()) as { items: { id: string; sessionId: string }[] }).items;
+    await ndjson(await post(`/api/generation-sessions/${s.sessionId}/attempts`, { idempotencyKey: "takedown-1", feedback: null }, auth));
+    const item = (await list()).find((i) => i.sessionId === s.sessionId)!;
+    const admin = { authorization: `Bearer ${env.GALLERY_ADMIN_KEY}` };
+    const res = await fetchApi(`/api/admin/gallery/${item.id}`, { method: "DELETE", headers: admin });
+    expect(res.status).toBe(200);
+    expect((await list()).some((i) => i.sessionId === s.sessionId)).toBe(false);
+    expect((await post(`/api/generation-sessions/${s.sessionId}/debug`, { kind: "test" }, auth)).status).toBe(200); // archives the session again
+    expect((await list()).some((i) => i.sessionId === s.sessionId)).toBe(false);
+    expect((await fetchApi(`/api/gallery/${item.id}`)).status).toBe(404);
   });
 
   it("cancel propagates to the running upstream request", async () => {

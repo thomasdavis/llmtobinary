@@ -441,6 +441,9 @@ export async function runAttempt(state: SessionState, req: AttemptRequest, deps:
     c.submissions++;
     let sha: string | null = null;
     let len: number | null = null;
+    // A resubmission is a repeat only if nothing changed: the same bytes AND the same annotations.
+    // Fixing a wrong example while keeping correct bytes is real progress, not a stall.
+    let annotationsKey = "";
     if (state.mode === "raw-hex") {
       const h = parseHex(rawText);
       if (h.ok) {
@@ -455,13 +458,15 @@ export async function runAttempt(state: SessionState, req: AttemptRequest, deps:
           sha = await sha256Hex(h.bytes);
           len = h.bytes.length;
         }
+        annotationsKey = await sha256Hex(new TextEncoder().encode(JSON.stringify(env.envelope.annotations ?? null)));
       }
     }
     const cand: Candidate = { attemptId: attempt.attemptId, kind: "submit", seq: state.candidates.length, rawText, sha256: sha, byteLength: len };
     state.candidates.push(cand);
     await emit({ type: "candidate.submitted", candidate: cand, envelopeText: rawText });
-    if (sha && state.submittedShas.includes(sha)) return stop("stalled", `ANMA-L-002: candidate ${sha} was submitted before`);
-    if (sha) state.submittedShas.push(sha);
+    const submissionKey = sha ? (annotationsKey ? `${sha}:${annotationsKey}` : sha) : null;
+    if (submissionKey && state.submittedShas.includes(submissionKey)) return stop("stalled", `ANMA-L-002: candidate ${sha} was submitted before with the same annotations`);
+    if (submissionKey) state.submittedShas.push(submissionKey);
     state.pendingSubmitCallId = callId;
     attempt.status = "awaiting-feedback";
     attempt.endedAt = deps.now();

@@ -9,9 +9,17 @@
   "compatibility_date": "2026-08-20",
   "assets": {
     "directory": "./dist/client",
+    "binding": "ASSETS",
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/api/*"]
+    "run_worker_first": ["/api/*", "/"]
   },
+  // Production serves llmtobinary.com (www redirects to it). Named environments must not inherit these.
+  // workers.dev stays on so older links keep working (they redirect to the domain).
+  "workers_dev": true,
+  "routes": [
+    { "pattern": "llmtobinary.com", "custom_domain": true },
+    { "pattern": "www.llmtobinary.com", "custom_domain": true }
+  ],
   "durable_objects": {
     "bindings": [
       { "name": "GENERATION_SESSION", "class_name": "GenerationSession" },
@@ -28,6 +36,7 @@
   "limits": { "cpu_ms": 300000 },
   "vars": {
     "ENVIRONMENT": "production",
+    "CANONICAL_HOST": "llmtobinary.com",
     "LIVE_GENERATION_ENABLED": "true",
     "OPENAI_MODEL": "gpt-6-luna",
     "OPENAI_PROFILE_LABEL": "GPT-6 Luna, medium reasoning",
@@ -44,6 +53,7 @@
   "env": {
     "staging": {
       "name": "llmtobinary-staging",
+      "routes": [],
       "durable_objects": {
         "bindings": [
           { "name": "GENERATION_SESSION", "class_name": "GenerationSession" },
@@ -71,6 +81,7 @@
     },
     "test": {
       "name": "llmtobinary-test",
+      "routes": [],
       "durable_objects": {
         "bindings": [
           { "name": "GENERATION_SESSION", "class_name": "GenerationSession" },
@@ -97,6 +108,7 @@
     },
     "research": {
       "name": "llmtobinary-research",
+      "routes": [],
       "durable_objects": {
         "bindings": [
           { "name": "GENERATION_SESSION", "class_name": "GenerationSession" },

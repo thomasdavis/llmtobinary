@@ -57,7 +57,7 @@ page.on("console", (m) => m.type() === "error" && errors.push(m.text()));
 const statusIs = (s, timeout = 30_000) => page.getByText(new RegExp(`state: ${s}`)).first().waitFor({ timeout });
 
 await page.goto(base, { waitUntil: "networkidle" });
-ok((await page.title()) === "llmtobinary", "page title");
+ok((await page.title()) === "llmtobinary: an AI writes the machine code", "page title");
 ok(await page.getByText("AI-written machine code, run in your browser").isVisible(), "execution-location byline visible in the top bar");
 await page.getByText(/spec ANMA-1\/prd-3\.2/).waitFor({ timeout: 15_000 });
 

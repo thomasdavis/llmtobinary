@@ -191,6 +191,15 @@ describe("agentic loop", () => {
     expect(h.model.requests).toHaveLength(3);
   });
 
+  it("not stalled: the same bytes with corrected annotations are a new submission", async () => {
+    const fixed = { ...env(sqHex), annotations: { summary: "n*n + 2", params: [], records: [], contracts: [], invariants: [], examples: [] } };
+    const h = harness([{ kind: "submit", envelope: env(sqHex) }, { kind: "submit", envelope: fixed }]);
+    await runAttempt(h.state, { idempotencyKey: "k1", feedback: null }, h.deps);
+    await runAttempt(h.state, { idempotencyKey: "k2", feedback: feedback("x", false) }, h.deps);
+    expect(h.state.outcome).toBeNull();
+    expect(h.state.counters.submissions).toBe(2);
+  });
+
   it("stalled: resubmitting the same candidate", async () => {
     const h = harness([{ kind: "submit", envelope: env(sqHex) }, { kind: "submit", envelope: env(sqHex) }]);
     await runAttempt(h.state, { idempotencyKey: "k1", feedback: null }, h.deps);
