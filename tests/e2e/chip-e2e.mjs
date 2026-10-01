@@ -183,6 +183,24 @@ const num = (s) => Number(String(s).replace(/[^0-9]/g, ""));
   await page.getByText(/✓ task-passed|✕ task-failed/).first().waitFor({ timeout: 60_000 });
   await page.getByRole("button", { name: "▶ Run" }).click();
   await page.getByText(/state: (running|waiting-input)/).first().waitFor({ timeout: 10_000 });
+  // While it runs, the machine never reads as paused, Run/Pause hold still, and the column keeps its height.
+  const steady = await page.evaluate(async () => {
+    const col = document.querySelector(".col-machine");
+    const seen = new Set();
+    const heights = new Set();
+    const buttons = new Set();
+    for (let i = 0; i < 200; i++) {
+      seen.add(document.querySelector("p.status strong")?.textContent);
+      heights.add(Math.round(col.getBoundingClientRect().height));
+      const b = [...document.querySelectorAll(".col-machine button")].filter((x) => x.textContent === "▶ Run" || x.textContent === "❚❚ Pause").map((x) => x.disabled).join();
+      buttons.add(b);
+      await new Promise((r) => setTimeout(r, 10));
+    }
+    return { states: [...seen], heights: [...heights], buttons: [...buttons] };
+  });
+  ok(!steady.states.includes("paused"), `a running program never reads as paused (${steady.states.join(", ")})`);
+  ok(steady.buttons.length === 1, `Run and Pause keep their state while it runs (${steady.buttons.join(" | ")})`);
+  ok(steady.heights.length === 1, `the machine column keeps its height while it runs (${steady.heights.join(", ")})`);
   await live.getByRole("button", { name: "Full screen" }).click();
   await page.locator("section.livechip.is-expanded").waitFor({ timeout: 5000 });
   await page.locator("section.livechip canvas.fb").click();

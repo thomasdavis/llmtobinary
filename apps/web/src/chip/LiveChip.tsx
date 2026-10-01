@@ -305,10 +305,11 @@ export function LiveChip(props: { artifact: LoadedArtifact; view: MachineView; m
             ) : null}
           </div>
           {expanded && !heatView && <Analyzer tracks={[{ label: `ANMA-1 · F = ${g.vm.cells.length}`, isa: "ANMA-1", events: g.history, t: g.t }]} windowTicks={120} />}
+          {/* Three fixed lines: changing text never changes the column's height. */}
           <p className="livechip-status">
             <span>{`state ${view.status}`}</span>
-            <span>{g.vm.rec !== null ? `record ${g.vm.rec} ${g.vm.text}` : c.instructions ? "" : "arguments installed"}</span>
-            <span>{fast ? "fast engine: the lights need the exact engine" : !lights ? "lights off: running without instrumentation" : rate === null ? (running ? "full speed: units glow by activity" : "") : `slowed to ${rate.toLocaleString()} instr/s`}</span>
+            <span title={g.vm.rec !== null ? `record ${g.vm.rec} ${g.vm.text}` : undefined}>{g.vm.rec !== null ? `record ${g.vm.rec} ${g.vm.text}` : c.instructions ? "\u00a0" : "arguments installed"}</span>
+            <span>{fast ? "fast engine: the lights need the exact engine" : !lights ? "lights off: running without instrumentation" : rate === null ? (running ? "full speed: units glow by activity" : "\u00a0") : `slowed to ${rate.toLocaleString()} instr/s`}</span>
           </p>
         </div>
         <aside className="livechip-devices" aria-label="Devices">
@@ -402,10 +403,13 @@ function ChipTime({ view, fast }: { view: MachineView; fast: boolean }) {
       {perFrame !== null ? (
         <p className="chip-time-big">
           {fmtMs(perFrame / ticksPerMs)} per frame · ≈{Math.round((1000 * ticksPerMs) / perFrame).toLocaleString()} fps
-          {browserFps !== null && <span className="chip-time-sim">this browser's simulator: {browserFps.toFixed(1)} fps</span>}
+          <span className="chip-time-sim">{browserFps !== null ? `this browser's simulator: ${browserFps.toFixed(1)} fps` : "this browser's simulator: measuring…"}</span>
         </p>
       ) : (
-        <p className="chip-time-big">{fmtMs(ticks / ticksPerMs)} for this run so far</p>
+        <p className="chip-time-big">
+          {fmtMs(ticks / ticksPerMs)} for this run so far
+          <span className="chip-time-sim">per-frame time appears once the program presents frames</span>
+        </p>
       )}
       <p className="chip-time-note">Modeled with {COST_MODEL_ID} (1 tick = 1 cycle), not measured{fast ? "; a lower bound, because the fast engine does not simulate storage stalls" : ""}.</p>
     </div>

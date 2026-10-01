@@ -33,9 +33,12 @@ export function Framebuffer({ frame, interactive, machine, autoFocus = false, no
   return (
     <div className="fb-wrap">
       <h3>Framebuffer 256×144</h3>
+      <div className="fb-stage">
       <canvas ref={ref} width={256} height={144} className="fb" tabIndex={interactive ? 0 : -1} aria-label={interactive ? `Framebuffer; focus to send keys ${KEYS.join(", ")}` : "Framebuffer"} onKeyDown={(e) => key(e, true)} onKeyUp={(e) => key(e, false)} onFocus={() => setFocused(true)} onBlur={() => { setFocused(false); machine.keys = 0; }} />
+      {/* Over the canvas, so it never pushes the layout down when it appears. */}
       {note && <p className="fb-note small" role="status">{note}</p>}
-      {interactive && <p className="muted small">{focused ? "Keys go to the next tick: ← → ↑ ↓ Space Enter Esc." : "Click the framebuffer to send keys. Ticks are recorded for exact replay."}</p>}
+      </div>
+      {interactive && <p className="muted small fb-hint">{focused ? "Keys go to the next tick: ← → ↑ ↓ Space Enter Esc." : "Click the framebuffer to send keys. Ticks are recorded for exact replay."}</p>}
     </div>
   );
 }

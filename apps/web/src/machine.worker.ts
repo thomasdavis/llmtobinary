@@ -88,7 +88,11 @@ function sendState(force = false): void {
   const f = fp !== lastFrames ? frame() : null;
   lastFrames = fp;
   const chip = takeBatch();
-  post({ type: "state", runId, snapshot: machine.snapshot(), terminal: terminalText(), frame: f, framesPresented: fp, ...(chip ? { chip } : {}) }, f ? [f.buffer] : []);
+  // The engine reports "paused" between the slices this loop runs it in; to the page it is running
+  // until it is really paused (Pause, Step) or finished.
+  const snap = machine.snapshot();
+  const snapshot = running && snap.status === "paused" ? { ...snap, status: "running" as const } : snap;
+  post({ type: "state", runId, snapshot, terminal: terminalText(), frame: f, framesPresented: fp, ...(chip ? { chip } : {}) }, f ? [f.buffer] : []);
 }
 
 function finished(): boolean {

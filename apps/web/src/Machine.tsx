@@ -124,13 +124,17 @@ export function MachinePanel(props: {
             <button onClick={() => machine.hardReset()}>⟲ Reset machine</button>
             {interactive ? <button onClick={() => props.onLoadRun(true)} disabled={!view.ticks.length || running} title="Rerun with the recorded tick events">⟳ Replay ticks ({view.ticks.length})</button> : null}
           </div>
-          <p className="status" aria-live="polite">
-            state: <strong>{view.status}</strong>
+          {/* One fixed line that never reflows the column as the position changes; full text on hover. */}
+          <p className="status" aria-live="polite" title={`state: ${view.status}${s?.position ? ` · fn${s.position.functionId} block${s.position.blockId} record ${s.position.recordIndex} · depth ${s.position.depth}` : ""}${view.result ? ` · return ${formatGuestValue(view.result.returnValue)}` : ""}`}>
+            state: <strong className="status-word">{view.status}</strong>
             {s?.position && <> · fn{s.position.functionId} block{s.position.blockId} record {s.position.recordIndex} · depth {s.position.depth}</>}
             {view.result && <> · return <code>{formatGuestValue(view.result.returnValue)}</code></>}
-            {view.result?.trap && <> · <span className="error">trap {view.result.trap.code}: {view.result.trap.message}</span></>}
-            {view.error && <> · <span className="error">{view.error}</span></>}
           </p>
+          {(view.result?.trap || view.error) && (
+            <p className="error status-error" role="alert">
+              {view.result?.trap ? `trap ${view.result.trap.code}: ${view.result.trap.message}` : view.error}
+            </p>
+          )}
           {fast && <p className="muted small engine-note">Fast engine: the AI's binary translated to WebAssembly, binary to binary, like an emulator. Results are identical to the exact engine; the chip's storage (fast slots, backing) is not simulated, so lights, Step and storage counters need Exact.</p>}
           <LiveChip
             artifact={a}

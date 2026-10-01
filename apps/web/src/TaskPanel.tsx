@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Feature } from "@llmtobinary/spec";
+import { Feature, KNOWN_FEATURES } from "@llmtobinary/spec";
 import { TASKS, TASK_BY_ID, signatureText } from "@llmtobinary/tasks/registry";
 import type { CreateSessionRequest, LoopEvent } from "@llmtobinary/protocol";
 import type { ArtifactRecord } from "@llmtobinary/artifacts";
@@ -18,6 +18,8 @@ interface Draft {
   params: ("u64" | "bool")[];
   returns: "unit" | "u64" | "bool";
   features: number;
+  /** 2 = saved since every device became the default (older drafts carry the terminal-only default). */
+  devicesV?: number;
 }
 
 function loadDraft(): Draft | null {
@@ -72,10 +74,11 @@ export function TaskPanel(props: {
   const [description, setDescription] = useState(draft?.description ?? "");
   const [params, setParams] = useState<("u64" | "bool")[]>(draft?.params ?? ["u64"]);
   const [returns, setReturns] = useState<"unit" | "u64" | "bool">(draft?.returns ?? "u64");
-  const [features, setFeatures] = useState<number>(draft?.features ?? Feature.TERMINAL);
+  // Every device is on by default, so a prompt can ask for graphics, keys or a heap without setup.
+  const [features, setFeatures] = useState<number>(draft?.devicesV === 2 ? draft.features : KNOWN_FEATURES);
   useEffect(() => {
     try {
-      localStorage.setItem(DRAFT_KEY, JSON.stringify({ description, params, returns, features } satisfies Draft));
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({ description, params, returns, features, devicesV: 2 } satisfies Draft));
     } catch {
       /* storage unavailable: the draft just is not remembered */
     }

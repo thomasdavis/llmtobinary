@@ -106,6 +106,28 @@ for (const [label, viewport] of [["desktop", { width: 1440, height: 900 }], ["ph
     await page.goto(base, { waitUntil: "networkidle" });
   } else ok(true, `${label}: (no published programs yet; shared-link check skipped)`);
 
+  // Every device is on by default for a new prompt, and for drafts saved with the old terminal-only default.
+  const devicesOn = async () => {
+    const boxes = page.locator('fieldset:has(legend:text("devices it may use")) input[type="checkbox"]');
+    const n = await boxes.count();
+    let on = 0;
+    for (let i = 0; i < n; i++) if (await boxes.nth(i).isChecked()) on++;
+    return { n, on };
+  };
+  let dv = await devicesOn();
+  ok(dv.n === 4 && dv.on === 4, `${label}: all four devices are on by default in the simple view (${dv.on}/${dv.n})`);
+  await page.evaluate(() => localStorage.setItem("llmtobinary.customPrompt.v1", JSON.stringify({ description: "old draft", params: ["u64"], returns: "u64", features: 2 })));
+  await page.reload({ waitUntil: "networkidle" });
+  dv = await devicesOn();
+  ok(dv.on === 4, `${label}: an old terminal-only draft gets every device too (${dv.on}/${dv.n})`);
+  await page.getByRole("radio", { name: "Expert", exact: true }).click();
+  if (label === "phone") await page.getByRole("tab", { name: "program" }).click();
+  await page.getByRole("radio", { name: "Write your own" }).click();
+  dv = await devicesOn();
+  ok(dv.n === 4 && dv.on === 4, `${label}: all four devices are on in the expert view (${dv.on}/${dv.n})`);
+  await page.getByRole("radio", { name: "Simple", exact: true }).click();
+  await page.evaluate(() => localStorage.removeItem("llmtobinary.customPrompt.v1"));
+
   // Simple view hides the instrument's expert controls.
   ok((await page.getByLabel("Bundled fixture").count()) === 0, `${label}: the fixture picker is hidden`);
   ok((await page.getByText("output mode").count()) === 0, `${label}: generation research options are hidden`);
