@@ -72,6 +72,17 @@ for (const [label, viewport] of [["desktop", { width: 1440, height: 900 }], ["ph
   ok((await page.getByRole("radio", { name: "Simple", exact: true }).getAttribute("aria-checked")) === "true", `${label}: the top bar shows Simple selected`);
   await page.mouse.wheel(0, -3000);
 
+  // "System prompt" shows exactly what the AI is sent, with a slot for the visitor's prompt.
+  await page.getByRole("button", { name: "System prompt" }).click();
+  const sys = page.getByRole("dialog", { name: "System prompt" });
+  await sys.locator(".sysprompt-text").first().filter({ hasText: "You write executable programs for ANMA-1" }).waitFor({ timeout: 15_000 });
+  ok(true, `${label}: the System prompt modal shows the instructions`);
+  ok((await sys.locator("mark.sysprompt-slot").textContent()) === "⟨YOUR PROMPT⟩", `${label}: it marks where the visitor's prompt goes`);
+  ok(/check_candidate[\s\S]*submit_candidate/.test((await sys.locator(".sysprompt-text").nth(2).textContent()) ?? ""), `${label}: it lists both tools`);
+  await page.keyboard.press("Escape");
+  ok(!(await sys.isVisible()), `${label}: Escape closes it`);
+  ok((await page.locator("label.consent").count()) === 0, `${label}: there is no permission checkbox`);
+
   // The program bar: one dropdown with the presets and everything visitors published.
   const pbar = await page.locator("nav.programbar").boundingBox();
   ok(!!pbar && Math.abs(pbar.y - (bar?.height ?? 48)) <= 2, `${label}: the program bar sits under the top bar`);

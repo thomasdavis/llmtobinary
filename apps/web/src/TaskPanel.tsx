@@ -86,7 +86,6 @@ export function TaskPanel(props: {
   const [fixtureFile, setFixtureFile] = usePersistentState("fixtureFile", "square-plus-two.anma", (v) => typeof v === "string" && FIXTURES.some((f) => f.file === v));
   const [requireClaims, setRequireClaims] = usePersistentState("requireClaims", false, isBool);
   const [mode, setMode] = usePersistentState<"tools" | "raw-hex">("outputMode", "tools", oneOf("tools", "raw-hex"));
-  const [consent, setConsent] = useState(false);
   const [withPrompts, setWithPrompts] = usePersistentState("exportWithPrompts", false, isBool);
   const live = !!props.config?.liveGeneration;
   // The simple view always writes its own prompt; curated tasks live in the expert view.
@@ -220,25 +219,15 @@ export function TaskPanel(props: {
       </div>}
       {b && !props.expert && <p className="small muted">The AI ({props.config?.profiles[0]?.model ?? "not configured"}) works in a loop: it drafts, the checker points out mistakes, it fixes them. This can take a few minutes.</p>}
       {b && props.expert && <p className="small muted">Budget per session: {b.maxTurns} turns · {b.maxChecks} checks · {b.maxSubmissions} submissions · {b.maxOutputTokensPerSession.toLocaleString()} output tokens · {Math.round(b.maxWallClockMs / 60000)} min. Model: {props.config?.profiles[0]?.label ?? "not configured"}{effSource === "custom" && props.config?.profiles[0]?.openTaskReasoningEffort && props.config.profiles[0].openTaskReasoningEffort !== props.config.profiles[0].reasoningEffort ? `; your own prompts use ${props.config.profiles[0].openTaskReasoningEffort} reasoning` : ""}.</p>}
-      <label className="check consent"><input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} /> I understand that every generation here is public: my prompt, the program and how it went are listed for anyone in the program list. My task text and any failing test results go through this site's Cloudflare-hosted server to OpenAI, and the full session (including the model's drafts) is archived on that server for debugging. Runtime inputs are not sent unless I press “Share for debugging”.</label>
       <div className="row">
-        <button className="primary" disabled={!live || !consent || busy || (!task && !description.trim())} onClick={() => props.onGenerate(request())}>Generate</button>
-        <button onClick={props.onCancel} disabled={!busy}>Cancel generation</button>
+        <button className="primary" disabled={!live || busy || (!task && !description.trim())} onClick={() => props.onGenerate(request())}>Generate</button>
+        {props.expert && <button onClick={props.onCancel} disabled={!busy}>Cancel generation</button>}
       </div>
-      <GenerationView gen={props.gen} onSelect={props.onSelectSubmission} onShareDebug={props.onShareDebug} />
+      <p className="muted small public-note">Every generation is public: it is listed, with its prompt, in the program list.</p>
+      {/* The simple view follows a generation in its modal; the expert view keeps the full loop record here. */}
+      {props.expert && <GenerationView gen={props.gen} onSelect={props.onSelectSubmission} onShareDebug={props.onShareDebug} />}
 
-      {!props.expert ? (
-        props.history.length > 0 && (
-          <details className="your-programs">
-            <summary>Your programs ({Math.min(props.history.length, 30)})</summary>
-            <ul className="history">
-              {props.history.slice(0, 30).map((h) => (
-                <li key={h.sha256}><button className="link" onClick={() => props.onSelectHistory(h)}>{h.name}</button> <span className="muted small">{h.provenance.kind === "model-generated" ? "written by the AI" : h.provenance.kind === "bundled-fixture" ? "reference program" : "imported"}</span></li>
-              ))}
-            </ul>
-          </details>
-        )
-      ) : (<>
+      {props.expert && (<>
       <h3>Artifacts</h3>
       <div className="row wrap">
         <label className="button">Import…<input type="file" accept=".json,.anma,.hex,.txt" hidden onChange={(e) => e.target.files?.[0] && props.onImport(e.target.files[0])} /></label>

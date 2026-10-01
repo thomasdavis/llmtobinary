@@ -24,6 +24,8 @@ export interface GenState {
   phase: "idle" | "creating" | "streaming" | "testing" | "stopped" | "error";
   request: CreateSessionRequest | null;
   sessionId: string | null;
+  /** The generation's id in the public program list, once the session exists. */
+  programId: string | null;
   events: LoopEvent[];
   preview: string;
   submissions: SubmittedCandidate[];
@@ -43,7 +45,7 @@ export interface GenState {
 const MAX_EVENTS_KEPT = 4000;
 
 export class GenerationController {
-  state: GenState = { phase: "idle", request: null, sessionId: null, events: [], preview: "", submissions: [], outcome: null, stopDetail: null, error: null, counters: null, budget: null, reconnects: 0, turnText: "", startedAt: null, turnStartedAt: null };
+  state: GenState = { phase: "idle", request: null, sessionId: null, programId: null, events: [], preview: "", submissions: [], outcome: null, stopDetail: null, error: null, counters: null, budget: null, reconnects: 0, turnText: "", startedAt: null, turnStartedAt: null };
   private listeners = new Set<(s: GenState) => void>();
   private abort: AbortController | null = null;
   private token: string | null = null;
@@ -123,11 +125,11 @@ export class GenerationController {
 
   async start(req: CreateSessionRequest): Promise<void> {
     this.lastSeq = 0;
-    this.set({ phase: "creating", request: req, sessionId: null, events: [], preview: "", submissions: [], outcome: null, stopDetail: null, error: null, counters: null, budget: null, reconnects: 0, turnText: "", startedAt: Date.now(), turnStartedAt: null });
+    this.set({ phase: "creating", request: req, sessionId: null, programId: null, events: [], preview: "", submissions: [], outcome: null, stopDetail: null, error: null, counters: null, budget: null, reconnects: 0, turnText: "", startedAt: Date.now(), turnStartedAt: null });
     try {
       const s = await createSession(req);
       this.token = s.token;
-      this.set({ sessionId: s.sessionId, budget: s.budget, phase: "streaming" });
+      this.set({ sessionId: s.sessionId, programId: s.programId, budget: s.budget, phase: "streaming" });
       let feedback: BrowserFeedback | null = null;
       let resumes = 0;
       while (true) {

@@ -3,7 +3,7 @@
 
 import { CATALOG_VERSION } from "@llmtobinary/diagnostics";
 import { SPEC_ID, SPEC_SHA256, KNOWN_FEATURES } from "@llmtobinary/spec";
-import { DEFAULT_BUDGET, MAX_DEBUG_BROWSER_BYTES, PRICE_POLICY_VERSION, PROMPT_VERSION, profileFromEnv } from "@llmtobinary/broker";
+import { DEFAULT_BUDGET, MAX_DEBUG_BROWSER_BYTES, PRICE_POLICY_VERSION, PROMPT_VERSION, TOOLS, generationInstructions, profileFromEnv } from "@llmtobinary/broker";
 import { TASK_BY_ID } from "@llmtobinary/tasks/registry";
 import { PROTOCOL_VERSION, type ConfigResponse, type CreateSessionRequest, type CreateSessionResponse, type AttemptRequest } from "@llmtobinary/protocol";
 import { signToken, verifyToken } from "./auth.ts";
@@ -122,6 +122,11 @@ async function route(request: Request, env: Env): Promise<Response> {
 
   if (path === "/api/config" && request.method === "GET") return json(config(env));
 
+  // The exact system instructions and tool definitions every generation is given.
+  if (path === "/api/system-prompt" && request.method === "GET") {
+    return json({ promptVersion: PROMPT_VERSION, instructions: generationInstructions(), tools: TOOLS }, 200, { "cache-control": "public, max-age=300" });
+  }
+
   // Operator only: list generations made before the program list existed, from the debug archive.
   if (path === "/api/admin/gallery/rebuild" && request.method === "POST") {
     const key = env.GALLERY_ADMIN_KEY;
@@ -162,9 +167,9 @@ async function route(request: Request, env: Env): Promise<Response> {
     const payload: CreatePayload = { sessionId, request: req, profile: sessionProf, budget: {}, ttlMs };
     const res = await stub.fetch("https://session/create", { method: "POST", body: JSON.stringify(payload) });
     if (!res.ok) return withApiHeaders(res);
-    const created = (await res.json()) as { budget: CreateSessionResponse["budget"]; expiresAt: number };
+    const created = (await res.json()) as { programId: string; budget: CreateSessionResponse["budget"]; expiresAt: number };
     const token = await signToken({ sid: sessionId, exp: created.expiresAt }, env.SESSION_SIGNING_KEY!);
-    return json({ sessionId, token, budget: created.budget, expiresAt: created.expiresAt } satisfies CreateSessionResponse, 201);
+    return json({ sessionId, programId: created.programId, token, budget: created.budget, expiresAt: created.expiresAt } satisfies CreateSessionResponse, 201);
   }
 
   const m = /^\/api\/generation-sessions\/([0-9a-f-]{36})(\/attempts|\/events|\/cancel|\/debug)?$/.exec(path);

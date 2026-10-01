@@ -198,6 +198,8 @@ export interface CreateSessionRequest {
 
 export interface CreateSessionResponse {
   sessionId: string;
+  /** This generation's id in the public program list (link: /?program=<id>). */
+  programId: string;
   token: string;
   budget: LoopBudget;
   expiresAt: number;

@@ -25,6 +25,17 @@ export async function getConfig(): Promise<Config> {
   return jsonOrThrow<Config>(await fetch("/api/config"));
 }
 
+export interface SystemPrompt {
+  promptVersion: string;
+  instructions: string;
+  tools: { name: string; description: string; parameters: unknown }[];
+}
+
+/** The system instructions and tool definitions every generation is given. */
+export async function getSystemPrompt(): Promise<SystemPrompt> {
+  return jsonOrThrow<SystemPrompt>(await fetch("/api/system-prompt"));
+}
+
 /** One page of the public gallery, newest first. */
 export async function getGallery(cursor: string | null = null): Promise<GalleryPage> {
   return jsonOrThrow<GalleryPage>(await fetch(`/api/gallery${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`));

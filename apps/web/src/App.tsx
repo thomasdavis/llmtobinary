@@ -14,6 +14,7 @@ import { F_CHOICES, MachinePanel, parseEntryInputs } from "./Machine.tsx";
 import { isBool, oneOf, usePersistentState } from "./settings.ts";
 import { Intro, type IntroAction } from "./Intro.tsx";
 import { GenerationModal } from "./GenerationModal.tsx";
+import { SystemPromptModal } from "./SystemPrompt.tsx";
 import { BinaryView } from "./BinaryView.tsx";
 import { AI_EXAMPLES, REFERENCE_EXAMPLES, loadExample, type AiExample } from "./examples.ts";
 import { ProgramBar, ProgramCard, devices, duration, ago, outcomeStatus, programText, type ChosenProgram, type Pick, type RefExample } from "./ProgramPicker.tsx";
@@ -119,6 +120,7 @@ export function App() {
   const [introOpen, setIntroOpen] = useState(!introSeen);
   const [promptFocus, setPromptFocus] = useState(0);
   const [genOpen, setGenOpen] = useState(false);
+  const [sysOpen, setSysOpen] = useState(false);
   /** The program picked in the program bar, and the bytes it loaded (the card hides once others load). */
   const [chosen, setChosen] = useState<{ program: ChosenProgram; sha: string | null } | null>(null);
   const [galleryRefresh, setGalleryRefresh] = useState(0);
@@ -264,7 +266,7 @@ export function App() {
       const task = req.task.taskId ? TASK_BY_ID.get(req.task.taskId) : null;
       const summary = c.annotations && typeof c.annotations === "object" ? (c.annotations as { summary?: unknown }).summary : null;
       const s = gen.state;
-      setProgramParam(null);
+      setProgramParam(s.programId);
       setChosen({
         sha: c.sha256,
         program: {
@@ -281,10 +283,16 @@ export function App() {
             ...(c.bytes ? [{ k: "Size", v: `${c.bytes.length.toLocaleString()} bytes` }] : []),
             { k: "Listed", v: "publicly, in the program list" },
           ],
+          ...(s.programId ? { link: programLink(s.programId) } : {}),
         },
       });
     };
   }, [gen, onSubmission, config]);
+
+  // A generation gets its link the moment it starts: the address bar then points at it.
+  useEffect(() => {
+    if (genState.programId) setProgramParam(genState.programId);
+  }, [genState.programId]);
 
   // The visitor's own generation appears in the list when it starts, and updates when it stops.
   useEffect(() => {
@@ -472,7 +480,8 @@ export function App() {
           <span className="topbar-byline">AI-written machine code, run in your browser</span>
         </div>
         <div className="topbar-actions">
-          <button className="topbar-help" onClick={() => setIntroOpen(true)}>What is this?</button>
+          <button className="topbar-help" onClick={() => setSysOpen(true)} aria-label="System prompt"><span className="wide-only">System prompt</span><span className="narrow-only">Prompt</span></button>
+          <button className="topbar-help" onClick={() => setIntroOpen(true)} aria-label="What is this?"><span className="wide-only">What is this?</span><span className="narrow-only">?</span></button>
           <div className="segmented view-toggle" role="radiogroup" aria-label="View">
             <button role="radio" aria-checked={!expert} className={!expert ? "on" : ""} onClick={() => setExpert(false)} title="The guided view: choose a program, read its binary in plain English, run it">Simple</button>
             <button role="radio" aria-checked={expert} className={expert ? "on" : ""} onClick={() => setExpert(true)} title="The full instrument: hex inspector, diagnostics, counters, trace, curated tasks, export">Expert</button>
@@ -482,6 +491,7 @@ export function App() {
     </nav>
     <ProgramBar chosen={chosenShown ? chosen.program : null} onPick={onPick} onAsk={() => { setTab("program"); setPromptFocus((n) => n + 1); }} refresh={galleryRefresh} />
     <div className={`app${expert ? " is-expert" : " is-simple"}`}>
+      <SystemPromptModal open={sysOpen} onClose={() => setSysOpen(false)} />
       <Intro open={introOpen} onClose={closeIntro} onAction={onIntroAction} canGenerate={!!config?.liveGeneration} />
       <GenerationModal
         gen={genState}

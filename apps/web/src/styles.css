@@ -451,3 +451,17 @@ dialog.genmodal[open] { animation: intro-in 220ms cubic-bezier(0.22, 1, 0.36, 1)
 }
 
 @media (max-width: 720px) { .topbar-byline { display: none; } }
+
+/* system prompt modal */
+dialog.intro.sysprompt { width: min(980px, calc(100% - 24px)); }
+.sysprompt-lead { margin: 0; color: var(--muted); max-width: 75ch; }
+.sysprompt-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: 14px; padding-right: 4px; }
+.sysprompt-body h3 { margin: 0 0 6px; font-size: 14px; }
+.sysprompt-text { margin: 0; padding: 10px 12px; background: #f4f6f9; border: 1px solid var(--line); border-radius: 6px; font: 12.5px/1.5 var(--mono); white-space: pre-wrap; word-break: normal; overflow-wrap: anywhere; }
+.sysprompt-slot { background: #fff1b8; color: var(--ink); padding: 0 3px; border-radius: 3px; font-weight: 600; }
+.public-note { margin: 2px 0 0; }
+@media (max-width: 640px) {
+  .topbar-help { font-size: 12px; padding: 5px 7px; }
+}
+.topbar-brand { flex: none; }
+.topbar-actions { flex: none; }

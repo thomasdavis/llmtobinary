@@ -68,11 +68,13 @@ for (const name of ["framebuffer", "event input", "typed heap"]) {
 if (await page.getByRole("checkbox", { name: "terminal" }).isChecked()) await page.getByRole("checkbox", { name: "terminal" }).uncheck();
 
 if (live) {
-  await page.getByText(/I understand that every generation/).click();
   await page.getByRole("button", { name: "Generate" }).click();
   const modal = page.locator("dialog.genmodal");
   await modal.waitFor({ timeout: 10_000 });
   ok(await modal.isVisible(), "Generate opens the progress modal");
+  await page.waitForURL(/[?&]program=\d{13}-[0-9a-f-]{36}/, { timeout: 30_000 });
+  const link = page.url();
+  ok(true, `the address bar links to the new generation (${link.split("?")[1]})`);
   await page.keyboard.press("Escape");
   ok(await modal.isVisible(), "the modal cannot be dismissed while the AI works");
   await modal.getByRole("heading", { name: "Finished" }).waitFor({ timeout: 360_000 });

@@ -6,7 +6,7 @@
 import { DurableObject } from "cloudflare:workers";
 import { FakeModelClient, OpenAIModelClient, MAX_DEBUG_BROWSER_BYTES, buildDebugArchive, cancelSession, createSession, recoverLostAttempt, runAttempt, LoopError, type BudgetGate, type ModelClient, type ModelProfile, type ScriptedTurn, type SessionState } from "@llmtobinary/broker";
 import type { AttemptRequest, CreateSessionRequest, LoopBudget, LoopEvent, SessionSummary } from "@llmtobinary/protocol";
-import { buildGalleryEntry, putGalleryEntry } from "./gallery.ts";
+import { buildGalleryEntry, galleryId, putGalleryEntry } from "./gallery.ts";
 
 const enc = new TextEncoder();
 const pad = (n: number) => String(n).padStart(10, "0");
@@ -142,7 +142,7 @@ export class GenerationSession extends DurableObject<Env> {
     const entry = this.env.DEBUG_ARCHIVE ? buildGalleryEntry({ state: this.state, events: [], expired: false, now }) : null;
     if (entry) this.ctx.waitUntil(putGalleryEntry(this.env.DEBUG_ARCHIVE!, entry).catch(() => log({ event: "gallery-failed", sessionId: p.sessionId })));
     log({ event: "created", sessionId: p.sessionId, mode: p.request.mode, task: p.request.task.taskId ?? "open" });
-    return Response.json({ sessionId: p.sessionId, budget: this.state.budget, expiresAt: this.state.expiresAt });
+    return Response.json({ sessionId: p.sessionId, programId: galleryId(this.state.createdAt, p.sessionId), budget: this.state.budget, expiresAt: this.state.expiresAt });
   }
 
   private async attempt(req: AttemptRequest): Promise<Response> {
