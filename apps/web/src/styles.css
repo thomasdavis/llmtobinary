@@ -465,3 +465,7 @@ dialog.intro.sysprompt { width: min(980px, calc(100% - 24px)); }
 }
 .topbar-brand { flex: none; }
 .topbar-actions { flex: none; }
+
+/* playtest frames in the generation timeline */
+.tl-frames { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.tl-frames img { width: 96px; height: 54px; image-rendering: pixelated; border: 1px solid var(--line); border-radius: 3px; background: #000; }

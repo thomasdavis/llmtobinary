@@ -60,7 +60,23 @@ export type ModelEvent =
   | { type: "incomplete"; responseId: string | null; reason: string; usage: ModelUsage | null }
   | { type: "error"; code: string; message: string; retryable: boolean; status: number | null };
 
+/** An independent review call: one user message (text + images), answered with a forced verdict tool. */
+export interface ReviewRequest {
+  profile: ModelProfile;
+  instructions: string;
+  text: string;
+  /** PNG data URLs. */
+  images: string[];
+  maxOutputTokens: number;
+}
+
+export type ReviewResult =
+  | { ok: true; verdict: { complete: boolean; delivered: string; missing: string[] }; usage: ModelUsage | null }
+  | { ok: false; message: string; usage: ModelUsage | null };
+
 export interface ModelClient {
   readonly kind: "openai" | "fake";
   turn(req: ModelTurnRequest, signal: AbortSignal): AsyncIterable<ModelEvent>;
+  /** Optional: clients without it skip playtest reviews. */
+  review?(req: ReviewRequest, signal: AbortSignal): Promise<ReviewResult>;
 }

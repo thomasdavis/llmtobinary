@@ -161,6 +161,8 @@ export interface LoopBudget {
   maxSubmissions: number;
   maxWallClockMs: number;
   stallRepeatK: number;
+  /** Playtest reviews of a passing open-task program that draws (each may send the AI back to work). */
+  maxReviews?: number;
 }
 
 export interface LoopCounters {
@@ -171,6 +173,8 @@ export interface LoopCounters {
   inputTokens: number;
   unknownUsageTurns: number;
   startedAt: number;
+  /** Playtest reviews run so far. */
+  reviews?: number;
 }
 
 export interface TaskRequest {
@@ -210,6 +214,38 @@ export interface BrowserFeedback {
   candidateSha256: string;
   validation: CheckReport;
   tests: TestReport | null;
+  /** For a passing program that draws: what the browser saw when it played it. */
+  playtest?: Playtest | null;
+}
+
+/**
+ * The browser played a program that draws for a few seconds on the fast engine with a fixed,
+ * generic input script, captured frames along the way, and compared against a run with no input.
+ */
+export interface Playtest {
+  /** Plain description of the scripted input (which keys, when). */
+  script: string;
+  ticks: number;
+  framesPresented: number;
+  /** Distinct screens among the captured frames. */
+  distinctFrames: number;
+  /** Whether the screen differed from a run with no input at the same frames; null when the program reads no input. */
+  inputChangesScreen: boolean | null;
+  /** How the run ended: "still running", "halted", "trapped: …". */
+  ended: string;
+  /** Share of pixels with alpha below 255 across the captured frames (a colour byte-order slip shows here). */
+  translucentPercent?: number | null;
+  /** Captured frames, oldest first: PNG data URLs (256×144). */
+  frames: { frame: number; png: string }[];
+}
+
+/** A reviewer's verdict on a playtest, against the visitor's request. */
+export interface ReviewVerdict {
+  complete: boolean;
+  /** What already works. */
+  delivered: string;
+  /** Concrete gaps, most important first. */
+  missing: string[];
 }
 
 export interface AttemptRequest {
@@ -266,6 +302,8 @@ export type LoopEvent =
   | (EventBase & { type: "loop.elided"; elidedChecks: number; elidedDrafts?: number })
   | (EventBase & { type: "attempt.completed"; providerStatus: string; responseIds: string[] })
   | (EventBase & { type: "attempt.refused"; message: string })
+  | (EventBase & { type: "review.started"; candidateSha256: string; frames: number })
+  | (EventBase & { type: "review.result"; verdict: ReviewVerdict | null; note: string })
   | (EventBase & { type: "attempt.incomplete"; reason: string })
   | (EventBase & { type: "attempt.error"; code: string; message: string; retryable: boolean })
   | (EventBase & { type: "attempt.cancelled" })

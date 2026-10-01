@@ -3,7 +3,8 @@
 // bounded feedback as the next outer iteration under the consent given at the start.
 
 import { checkCandidate } from "@llmtobinary/check";
-import type { BrowserFeedback, CheckReport, CreateSessionRequest, LoopBudget, LoopCounters, LoopEvent, StopOutcome, TestReport } from "@llmtobinary/protocol";
+import { Feature, KEYS } from "@llmtobinary/spec";
+import type { BrowserFeedback, CheckReport, CreateSessionRequest, EntryInput, LoopBudget, LoopCounters, LoopEvent, Playtest, StopOutcome, TestReport, TickEvent } from "@llmtobinary/protocol";
 import { cancelSession, createSession, resumeEvents, shareDebug, streamAttempt } from "./api.ts";
 import type { MachineClient } from "./machine-client.ts";
 
@@ -40,12 +41,14 @@ export interface GenState {
   /** Client clock (ms) when the session and the current turn started. */
   startedAt: number | null;
   turnStartedAt: number | null;
+  /** Playtests this browser ran, by candidate SHA-256 (frames shown in the generation window). */
+  playtests: Record<string, Playtest>;
 }
 
 const MAX_EVENTS_KEPT = 4000;
 
 export class GenerationController {
-  state: GenState = { phase: "idle", request: null, sessionId: null, programId: null, events: [], preview: "", submissions: [], outcome: null, stopDetail: null, error: null, counters: null, budget: null, reconnects: 0, turnText: "", startedAt: null, turnStartedAt: null };
+  state: GenState = { phase: "idle", request: null, sessionId: null, programId: null, events: [], preview: "", submissions: [], outcome: null, stopDetail: null, error: null, counters: null, budget: null, reconnects: 0, turnText: "", startedAt: null, turnStartedAt: null, playtests: {} };
   private listeners = new Set<(s: GenState) => void>();
   private abort: AbortController | null = null;
   private token: string | null = null;
@@ -125,7 +128,7 @@ export class GenerationController {
 
   async start(req: CreateSessionRequest): Promise<void> {
     this.lastSeq = 0;
-    this.set({ phase: "creating", request: req, sessionId: null, programId: null, events: [], preview: "", submissions: [], outcome: null, stopDetail: null, error: null, counters: null, budget: null, reconnects: 0, turnText: "", startedAt: Date.now(), turnStartedAt: null });
+    this.set({ phase: "creating", request: req, sessionId: null, programId: null, events: [], preview: "", submissions: [], outcome: null, stopDetail: null, error: null, counters: null, budget: null, reconnects: 0, turnText: "", startedAt: Date.now(), turnStartedAt: null, playtests: {} });
     try {
       const s = await createSession(req);
       this.token = s.token;
@@ -155,9 +158,13 @@ export class GenerationController {
           tests: cand.test,
         };
         if (cand.status === "task-passed" || cand.status === "executed-unverified") {
+          // A visitor's own program that draws is played before it is accepted: the server's
+          // reviewer may send the AI back to work, in which case this loop simply continues.
+          if (cand.status === "executed-unverified" && cand.bytes && draws(cand.bytes)) {
+            feedback.playtest = await this.playtest(cand.bytes, req).catch(() => null);
+            if (feedback.playtest && cand.sha256) this.set({ playtests: { ...this.state.playtests, [cand.sha256]: feedback.playtest } });
+          }
           this.onPassed?.(cand);
-          await this.attempt(crypto.randomUUID(), feedback); // closes the loop as passed
-          return;
         }
       }
     } catch (e) {
@@ -167,6 +174,18 @@ export class GenerationController {
       }
       this.set({ phase: "error", error: (e as Error).message });
     }
+  }
+
+  /** Play a passing program that draws: scripted keys, captured frames (PNG), and a no-input comparison. */
+  private async playtest(bytes: Uint8Array, req: CreateSessionRequest): Promise<Playtest> {
+    const inputs: EntryInput[] = req.task.params.map((p) => (p === "bool" ? { t: "bool", v: false } : { t: "u64", v: "0" }));
+    const r = await this.machine.playtest(bytes, inputs, req.task.allowedFeatures || this.allowedFeatures(), PLAYTEST_TICKS, PLAYTEST_FRAMES, 4000);
+    const frames: Playtest["frames"] = [];
+    for (const f of r.frames) {
+      const png = await rgbaToPng(new Uint8ClampedArray(f.rgba));
+      if (png) frames.push({ frame: f.frame, png });
+    }
+    return { script: PLAYTEST_SCRIPT, ticks: PLAYTEST_TICKS.length, framesPresented: r.framesPresented, distinctFrames: r.distinctFrames, inputChangesScreen: r.inputChangesScreen, ended: r.ended, translucentPercent: r.translucentPercent, frames };
   }
 
   /** Independent browser validation and testing of a submitted candidate. */
@@ -244,5 +263,44 @@ export class GenerationController {
     this.abort?.abort();
     if (this.state.sessionId && this.token) await cancelSession(this.state.sessionId, this.token).catch(() => undefined);
     this.set({ phase: "stopped", outcome: this.state.outcome ?? "cancelled" });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Playtest: a fixed, generic input script (no knowledge of the program), about ten seconds of ticks.
+
+const key = (name: (typeof KEYS)[number]) => 1 << KEYS.indexOf(name);
+const PLAYTEST_TICKS: TickEvent[] = Array.from({ length: 300 }, (_, k) => {
+  const t = k + 1;
+  let keys = 0;
+  if (t > 45 && (t - 46) % 15 < 2) keys |= key("Space");
+  if (t >= 100 && t < 160) keys |= key("Right");
+  if (t >= 160 && t < 200) keys |= key("Left");
+  if (t >= 200 && t < 260 && t % 40 < 3) keys |= key("Up");
+  if (t >= 260 && t < 280) keys |= key("Down");
+  if (t >= 290 && t < 292) keys |= key("Enter");
+  return { tick: String(t), keys };
+});
+const PLAYTEST_SCRIPT = "300 input ticks (about 10 s at 30 per second): ticks 1-45 no keys; from tick 46 Space tapped for 2 ticks every 15 ticks; Right arrow held 100-159; Left arrow held 160-199; Up arrow tapped every 40 ticks 200-259; Down arrow held 260-279; Enter at 290-291. Programs that read no input simply run.";
+const PLAYTEST_FRAMES = [1, 30, 60, 90, 130, 180, 240, 300];
+
+/** The file's feature bitmask (header word 2) says whether the program uses the framebuffer. */
+function draws(bytes: Uint8Array): boolean {
+  if (bytes.length < 12) return false;
+  const features = (bytes[8]! | (bytes[9]! << 8) | (bytes[10]! << 16) | (bytes[11]! << 24)) >>> 0;
+  return (features & Feature.FRAMEBUFFER) !== 0;
+}
+
+async function rgbaToPng(rgba: Uint8ClampedArray): Promise<string | null> {
+  try {
+    const c = document.createElement("canvas");
+    c.width = 256;
+    c.height = 144;
+    const buf = new Uint8ClampedArray(new ArrayBuffer(rgba.length));
+    buf.set(rgba);
+    c.getContext("2d")!.putImageData(new ImageData(buf, 256, 144), 0, 0);
+    return c.toDataURL("image/png");
+  } catch {
+    return null;
   }
 }

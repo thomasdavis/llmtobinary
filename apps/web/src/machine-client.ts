@@ -217,6 +217,11 @@ export class MachineClient {
     return this.job<Extract<FromMachine, { type: "test-result" }>>({ type: "test", jobId: ++this.jobId, bytes: copy, taskId, annotations, claims, allowedFeatures }, [copy]);
   }
 
+  playtest(bytes: Uint8Array, inputs: EntryInput[], allowedFeatures: number, ticks: TickEvent[], capture: number[], wallMs: number): Promise<Extract<FromMachine, { type: "playtest-result" }>> {
+    const copy = bytes.slice().buffer as ArrayBuffer;
+    return this.job<Extract<FromMachine, { type: "playtest-result" }>>({ type: "playtest", jobId: ++this.jobId, bytes: copy, inputs, allowedFeatures, ticks, capture, wallMs }, [copy]);
+  }
+
   compare(bytes: Uint8Array, inputs: EntryInput[], Fs: number[], ticks: TickEvent[], allowedFeatures: number): Promise<{ rows: CompareRow[]; semanticAgreement: boolean; missingBackingActivity: number[]; resourceLimited: number[] }> {
     const copy = bytes.slice().buffer;
     return this.job<Extract<FromMachine, { type: "compare-result" }>>({ type: "compare", jobId: ++this.jobId, bytes: copy, inputs, Fs, ticks, allowedFeatures }, [copy]);

@@ -17,7 +17,8 @@ export type ToMachine =
   | { type: "watch"; mode: WatchMode }
   | { type: "rate"; rate: number | null }
   | { type: "test"; jobId: number; bytes: ArrayBuffer; taskId: string | null; annotations: unknown; claims: { checked: number; matched: number } | null; allowedFeatures: number }
-  | { type: "compare"; jobId: number; bytes: ArrayBuffer; inputs: EntryInput[]; Fs: number[]; ticks: TickEvent[]; allowedFeatures: number };
+  | { type: "compare"; jobId: number; bytes: ArrayBuffer; inputs: EntryInput[]; Fs: number[]; ticks: TickEvent[]; allowedFeatures: number }
+  | { type: "playtest"; jobId: number; bytes: ArrayBuffer; inputs: EntryInput[]; allowedFeatures: number; ticks: TickEvent[]; capture: number[]; wallMs: number };
 
 export interface CompareRow {
   F: number;
@@ -57,6 +58,7 @@ export type FromMachine =
   | { type: "state"; runId: number; snapshot: MachineSnapshot; terminal: string; frame: Uint8ClampedArray | null; framesPresented: number; chip?: ChipBatch }
   | { type: "done"; runId: number; result: RunResult; snapshot: MachineSnapshot; terminal: string; frame: Uint8ClampedArray | null; chip?: ChipBatch }
   | { type: "test-result"; jobId: number; report: TestReport; modelReport: TestReport; witness: unknown }
+  | { type: "playtest-result"; jobId: number; frames: { frame: number; rgba: ArrayBuffer }[]; framesPresented: number; ended: string; distinctFrames: number; inputChangesScreen: boolean | null; translucentPercent: number | null }
   | { type: "compare-result"; jobId: number; rows: CompareRow[]; reference: { returnValue: string; terminalSha256: string; effectsHash: string; framebufferHash: string | null; status: string }; semanticAgreement: boolean; missingBackingActivity: number[]; resourceLimited: number[] }
   | { type: "job-error"; jobId: number; message: string };
 

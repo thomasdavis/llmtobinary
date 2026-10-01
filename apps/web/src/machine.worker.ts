@@ -248,6 +248,53 @@ self.onmessage = (ev: MessageEvent<ToMachine | ToChip>) => {
         post({ type: "test-result", jobId: m.jobId, report, modelReport: redactForModel(report), witness: witnessResults[0] ?? null });
         return;
       }
+      case "playtest": {
+        // Play a program that draws on the fast engine with a scripted input sequence, capturing
+        // frames; when it reads input, replay the same number of ticks with no keys and compare.
+        const module = validated(copy(m.bytes), m.allowedFeatures);
+        const readsInput = (module.features & 8) !== 0;
+        const play = (ticks: TickEvent[]) => {
+          const mach = createFastMachine(module, m.inputs, { config: { fastSlots: 16, policy: "fifo-v1", trace: false }, allowedFeatures: m.allowedFeatures, ticks, limits: INTERACTIVE_RUN_LIMITS });
+          const want = new Set(m.capture);
+          const frames = new Map<number, Uint8ClampedArray>();
+          const t0 = performance.now();
+          let last = 0;
+          let ended = "still running when the playtest ended";
+          while (performance.now() - t0 < m.wallMs) {
+            const s = mach.run(4000);
+            const fp = mach.devices.framesPresented;
+            if (fp !== last) {
+              const shot = mach.devices.presentedFrame();
+              for (let f = last + 1; f <= fp; f++) if (want.has(f) && shot && !frames.has(f)) frames.set(f, new Uint8ClampedArray(shot));
+              last = fp;
+            }
+            if (s === "halted") { ended = "halted (the program returned)"; break; }
+            if (s === "trapped") { ended = `trapped: ${mach.result().trap?.code ?? ""} ${mach.result().trap?.message ?? ""}`.trim(); break; }
+            if (s === "cancelled") { ended = "cancelled"; break; }
+            if (s === "waiting-input") { ended = "still running, waiting for more input when the scripted ticks ran out"; break; }
+          }
+          return { frames, framesPresented: mach.devices.framesPresented, ended };
+        };
+        const hash = (f: Uint8ClampedArray) => {
+          let h = 0x811c9dc5;
+          for (let i = 0; i < f.length; i += 4) h = Math.imul(h ^ (f[i]! | (f[i + 1]! << 8) | (f[i + 2]! << 16)), 0x01000193);
+          return h >>> 0;
+        };
+        const withKeys = play(readsInput ? (m.ticks as TickEvent[]) : []);
+        let inputChangesScreen: boolean | null = null;
+        if (readsInput) {
+          const idle = play((m.ticks as TickEvent[]).map((t) => ({ tick: t.tick, keys: 0 })));
+          inputChangesScreen = [...withKeys.frames].some(([n, f]) => { const g = idle.frames.get(n); return !g || hash(g) !== hash(f); });
+        }
+        const list = [...withKeys.frames].sort((a, b) => a[0] - b[0]);
+        const distinct = new Set(list.map(([, f]) => hash(f))).size;
+        let translucent = 0;
+        for (const [, f] of list) for (let i = 3; i < f.length; i += 4) if (f[i]! < 255) translucent++;
+        const translucentPercent = list.length ? (100 * translucent) / (list.length * 256 * 144) : null;
+        const frames = list.map(([frame, f]) => ({ frame, rgba: f.buffer as ArrayBuffer }));
+        post({ type: "playtest-result", jobId: m.jobId, frames, framesPresented: withKeys.framesPresented, ended: withKeys.ended, distinctFrames: distinct, inputChangesScreen, translucentPercent }, frames.map((f) => f.rgba));
+        return;
+      }
       case "compare": {
         const module = validated(copy(m.bytes), m.allowedFeatures);
         const rep = runInvariance(module, m.inputs, { Fs: m.Fs, ticks: m.ticks as TickEvent[] });

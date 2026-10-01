@@ -6,7 +6,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { LoopEvent } from "@llmtobinary/protocol";
 import type { GenState, SubmittedCandidate } from "./generation.ts";
 
-const STAGES = ["Thinking", "Writing bytes", "Checking", "Fixing", "Testing", "Done"] as const;
+const STAGES = ["Thinking", "Writing bytes", "Checking", "Fixing", "Testing", "Reviewing", "Done"] as const;
 type Stage = (typeof STAGES)[number];
 
 const busyPhases = new Set(["creating", "streaming", "testing"]);
@@ -42,6 +42,8 @@ interface Item {
   tone: "info" | "ok" | "bad" | "warn" | "live";
   title: string;
   detail?: string[];
+  /** Playtest frames (PNG data URLs). */
+  images?: string[];
 }
 
 function timeline(g: GenState): Item[] {
@@ -52,7 +54,8 @@ function timeline(g: GenState): Item[] {
     switch (e.type) {
       case "attempt.started":
         // Only when the AI then keeps working: after a pass, this exchange just reports success.
-        if ((e as Extract<LoopEvent, { type: "attempt.started" }>).iteration > 0 && g.events.slice(i + 1).some((x) => x.type === "turn.started")) {
+        // (A playtest review in this exchange speaks for itself.)
+        if ((e as Extract<LoopEvent, { type: "attempt.started" }>).iteration > 0 && g.events.slice(i + 1).some((x) => x.type === "turn.started") && g.events[i + 1]?.type !== "review.started") {
           items.push({ key: `a${e.seq}`, tone: "info", title: "The test results went back to the AI" });
         }
         break;
@@ -97,6 +100,20 @@ function timeline(g: GenState): Item[] {
       case "attempt.refused":
         items.push({ key: `x${e.seq}`, tone: "bad", title: "The AI declined the request" });
         break;
+      case "review.started": {
+        const ev = e as Extract<LoopEvent, { type: "review.started" }>;
+        const done = g.events.slice(i + 1).some((x) => x.type === "review.result");
+        const pt = g.playtests[ev.candidateSha256];
+        items.push({ key: `p${e.seq}`, tone: done ? "info" : "live", title: `Your browser played it for ${pt ? `${pt.ticks} ticks` : "a few seconds"} with scripted key presses; a reviewer is comparing what it saw with your request`, ...(pt ? { images: pt.frames.map((f) => f.png) } : {}) });
+        break;
+      }
+      case "review.result": {
+        const ev = e as Extract<LoopEvent, { type: "review.result" }>;
+        if (!ev.verdict) items.push({ key: `v${e.seq}`, tone: "info", title: `No review this time: ${ev.note}` });
+        else if (ev.verdict.complete) items.push({ key: `v${e.seq}`, tone: "ok", title: "The reviewer says it delivers your request", detail: [ev.verdict.delivered] });
+        else items.push({ key: `v${e.seq}`, tone: "warn", title: "The reviewer says it isn't there yet, so the AI is improving it", detail: ev.verdict.missing.slice(0, 4) });
+        break;
+      }
     }
   });
   return items;
@@ -105,6 +122,8 @@ function timeline(g: GenState): Item[] {
 function stage(g: GenState): Stage {
   if (g.outcome || g.phase === "stopped" || g.phase === "error") return "Done";
   if (g.phase === "testing") return "Testing";
+  const review = [...g.events].reverse().find((e) => e.type === "review.started" || e.type === "review.result" || e.type === "turn.started");
+  if (review?.type === "review.started") return "Reviewing";
   if (g.phase === "creating") return "Thinking";
   if (streamedBytes(g.turnText).bytes > 0) return "Writing bytes";
   const last = [...g.events].reverse().find((e) => e.type === "check.result" || e.type === "check.requested" || e.type === "turn.started");
@@ -249,6 +268,11 @@ export function GenerationModal(props: { gen: GenState; open: boolean; onClose: 
                   {it.detail?.map((d, k) => (
                     <span key={k} className="tl-detail">{d}</span>
                   ))}
+                  {it.images && it.images.length > 0 && (
+                    <span className="tl-frames">
+                      {it.images.map((src, k) => <img key={k} src={src} alt={`playtest frame ${k + 1}`} width={128} height={72} />)}
+                    </span>
+                  )}
                 </li>
               ))}
             </ol>

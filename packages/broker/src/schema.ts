@@ -108,3 +108,23 @@ export const ANMR_TOOLS = TOOLS.map((t) => ({
   description: t.description.replace(/ANMA-1/g, "ANMR-1").replace(" and cross-check its annotations", ""),
   parameters: anmrEnvelopeSchema as unknown as Record<string, unknown>,
 }));
+
+export const REVIEW_TOOL_NAME = "review_verdict" as const;
+
+/** The reviewer's only output: a strict verdict (the SDK validates arguments against it). */
+export const REVIEW_TOOL = {
+  type: "function" as const,
+  name: REVIEW_TOOL_NAME,
+  description: "Record whether the program, as seen in the playtest, delivers what the visitor asked for.",
+  strict: true,
+  parameters: {
+    type: "object",
+    additionalProperties: false,
+    required: ["complete", "delivered", "missing"],
+    properties: {
+      complete: { type: "boolean", description: "true only if a visitor would say the request was delivered" },
+      delivered: { type: "string", description: "what the frames show already working, briefly" },
+      missing: { type: "array", items: { type: "string" }, description: "concrete gaps between the request and what the frames show, most important first; empty when complete" },
+    },
+  } as Record<string, unknown>,
+};

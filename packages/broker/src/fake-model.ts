@@ -2,7 +2,7 @@
 // exercised deterministically. The Worker enables it only when ENVIRONMENT === "test" and
 // TEST_FAKE_MODEL === "1"; neither is ever set by wrangler.jsonc for a deployed environment.
 
-import type { ModelClient, ModelEvent, ModelTurnRequest } from "./model.ts";
+import type { ModelClient, ModelEvent, ModelTurnRequest, ReviewRequest, ReviewResult } from "./model.ts";
 
 export type ScriptedTurn =
   | { kind: "check" | "submit"; envelope: unknown; usage?: { input: number; output: number } }
@@ -17,7 +17,20 @@ export class FakeModelClient implements ModelClient {
   private i = 0;
   readonly requests: ModelTurnRequest[] = [];
 
-  constructor(private readonly script: ScriptedTurn[]) {}
+  readonly reviews: ReviewRequest[] = [];
+  private r = 0;
+
+  /** `verdicts`: scripted review outcomes in order (default: every review says complete). */
+  constructor(
+    private readonly script: ScriptedTurn[],
+    private readonly verdicts: { complete: boolean; missing?: string[] }[] = [],
+  ) {}
+
+  async review(req: ReviewRequest): Promise<ReviewResult> {
+    this.reviews.push(structuredClone(req));
+    const v = this.verdicts[this.r++] ?? { complete: true };
+    return { ok: true, verdict: { complete: v.complete, delivered: "scripted", missing: v.missing ?? [] }, usage: { inputTokens: 200, outputTokens: 40, reasoningTokens: 0 } };
+  }
 
   async *turn(req: ModelTurnRequest, signal: AbortSignal): AsyncIterable<ModelEvent> {
     this.requests.push(structuredClone(req));

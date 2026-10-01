@@ -4,8 +4,8 @@
 // reasoning items are round-tripped only when the profile carries reasoning, and never logged.
 
 import OpenAI from "openai";
-import type { FunctionCall, ModelClient, ModelEvent, ModelTurnRequest, ModelUsage } from "./model.ts";
-import { ANMR_TOOLS, TOOLS } from "./schema.ts";
+import type { FunctionCall, ModelClient, ModelEvent, ModelTurnRequest, ModelUsage, ReviewRequest, ReviewResult } from "./model.ts";
+import { ANMR_TOOLS, REVIEW_TOOL, REVIEW_TOOL_NAME, TOOLS } from "./schema.ts";
 import { RAW_HEX_ADDENDUM } from "./prompts.ts";
 
 export interface OpenAIClientOptions {
@@ -99,6 +99,35 @@ export class OpenAIModelClient implements ModelClient {
       yield { type: "error", code: "stream_ended", message: "the stream ended without a completed response", retryable: true, status: null };
     } catch (e) {
       yield this.errorEvent(e);
+    }
+  }
+
+  /** A non-streamed review call; the verdict comes back through the forced, strict review tool. */
+  async review(req: ReviewRequest, signal: AbortSignal): Promise<ReviewResult> {
+    try {
+      const r = (await this.client.responses.create(
+        {
+          model: req.profile.model,
+          instructions: req.instructions,
+          input: [{ role: "user", content: [{ type: "input_text", text: req.text }, ...req.images.map((url) => ({ type: "input_image", image_url: url, detail: "auto" }))] }],
+          store: false,
+          max_output_tokens: req.maxOutputTokens,
+          ...(req.profile.reasoningEffort ? { reasoning: { effort: req.profile.reasoningEffort } } : {}),
+          tools: [REVIEW_TOOL],
+          tool_choice: { type: "function", name: REVIEW_TOOL_NAME },
+          parallel_tool_calls: false,
+        } as never,
+        { signal },
+      )) as unknown as { output?: Record<string, unknown>[]; usage?: never };
+      const usage = usageOf(r.usage);
+      const call = (r.output ?? []).find((it) => it.type === "function_call" && it.name === REVIEW_TOOL_NAME);
+      if (!call) return { ok: false, message: "the reviewer returned no verdict", usage };
+      // Arguments of a strict function tool, already validated against REVIEW_TOOL by the API.
+      const v = JSON.parse(String(call.arguments ?? "{}")) as { complete?: unknown; delivered?: unknown; missing?: unknown };
+      if (typeof v.complete !== "boolean" || typeof v.delivered !== "string" || !Array.isArray(v.missing)) return { ok: false, message: "the reviewer's verdict did not match its schema", usage };
+      return { ok: true, verdict: { complete: v.complete, delivered: v.delivered.slice(0, 600), missing: v.missing.filter((m): m is string => typeof m === "string").slice(0, 8).map((m) => m.slice(0, 300)) }, usage };
+    } catch (e) {
+      return { ok: false, message: String((e as Error)?.message ?? e).slice(0, 300), usage: null };
     }
   }
 

@@ -14,8 +14,8 @@ const badHex = sqHex.slice(0, 144 * 2) + sqHex.slice(160 * 2); // missing ARG (P
 const profile: ModelProfile = { id: "default", label: "test", model: "test-model", reasoningEffort: null, carryReasoning: false, inputPerMTok: 1, outputPerMTok: 4, maxContextChars: 600_000 };
 const env = (hex: string) => ({ isa: "ANMA-1", hex, annotations: null });
 
-function harness(script: ScriptedTurn[], opts: { cap?: number; ledgerLimit?: number } = {}) {
-  const model = new FakeModelClient(script);
+function harness(script: ScriptedTurn[], opts: { cap?: number; ledgerLimit?: number; open?: boolean; verdicts?: { complete: boolean; missing?: string[] }[] } = {}) {
+  const model = new FakeModelClient(script, opts.verdicts ?? []);
   const events: LoopEvent[] = [];
   let spent = 0;
   const reservations = new Map<string, number>();
@@ -35,7 +35,8 @@ function harness(script: ScriptedTurn[], opts: { cap?: number; ledgerLimit?: num
   let n = 0;
   let clock = 1_000;
   const deps = { model, ledger, emit: async (e: LoopEvent) => void events.push(e), now: () => (clock += 10), signal: ac.signal, newId: () => `a${n++}`, allowedFeatures: 0xf };
-  const state: SessionState = createSession({ sessionId: "s1", task: { taskId: "square-plus-two", description: null, params: ["u64"], returns: "u64", allowedFeatures: 2, requireClaims: false }, mode: "tools", profile, now: 0, ttlMs: 3_600_000, budget: opts.cap ? { maxTurns: opts.cap } : {} });
+  const task = opts.open ? { taskId: null, description: "make flappy bird", params: ["u64" as const], returns: "u64" as const, allowedFeatures: 0xf, requireClaims: false } : { taskId: "square-plus-two", description: null, params: ["u64" as const], returns: "u64" as const, allowedFeatures: 2, requireClaims: false };
+  const state: SessionState = createSession({ sessionId: "s1", task, mode: "tools", profile, now: 0, ttlMs: 3_600_000, budget: opts.cap ? { maxTurns: opts.cap } : {} });
   return { model, events, state, deps, ac, spent: () => spent };
 }
 
@@ -43,6 +44,74 @@ const feedback = (sha: string, passed: boolean): BrowserFeedback => ({
   candidateSha256: sha,
   validation: { ok: true, byteLength: 192, sha256: sha, errors: [], warnings: [], suppressed: 0, omitted: 0, listing: null, listingTruncated: false, annotations: { present: false, records: 0, claimsChecked: 0, claimsMatched: 0, contracts: 0, invariants: 0, examples: 0, sha256: null }, catalogVersion: "x" } as CheckReport,
   tests: { taskId: "square-plus-two", passed, cases: passed ? [] : [{ name: "n = 12", kind: "visible", passed: false, inputs: ["12"], expected: "146", actual: "144", diagnostic: null }], diagnostics: [], tier: "T0", contractOwner: null },
+});
+
+const PNG = "data:image/png;base64,iVBORw0KGgo=";
+const openPass = (sha: string, withPlaytest = true): BrowserFeedback => ({
+  ...feedback(sha, true),
+  tests: { taskId: null, passed: true, cases: [], diagnostics: [], tier: "T0", contractOwner: null },
+  playtest: withPlaytest ? { script: "idle, then Space taps", ticks: 300, framesPresented: 300, distinctFrames: 2, inputChangesScreen: false, ended: "still running", frames: [{ frame: 1, png: PNG }, { frame: 120, png: PNG }] } : null,
+});
+const sqSub = async (h: ReturnType<typeof harness>, key: string, fb: BrowserFeedback | null) => {
+  await runAttempt(h.state, { idempotencyKey: key, feedback: fb }, h.deps);
+  return (h.events.findLast((e) => e.type === "candidate.submitted") as { candidate: { sha256: string } } | undefined)?.candidate.sha256 ?? "";
+};
+
+describe("playtest review (open tasks that draw)", () => {
+  it("an incomplete verdict sends the AI back to work with the critique and the frames; a complete one ends it", async () => {
+    const better = { ...env(sqHex), annotations: { summary: "improved", params: [], records: [], contracts: [], invariants: [], examples: [] } };
+    const h = harness([{ kind: "submit", envelope: env(sqHex) }, { kind: "submit", envelope: better }], { open: true, verdicts: [{ complete: false, missing: ["pipes that scroll", "collisions"] }, { complete: true }] });
+    const sha = await sqSub(h, "k1", null);
+    await runAttempt(h.state, { idempotencyKey: "k2", feedback: openPass(sha) }, h.deps);
+    expect(h.state.outcome).toBeNull();
+    expect(h.model.reviews).toHaveLength(1);
+    expect(h.model.reviews[0]!.images).toEqual([PNG, PNG]);
+    expect(h.model.reviews[0]!.text).toContain("make flappy bird");
+    expect(h.model.reviews[0]!.text).toContain("pressing keys changed the screen compared with a run with no input: no");
+    const input = h.model.requests[1]!.input as { type?: string; output?: string; role?: string; content?: unknown }[];
+    expect(input.find((i) => i.type === "function_call_output")!.output).toContain("pipes that scroll");
+    expect(JSON.stringify(input.at(-1))).toContain("input_image");
+    expect(h.events.some((e) => e.type === "review.result" && !(e as { verdict: { complete: boolean } }).verdict.complete)).toBe(true);
+    const sha2 = (h.events.findLast((e) => e.type === "candidate.submitted") as { candidate: { sha256: string } }).candidate.sha256;
+    await runAttempt(h.state, { idempotencyKey: "k3", feedback: openPass(sha2) }, h.deps);
+    expect(h.state.outcome).toBe("passed-unverified");
+    expect(h.state.stopDetail).toContain("playtest review found the request delivered");
+    expect(h.state.counters.reviews).toBe(2);
+  });
+
+  it("resubmitting the reviewed program unchanged accepts it rather than stalling", async () => {
+    const h = harness([{ kind: "submit", envelope: env(sqHex) }, { kind: "submit", envelope: env(sqHex) }], { open: true, verdicts: [{ complete: false, missing: ["more"] }] });
+    const sha = await sqSub(h, "k1", null);
+    await runAttempt(h.state, { idempotencyKey: "k2", feedback: openPass(sha) }, h.deps);
+    expect(h.state.outcome).toBe("passed-unverified");
+    expect(h.state.stopDetail).toContain("resubmitted it unchanged after a playtest review");
+  });
+
+  it("reviews are capped; then a passing program is accepted", async () => {
+    const v = (n: number) => ({ ...env(sqHex), annotations: { summary: `v${n}`, params: [], records: [], contracts: [], invariants: [], examples: [] } });
+    const h = harness([{ kind: "submit", envelope: v(1) }, { kind: "submit", envelope: v(2) }, { kind: "submit", envelope: v(3) }], { open: true, verdicts: [{ complete: false }, { complete: false }, { complete: false }] });
+    h.state.budget.maxReviews = 2;
+    const sha = await sqSub(h, "k1", null);
+    await runAttempt(h.state, { idempotencyKey: "k2", feedback: openPass(sha) }, h.deps);
+    await runAttempt(h.state, { idempotencyKey: "k3", feedback: openPass(sha) }, h.deps);
+    expect(h.state.outcome).toBeNull();
+    await runAttempt(h.state, { idempotencyKey: "k4", feedback: openPass(sha) }, h.deps);
+    expect(h.state.outcome).toBe("passed-unverified");
+    expect(h.model.reviews).toHaveLength(2);
+  });
+
+  it("no review without a playtest, or for curated tasks", async () => {
+    const a = harness([{ kind: "submit", envelope: env(sqHex) }], { open: true, verdicts: [{ complete: false }] });
+    const sha = await sqSub(a, "k1", null);
+    await runAttempt(a.state, { idempotencyKey: "k2", feedback: openPass(sha, false) }, a.deps);
+    expect(a.state.outcome).toBe("passed-unverified");
+    expect(a.model.reviews).toHaveLength(0);
+    const b = harness([{ kind: "submit", envelope: env(sqHex) }], { verdicts: [{ complete: false }] });
+    const shaB = await sqSub(b, "k1", null);
+    await runAttempt(b.state, { idempotencyKey: "k2", feedback: { ...feedback(shaB, true), playtest: openPass(shaB).playtest } }, b.deps);
+    expect(b.state.outcome).toBe("passed");
+    expect(b.model.reviews).toHaveLength(0);
+  });
 });
 
 describe("manual and tools", () => {
