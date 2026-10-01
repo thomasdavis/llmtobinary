@@ -125,6 +125,98 @@ const STEPS: { title: string; body: ReactNode }[] = [
     ),
   },
   {
+    title: "How the AI writes a program: draft, check, fix",
+    body: (
+      <>
+        <p>
+          Writing hundreds of 16-byte instructions by hand, the AI makes mistakes, just as a person would. So it works in a loop with a <strong>checker</strong>: a program that reads the bytes, finds problems and explains them. The checker never runs the program and never writes or changes a byte. Fixing is always the AI's job.
+        </p>
+        <ol className="loop" aria-label="The generation loop">
+          <li><strong>The AI drafts</strong> the whole program as bytes.</li>
+          <li><strong>The checker reads it</strong> and explains every mistake: which rule broke, at which byte, what it found, and what was expected.</li>
+          <li><strong>The AI fixes it</strong> and checks again, as many times as it needs.</li>
+          <li><strong>It submits.</strong> Your browser then runs the tests on the simulated chip; any failures go back to the AI as more feedback.</li>
+          <li className="loop-end">It stops when every check and test passes, or when it reaches its limits on time, attempts and cost.</li>
+        </ol>
+        <div className="diag-demo" aria-label="A real message from the checker">
+          <span className="diag-demo-head">A real message the checker sent the AI while it wrote the platform game:</span>
+          <code>record 5, byte 124: an unused field of JUMP must be zero, but it holds 68.</code>
+          <code>Record 4 looks 4 bytes short: its last word is missing, so every later record is shifted.</code>
+        </div>
+      </>
+    ),
+  },
+  {
+    title: "Notes the AI attaches: claims, contracts, examples",
+    body: (
+      <>
+        <p>
+          Along with the bytes, the AI can send <strong>annotations</strong>: notes about what it meant to write. They sit beside the program, not inside it. The chip never reads them, but they let the site catch the difference between what the AI <em>meant</em> and what it actually <em>wrote</em>.
+        </p>
+        <ul className="notes">
+          <li>
+            <span className="note-kind">Claims</span>
+            <span>
+              What each instruction does, such as <code>record 3: v3 = v1 + v2</code>. The checker decodes the real bytes and flags any claim that doesn't match them.
+            </span>
+          </li>
+          <li>
+            <span className="note-kind">Contracts</span>
+            <span>
+              What the whole program promises, such as <code>result = n × n + 2</code>. The site checks the promise every time the program runs.
+            </span>
+          </li>
+          <li>
+            <span className="note-kind">Examples</span>
+            <span>
+              Inputs with the answers the AI expects, such as <code>n = 12 gives 146</code>. They are run on the chip, and a wrong answer goes back to the AI.
+            </span>
+          </li>
+          <li>
+            <span className="note-kind">Proofs</span>
+            <span>In expert view, an automatic theorem prover (z3) can prove a contract holds for every possible input, not just the ones tested.</span>
+          </li>
+        </ul>
+      </>
+    ),
+  },
+  {
+    title: "Making AI better at writing ANMA-1",
+    body: (
+      <>
+        <p>
+          The AI used here is a general-purpose model. It learns ANMA-1 on the spot, from the manual we send with every request, so it is still learning the format as it goes. A model could be <strong>fine-tuned</strong> instead: trained further on many ANMA-1 programs until writing them becomes second nature.
+        </p>
+        <p>The loop on this site produces exactly the material that training needs, with no person writing it:</p>
+        <ul className="notes">
+          <li>
+            <span className="note-kind">Examples</span>
+            <span>Every program that passes the checker and its tests is a verified pair of “what was asked” and “the bytes that do it”.</span>
+          </li>
+          <li>
+            <span className="note-kind">Lessons</span>
+            <span>Every checker message together with the AI's fix shows a mistake and how to correct it.</span>
+          </li>
+          <li>
+            <span className="note-kind">Scores</span>
+            <span>
+              The checker and tests grade each attempt automatically, so a model can practise and be rewarded for programs that are correct, and for programs that are <em>efficient</em> on the chip (fewer cycles, less shuffling of values to memory). This is reinforcement learning from rewards a computer can check.
+            </span>
+          </li>
+        </ul>
+        <Flow
+          steps={[
+            { label: "Requests", detail: "programs to write" },
+            { label: "AI drafts", detail: "bytes" },
+            { label: "Checker + tests", detail: "grade it", accent: true },
+            { label: "Training", detail: "learn from passes", note: "then repeat" },
+          ]}
+        />
+        <p className="intro-small">We haven't trained such a model yet; this is the natural next step.</p>
+      </>
+    ),
+  },
+  {
     title: "Is ANMA-1 a real chip?",
     body: (
       <>

@@ -241,3 +241,15 @@ dialog.intro { overflow: hidden; }
 .plain-idx { grid-row: span 2; color: var(--muted); font-family: var(--mono); font-size: 12px; text-align: right; padding-top: 2px; }
 .plain-text { min-width: 0; overflow-wrap: anywhere; }
 .plain-hex { color: var(--muted); font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.loop { margin: 0 0 12px; padding-left: 22px; }
+.loop li { margin-bottom: 5px; }
+.loop li::marker { color: var(--accent); font-weight: 600; }
+.loop .loop-end { list-style: none; margin-left: -22px; color: var(--muted); font-size: 14px; }
+.diag-demo { display: flex; flex-direction: column; gap: 4px; border: 1px solid #efd29a; background: #fff8e8; border-radius: 8px; padding: 9px 12px; }
+.diag-demo-head { font-size: 13px; color: var(--muted); }
+.diag-demo code { font-size: 13px; white-space: normal; }
+.notes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.notes li { display: grid; grid-template-columns: 7.5em minmax(0, 1fr); gap: 10px; align-items: baseline; }
+.note-kind { font-weight: 600; color: var(--accent); }
+@media (max-width: 640px) { .notes li { grid-template-columns: minmax(0, 1fr); gap: 2px; } }

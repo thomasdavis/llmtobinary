@@ -43,7 +43,8 @@ for (const [label, viewport] of [["desktop", { width: 1440, height: 900 }], ["ph
   await dialog.waitFor({ timeout: 10_000 }).catch(() => undefined);
   ok(await dialog.isVisible(), `${label}: the explainer opens on a first visit`);
   const titles = [];
-  for (let i = 0; i < 6; i++) {
+  const steps = await dialog.locator(".intro-dots button").count();
+  for (let i = 0; i < steps; i++) {
     titles.push((await dialog.locator("h2").textContent()) ?? "");
     const overflow = await page.evaluate(() => {
       const d = document.querySelector("dialog.intro");
@@ -51,9 +52,9 @@ for (const [label, viewport] of [["desktop", { width: 1440, height: 900 }], ["ph
     });
     ok(overflow <= 0, `${label}: step ${i + 1} "${titles[i]}" fits without sideways scrolling`);
     if (shots) await page.screenshot({ path: join(shots, `${label}-intro-${i + 1}.png`) });
-    if (i < 5) await dialog.getByRole("button", { name: "Next" }).click();
+    if (i < steps - 1) await dialog.getByRole("button", { name: "Next" }).click();
   }
-  ok(titles[0] === "Computers only understand binary" && titles[4] === "Is ANMA-1 a real chip?", `${label}: the story runs from binary to manufacturing`);
+  ok(titles[0] === "Computers only understand binary" && titles.includes("How the AI writes a program: draft, check, fix") && titles.includes("Notes the AI attaches: claims, contracts, examples") && titles.includes("Making AI better at writing ANMA-1") && titles.includes("Is ANMA-1 a real chip?"), `${label}: the story covers binary, the generation loop, annotations and manufacturing (${steps} steps)`);
   await dialog.getByRole("button", { name: "Close the explanation" }).click();
   ok(!(await dialog.isVisible()), `${label}: ✕ closes it`);
   await page.reload({ waitUntil: "networkidle" });
@@ -77,7 +78,7 @@ for (const [label, viewport] of [["desktop", { width: 1440, height: 900 }], ["ph
 
   // The last step's call to action runs the AI-written game.
   await page.getByRole("button", { name: "What is this?" }).click();
-  for (let i = 0; i < 5; i++) await page.getByRole("dialog").getByRole("button", { name: "Next" }).click();
+  for (let i = 0; i < steps - 1; i++) await page.getByRole("dialog").getByRole("button", { name: "Next" }).click();
   await page.getByRole("button", { name: /Watch the AI's game run/ }).click();
   await page.locator("p.status", { hasText: /state: (running|waiting-input)/ }).first().waitFor({ timeout: 30_000 });
   ok(true, `${label}: "Watch the AI's game run" loads and runs the AI-written program`);
