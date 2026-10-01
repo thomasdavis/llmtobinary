@@ -78,8 +78,15 @@ for (const [label, viewport] of [["desktop", { width: 1440, height: 900 }], ["ph
   await page.locator(".picker-trigger").click();
   const pop = page.getByRole("dialog", { name: "Choose a program" });
   ok(await pop.isVisible(), `${label}: the program dropdown opens`);
-  ok((await pop.getByRole("group", { name: "Featured" }).count()) === 1 && (await pop.getByRole("group", { name: "Published by visitors" }).count()) === 1 && (await pop.getByRole("group", { name: "Reference programs" }).count()) === 1, `${label}: it groups featured, published and reference programs`);
+  ok((await page.getByLabel(/publicly/).count()) === 0, `${label}: there is no publish option (every generation is public)`);
+  ok((await pop.getByRole("group", { name: "Featured" }).count()) === 1 && (await pop.getByRole("group", { name: "Every generation" }).count()) === 1 && (await pop.getByRole("group", { name: "Reference programs" }).count()) === 1, `${label}: it groups featured, published and reference programs`);
   ok(/build a good looking version/.test((await pop.locator(".picker-row").first().textContent()) ?? ""), `${label}: rows show the prompt`);
+  if (label === "desktop") {
+    // Search lives in the bar itself: typing there filters the open list.
+    await page.keyboard.press("Escape");
+    await page.locator(".bar-search input").click();
+    ok(await pop.isVisible(), `${label}: focusing the bar's search opens the list`);
+  }
   await page.keyboard.type("pong");
   ok((await pop.locator(".picker-row").count()) === 1, `${label}: search narrows the list`);
   await page.keyboard.press("Enter");

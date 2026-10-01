@@ -1,10 +1,11 @@
-// The program bar under the top bar: one dropdown for every program a visitor can run — the
-// featured AI-written programs, everything visitors chose to publish (newest first), and the
-// reference programs our own tools made — with each one's prompt, age and how it was made.
+// The program bar under the top bar: a search box and one dropdown for every program a visitor can
+// open — the featured AI-written programs, every generation anyone has run here (newest first,
+// whatever happened to it), and the reference programs our own tools made — with each one's
+// prompt, age, status and how it was made.
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { Feature } from "@llmtobinary/spec";
-import type { GallerySummary } from "@llmtobinary/protocol";
+import type { GalleryOutcome, GallerySummary } from "@llmtobinary/protocol";
 import { getGallery } from "./api.ts";
 import { AI_EXAMPLES, REFERENCE_EXAMPLES, type AiExample } from "./examples.ts";
 
@@ -15,7 +16,9 @@ export type Pick =
   | { kind: "public"; key: string; summary: GallerySummary }
   | { kind: "ref"; key: string; ref: RefExample };
 
-/** What the card under the bar shows about the program that is loaded. */
+type Tone = "ok" | "bad" | "live" | "plain";
+
+/** What the card under the bar shows about the program that is open. */
 export interface ChosenProgram {
   key: string;
   label: string;
@@ -23,9 +26,10 @@ export interface ChosenProgram {
   /** Who asked: "a visitor", "you", "this project". */
   askedBy: string;
   prompt: string | null;
+  /** Where it stands, e.g. "✓ works" or "✕ ran out of budget". */
+  status?: { text: string; tone: Tone };
   facts: { k: string; v: string }[];
-  controls?: string;
-  /** Shareable link (published programs). */
+  /** Shareable link (generations). */
   link?: string;
   /** For "Use this prompt". */
   remix?: { description: string; params: ("u64" | "bool")[]; returns: "unit" | "u64" | "bool"; features: number };
@@ -64,7 +68,39 @@ const DEVICE_NAMES: [number, string][] = [
 ];
 export const devices = (bits: number) => DEVICE_NAMES.filter(([b]) => (bits & b) !== 0).map(([, n]) => n);
 
-const outcomeText = (o: GallerySummary["outcome"]) => (o === "passed" ? "passed every test" : "runs; its own examples hold");
+/** A generation's status in plain words, and how to colour it. */
+export function outcomeStatus(o: GalleryOutcome): { text: string; tone: Tone } {
+  switch (o) {
+    case "passed":
+      return { text: "✓ passed every test", tone: "ok" };
+    case "passed-unverified":
+      return { text: "✓ works; its own examples hold", tone: "ok" };
+    case "in-progress":
+      return { text: "● being generated", tone: "live" };
+    case "unfinished":
+      return { text: "stopped part-way", tone: "plain" };
+    case "budget-exhausted":
+      return { text: "✕ ran out of budget", tone: "bad" };
+    case "stalled":
+      return { text: "✕ got stuck", tone: "bad" };
+    case "refused":
+      return { text: "✕ the AI declined", tone: "bad" };
+    case "cancelled":
+      return { text: "■ cancelled", tone: "plain" };
+    case "infrastructure-error":
+      return { text: "✕ server error", tone: "bad" };
+  }
+}
+
+/** Which bytes a generation carries, in words. */
+export function programText(g: GallerySummary): string {
+  if (g.program === "passed") return "the program that passed";
+  if (g.program === "submission") return g.outcome === "in-progress" ? "the AI's latest submission (being tested)" : "the AI's last submission (it did not pass)";
+  if (g.program === "draft") return `the AI's last draft${g.checkerOk === true ? " (the checker accepted it)" : g.checkerOk === false ? " (the checker found mistakes)" : ""}`;
+  return g.outcome === "in-progress" ? "none yet: the AI is still writing" : "none: the AI never wrote a complete program";
+}
+
+export const works = (g: { outcome: GalleryOutcome }) => g.outcome === "passed" || g.outcome === "passed-unverified";
 const fullDate = (t: number) => new Date(t).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 const fmtInt = (n: number) => (Number.isFinite(n) ? n.toLocaleString() : "?");
 
@@ -77,6 +113,7 @@ interface Row {
   label: string;
   prompt: string | null;
   badge: string;
+  status: { text: string; tone: Tone } | null;
   when: number | null;
   meta: string[];
   search: string;
@@ -90,6 +127,7 @@ function featuredRow(e: AiExample): Row {
     label: e.title,
     prompt: e.prompt,
     badge: "AI · featured",
+    status: { text: "✓ works", tone: "ok" },
     when,
     meta: [e.provenance.requestedModel ?? "AI", `${e.counters.turns} turns`, `${fmtInt(e.bytes)} B`, e.controls].filter(Boolean) as string[],
     search: `${e.title} ${e.prompt}`.toLowerCase(),
@@ -103,8 +141,9 @@ function publicRow(g: GallerySummary): Row {
     label: g.label || "Untitled program",
     prompt: g.prompt,
     badge: g.taskId ? "AI · curated task" : "AI · visitor prompt",
-    when: g.finishedAt,
-    meta: [g.model, `${g.turns} turns`, `${fmtInt(g.bytes)} B`, devices(g.features).join(" + ") || "no devices", outcomeText(g.outcome)],
+    status: outcomeStatus(g.outcome),
+    when: g.createdAt,
+    meta: [g.model, `${g.turns} turns`, g.bytes ? `${fmtInt(g.bytes)} B` : "no bytes yet", devices(g.features).join(" + ") || "no devices"],
     search: `${g.label} ${g.prompt} ${g.model} ${g.taskId ?? ""}`.toLowerCase(),
   };
 }
@@ -116,6 +155,7 @@ function refRow(r: RefExample): Row {
     label: r.title,
     prompt: null,
     badge: "Reference · not AI",
+    status: null,
     when: null,
     meta: [r.about, r.controls ?? ""].filter(Boolean),
     search: `${r.title} ${r.about}`.toLowerCase(),
@@ -124,11 +164,13 @@ function refRow(r: RefExample): Row {
 
 const GROUPS: { id: Row["group"]; title: string; note: string }[] = [
   { id: "featured", title: "Featured", note: "written by the AI, byte by byte" },
-  { id: "public", title: "Published by visitors", note: "newest first; each was written by the AI from the prompt shown" },
+  { id: "public", title: "Every generation", note: "every prompt anyone has given the AI here, newest first, whatever happened" },
   { id: "ref", title: "Reference programs", note: "made by this project's own tools for comparison, not by the AI" },
 ];
 
 type Filter = "all" | Row["group"];
+
+const isNarrow = () => typeof window !== "undefined" && window.matchMedia("(max-width: 640px)").matches;
 
 // ---------------------------------------------------------------------------
 
@@ -136,6 +178,7 @@ export function ProgramBar(props: { chosen: ChosenProgram | null; onPick: (p: Pi
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
+  const [onlyWorking, setOnlyWorking] = useState(false);
   const [gallery, setGallery] = useState<GallerySummary[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -144,7 +187,8 @@ export function ProgramBar(props: { chosen: ChosenProgram | null; onPick: (p: Pi
   const [active, setActive] = useState(0);
   const [picking, setPicking] = useState<string | null>(null);
   const listId = useId();
-  const searchRef = useRef<HTMLInputElement>(null);
+  const barSearchRef = useRef<HTMLInputElement>(null);
+  const popSearchRef = useRef<HTMLInputElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const now = Date.now();
@@ -164,17 +208,17 @@ export function ProgramBar(props: { chosen: ChosenProgram | null; onPick: (p: Pi
     }
   }, []);
 
-  // First load, after the visitor publishes something, and when reopened after a while.
+  // First load, when the visitor starts or finishes a generation, and when reopened after a while.
   useEffect(() => void load(null), [load, props.refresh]);
   useEffect(() => {
-    if (open && Date.now() - fetchedAt > 30_000) void load(null);
+    if (open && Date.now() - fetchedAt > 15_000) void load(null);
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const rows = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    const all = [...AI_EXAMPLES.map(featuredRow), ...gallery.map(publicRow), ...REFERENCE_EXAMPLES.map(refRow)];
-    return all.filter((r) => (filter === "all" || r.group === filter) && (!q || q.split(/\s+/).every((w) => r.search.includes(w))));
-  }, [gallery, query, filter]);
+    const words = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    const all = [...AI_EXAMPLES.map(featuredRow), ...gallery.filter((g) => !onlyWorking || works(g)).map(publicRow), ...REFERENCE_EXAMPLES.map(refRow)];
+    return all.filter((r) => (filter === "all" || r.group === filter) && words.every((w) => r.search.includes(w)));
+  }, [gallery, query, filter, onlyWorking]);
 
   useEffect(() => setActive((a) => Math.min(a, Math.max(rows.length - 1, 0))), [rows.length]);
   useEffect(() => {
@@ -182,15 +226,18 @@ export function ProgramBar(props: { chosen: ChosenProgram | null; onPick: (p: Pi
     listRef.current?.querySelector(`[data-index="${active}"]`)?.scrollIntoView({ block: "nearest" });
   }, [active, open]);
 
-  const show = () => {
-    // Each opening starts from the whole list, on the program that is loaded.
-    setQuery("");
-    setFilter("all");
+  const focusSearch = () => requestAnimationFrame(() => (isNarrow() ? popSearchRef.current : barSearchRef.current)?.focus());
+  const show = (fresh: boolean) => {
+    if (fresh) {
+      // The dropdown button starts from the whole list, on the program that is open.
+      setQuery("");
+      setFilter("all");
+    }
     setOpen(true);
-    requestAnimationFrame(() => searchRef.current?.focus());
+    focusSearch();
   };
   useEffect(() => {
-    if (!open) return;
+    if (!open || query) return;
     const i = rows.findIndex((r) => r.pick.key === props.chosen?.key);
     setActive(i >= 0 ? i : 0);
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -221,32 +268,49 @@ export function ProgramBar(props: { chosen: ChosenProgram | null; onPick: (p: Pi
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const onSearchKey = (e: React.KeyboardEvent) => {
+    if (!open && (e.key === "ArrowDown" || e.key === "Enter")) {
+      e.preventDefault();
+      show(false);
+      return;
+    }
     if (e.key === "ArrowDown") {
       e.preventDefault();
       setActive((a) => Math.min(a + 1, rows.length - 1));
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
       setActive((a) => Math.max(a - 1, 0));
-    } else if (e.key === "Home" && !query) {
-      setActive(0);
-    } else if (e.key === "End" && !query) {
-      setActive(rows.length - 1);
     } else if (e.key === "Enter") {
       e.preventDefault();
       const r = rows[active];
       if (r) void choose(r);
     }
   };
+  const onQuery = (v: string) => {
+    setQuery(v);
+    setActive(0);
+    if (!open) setOpen(true);
+  };
 
   const cur = rows[active] ?? null;
   const c = props.chosen;
-  const counts = { featured: AI_EXAMPLES.length, public: gallery.length, ref: REFERENCE_EXAMPLES.length };
+  const total = `${gallery.length}${cursor ? "+" : ""}`;
+  const searchProps = {
+    type: "search" as const,
+    role: "combobox" as const,
+    "aria-expanded": open,
+    "aria-controls": listId,
+    "aria-activedescendant": open && cur ? `${listId}-${active}` : undefined,
+    "aria-autocomplete": "list" as const,
+    value: query,
+    onChange: (e: React.ChangeEvent<HTMLInputElement>) => onQuery(e.target.value),
+    onKeyDown: onSearchKey,
+  };
 
   return (
     <nav className="programbar" aria-label="Program">
       <div className="programbar-inner">
         <span className="programbar-label" aria-hidden="true">Program</span>
-        <button ref={triggerRef} className={`picker-trigger${open ? " open" : ""}`} aria-haspopup="dialog" aria-expanded={open} onClick={() => (open ? hide() : show())}>
+        <button ref={triggerRef} className={`picker-trigger${open ? " open" : ""}`} aria-haspopup="dialog" aria-expanded={open} onClick={() => (open ? hide() : show(true))}>
           <span className="picker-trigger-main">{picking ?? (c ? c.label : "Choose a program to run…")}</span>
           {picking ? (
             <span className="picker-trigger-sub">Loading and checking the bytes…</span>
@@ -254,11 +318,15 @@ export function ProgramBar(props: { chosen: ChosenProgram | null; onPick: (p: Pi
             <span className="picker-trigger-sub">{c.by === "ai" ? `written by the AI · asked by ${c.askedBy}` : "made by our tools, not the AI"}</span>
           ) : (
             <span className="picker-trigger-sub">
-              {counts.featured + counts.ref} presets{gallery.length ? ` · ${gallery.length}${cursor ? "+" : ""} published by visitors` : ""}
+              {AI_EXAMPLES.length + REFERENCE_EXAMPLES.length} presets{gallery.length ? ` · ${total} generations` : ""}
             </span>
           )}
           <span className="picker-caret" aria-hidden="true">▾</span>
         </button>
+        <label className="bar-search">
+          <span className="bar-search-icon" aria-hidden="true">⌕</span>
+          <input ref={barSearchRef} {...searchProps} aria-label="Search programs" placeholder={gallery.length ? `Search ${total} generations and the presets` : "Search programs"} onFocus={() => !open && show(false)} />
+        </label>
         <button className="programbar-ask" onClick={props.onAsk}>
           <span className="wide-only">Ask the AI for a new program</span>
           <span className="narrow-only">New</span>
@@ -270,30 +338,17 @@ export function ProgramBar(props: { chosen: ChosenProgram | null; onPick: (p: Pi
           <div className="picker-scrim" onClick={() => hide(false)} />
           <div className="picker-pop" role="dialog" aria-label="Choose a program">
             <div className="picker-head">
-              <input
-                ref={searchRef}
-                className="picker-search"
-                type="search"
-                role="combobox"
-                aria-expanded="true"
-                aria-controls={listId}
-                aria-activedescendant={cur ? `${listId}-${active}` : undefined}
-                aria-label="Search programs"
-                placeholder="Search labels and prompts"
-                value={query}
-                onChange={(e) => {
-                  setQuery(e.target.value);
-                  setActive(0);
-                }}
-                onKeyDown={onSearchKey}
-              />
+              <input ref={popSearchRef} className="picker-search pop-search" {...searchProps} aria-label="Search programs" placeholder="Search prompts and labels" />
               <div className="segmented tight picker-filter" role="radiogroup" aria-label="Show">
                 {(["all", "featured", "public", "ref"] as const).map((f) => (
                   <button key={f} role="radio" aria-checked={filter === f} className={filter === f ? "on" : ""} onClick={() => { setFilter(f); setActive(0); }}>
-                    {f === "all" ? "All" : f === "featured" ? "Featured" : f === "public" ? `Visitors${gallery.length ? ` (${gallery.length}${cursor ? "+" : ""})` : ""}` : "Reference"}
+                    {f === "all" ? "All" : f === "featured" ? "Featured" : f === "public" ? `Generations${gallery.length ? ` (${total})` : ""}` : "Reference"}
                   </button>
                 ))}
               </div>
+              <label className="check picker-working">
+                <input type="checkbox" checked={onlyWorking} onChange={(e) => { setOnlyWorking(e.target.checked); setActive(0); }} /> Only working programs
+              </label>
               <button className="picker-close" aria-label="Close" onClick={() => hide()}>✕</button>
             </div>
 
@@ -301,15 +356,16 @@ export function ProgramBar(props: { chosen: ChosenProgram | null; onPick: (p: Pi
               <div className="picker-list" ref={listRef} id={listId} role="listbox" aria-label="Programs">
                 {GROUPS.filter((g) => filter === "all" || filter === g.id).map((g) => {
                   const inGroup = rows.filter((r) => r.group === g.id);
+                  if (query && inGroup.length === 0 && g.id !== "public") return null;
                   return (
                     <div key={g.id} className="picker-group" role="group" aria-label={g.title}>
                       <div className="picker-group-head">
                         <strong>{g.title}</strong> <span className="muted">{g.note}</span>
                       </div>
-                      {g.id === "public" && loading && gallery.length === 0 && <p className="picker-empty">Loading published programs…</p>}
-                      {g.id === "public" && loadError && <p className="picker-empty error">Couldn't load published programs: {loadError}. <button className="link" onClick={() => void load(null)}>Try again</button></p>}
-                      {g.id === "public" && !loading && !loadError && gallery.length === 0 && <p className="picker-empty">Nothing published yet. Ask the AI for a program and tick “publish” to be the first.</p>}
-                      {inGroup.length === 0 && query && (g.id !== "public" || gallery.length > 0) && <p className="picker-empty">No matches.</p>}
+                      {g.id === "public" && loading && gallery.length === 0 && <p className="picker-empty">Loading generations…</p>}
+                      {g.id === "public" && loadError && <p className="picker-empty error">Couldn't load the generations: {loadError}. <button className="link" onClick={() => void load(null)}>Try again</button></p>}
+                      {g.id === "public" && !loading && !loadError && gallery.length === 0 && <p className="picker-empty">No generations yet. Ask the AI for a program to be the first.</p>}
+                      {g.id === "public" && inGroup.length === 0 && gallery.length > 0 && <p className="picker-empty">No generation matches{query ? ` “${query}”` : ""}{cursor ? "; older ones are searched once shown" : ""}.</p>}
                       {inGroup.map((r) => {
                         const i = rows.indexOf(r);
                         const isChosen = r.pick.key === c?.key;
@@ -326,19 +382,20 @@ export function ProgramBar(props: { chosen: ChosenProgram | null; onPick: (p: Pi
                           >
                             <div className="picker-row-top">
                               <span className="picker-row-label">{r.label}</span>
-                              {isChosen && <span className="picker-row-now">loaded</span>}
+                              {isChosen && <span className="picker-row-now">open</span>}
                               {r.when && <time className="picker-row-when" dateTime={new Date(r.when).toISOString()} title={fullDate(r.when)}>{ago(r.when, now)}</time>}
                             </div>
                             {r.prompt && <p className="picker-row-prompt">“{r.prompt}”</p>}
                             <div className="picker-row-meta">
                               <span className={`picker-kind kind-${r.group}`}>{r.badge}</span>
+                              {r.status && <span className={`picker-status tone-${r.status.tone}`}>{r.status.text}</span>}
                               {r.meta.map((m, k) => <span key={k}>{m}</span>)}
                             </div>
                           </div>
                         );
                       })}
-                      {g.id === "public" && cursor && !query && (
-                        <button className="link picker-more" disabled={loading} onClick={() => void load(cursor)}>{loading ? "Loading…" : "Show older programs"}</button>
+                      {g.id === "public" && cursor && (
+                        <button className="link picker-more" disabled={loading} onClick={() => void load(cursor)}>{loading ? "Loading…" : "Show older generations"}</button>
                       )}
                     </div>
                   );
@@ -346,10 +403,10 @@ export function ProgramBar(props: { chosen: ChosenProgram | null; onPick: (p: Pi
               </div>
 
               <aside className="picker-detail" aria-live="polite">
-                {cur ? <Detail row={cur} now={now} onRun={() => void choose(cur)} /> : <p className="muted">No program matches “{query}”.</p>}
+                {cur ? <Detail row={cur} now={now} onRun={() => void choose(cur)} /> : <p className="muted">Nothing matches “{query}”.</p>}
               </aside>
             </div>
-            <p className="picker-foot muted small">↑ ↓ to move · Enter to load and run · Esc to close</p>
+            <p className="picker-foot muted small">Type to search · ↑ ↓ to move · Enter to open · Esc to close</p>
           </div>
         </>
       )}
@@ -360,21 +417,25 @@ export function ProgramBar(props: { chosen: ChosenProgram | null; onPick: (p: Pi
 function Detail({ row, now, onRun }: { row: Row; now: number; onRun: () => void }) {
   const p = row.pick;
   const facts: [string, string][] = [];
+  let action = "▶ Load and run";
   if (p.kind === "public") {
     const g = p.summary;
-    facts.push(["Generated", `${fullDate(g.finishedAt)} (${ago(g.finishedAt, now)})`]);
-    const took = duration(g.finishedAt - g.createdAt);
+    facts.push(["Asked", `${fullDate(g.createdAt)} (${ago(g.createdAt, now)})`]);
+    const took = g.finishedAt ? duration(g.finishedAt - g.createdAt) : "";
     if (took) facts.push(["Took", took]);
     facts.push(["Model", `${g.model}${g.reasoningEffort ? `, ${g.reasoningEffort} reasoning` : ""}`]);
-    facts.push(["Work", `${g.turns} turns · ${g.checks} checks · ${fmtInt(g.outputTokens)} tokens written`]);
-    facts.push(["Size", `${fmtInt(g.bytes)} bytes · ${fmtInt(g.instructions)} instructions`]);
+    facts.push(["Work", `${g.turns} turns · ${g.checks} checks · ${g.submissions} submissions · ${fmtInt(g.outputTokens)} tokens written`]);
+    facts.push(["Bytes shown", programText(g)]);
+    if (g.bytes) facts.push(["Size", `${fmtInt(g.bytes)} bytes · ${fmtInt(g.instructions)} instructions`]);
     facts.push(["Entry", g.signature]);
     facts.push(["Devices", devices(g.features).join(", ") || "none"]);
-    facts.push(["Result", g.outcome === "passed" ? "passed every test of the curated task" : "validated and ran; the examples the AI wrote about it hold (no reference answer exists for a visitor's own prompt)"]);
+    if (g.outcome === "passed-unverified") facts.push(["Note", "A visitor's own prompt has no reference answer: it validated, ran, and the examples the AI wrote about it hold."]);
+    if (!g.program) action = "Show the prompt";
+    else if (!works(g)) action = "Open its bytes";
   } else if (p.kind === "featured") {
     const e = p.example;
     const when = (e.counters as { startedAt?: number }).startedAt;
-    if (when) facts.push(["Generated", `${fullDate(when)} (${ago(when, now)})`]);
+    if (when) facts.push(["Asked", `${fullDate(when)} (${ago(when, now)})`]);
     facts.push(["Model", `${e.provenance.requestedModel ?? "?"}${e.reasoningEffort ? `, ${e.reasoningEffort} reasoning` : ""}`]);
     facts.push(["Work", `${e.counters.turns} turns · ${e.counters.checks} checks · ${fmtInt(e.counters.outputTokens)} tokens written`]);
     facts.push(["Size", `${fmtInt(e.bytes)} bytes`]);
@@ -387,11 +448,14 @@ function Detail({ row, now, onRun }: { row: Row; now: number; onRun: () => void 
   }
   return (
     <div className="picker-detail-inner">
-      <span className={`picker-kind kind-${row.group}`}>{row.badge}</span>
+      <div className="picker-detail-tags">
+        <span className={`picker-kind kind-${row.group}`}>{row.badge}</span>
+        {row.status && <span className={`picker-status tone-${row.status.tone}`}>{row.status.text}</span>}
+      </div>
       <h3>{row.label}</h3>
       {row.prompt && (
         <>
-          <p className="picker-detail-lead">{p.kind === "featured" ? "The prompt it was given" : "The prompt the visitor wrote"}</p>
+          <p className="picker-detail-lead">{p.kind === "featured" ? "The prompt it was given" : "The prompt"}</p>
           <blockquote className="picker-detail-prompt">{row.prompt}</blockquote>
         </>
       )}
@@ -403,12 +467,12 @@ function Detail({ row, now, onRun }: { row: Row; now: number; onRun: () => void 
           </div>
         ))}
       </dl>
-      <button className="primary" onClick={onRun}>▶ Load and run</button>
+      <button className="primary" onClick={onRun}>{action}</button>
     </div>
   );
 }
 
-/** The loaded program's story, under the bar: what was asked, by whom, and how it was made. */
+/** The open program's story, under the bar: what was asked, by whom, how it went. */
 export function ProgramCard({ chosen, onRemix }: { chosen: ChosenProgram; onRemix: (r: NonNullable<ChosenProgram["remix"]>) => void }) {
   const [copied, setCopied] = useState(false);
   const [more, setMore] = useState(false);
@@ -422,11 +486,8 @@ export function ProgramCard({ chosen, onRemix }: { chosen: ChosenProgram; onRemi
       <div className="program-card-main">
         <p className="program-card-by">{chosen.by === "ai" ? `Written by the AI, byte by byte · asked by ${chosen.askedBy}` : "Made by this project's own tools (not the AI), for comparison"}</p>
         <h2 className="program-card-title">{chosen.label}</h2>
-        {chosen.prompt && (
-          <blockquote className={`program-card-prompt${long && !more ? " clamped" : ""}`}>
-            {chosen.prompt}
-          </blockquote>
-        )}
+        {chosen.status && <p className={`program-card-status picker-status tone-${chosen.status.tone}`}>{chosen.status.text}</p>}
+        {chosen.prompt && <blockquote className={`program-card-prompt${long && !more ? " clamped" : ""}`}>{chosen.prompt}</blockquote>}
         {long && <button className="link small" onClick={() => setMore(!more)}>{more ? "Show less" : "Show the whole prompt"}</button>}
       </div>
       <div className="program-card-side">

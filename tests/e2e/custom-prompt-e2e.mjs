@@ -68,10 +68,7 @@ for (const name of ["framebuffer", "event input", "typed heap"]) {
 if (await page.getByRole("checkbox", { name: "terminal" }).isChecked()) await page.getByRole("checkbox", { name: "terminal" }).uncheck();
 
 if (live) {
-  await page.getByText(/I understand my task text/).click();
-  // Test runs never seed the public program list.
-  const publish = page.getByLabel(/list the program and my prompt publicly/);
-  if (await publish.isChecked()) await publish.uncheck();
+  await page.getByText(/I understand that every generation/).click();
   await page.getByRole("button", { name: "Generate" }).click();
   const modal = page.locator("dialog.genmodal");
   await modal.waitFor({ timeout: 10_000 });

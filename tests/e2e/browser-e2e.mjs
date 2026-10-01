@@ -134,7 +134,7 @@ await page.setViewportSize({ width: 1600, height: 1000 });
 
 if (live) {
   await page.getByRole("tab", { name: "program" }).click().catch(() => undefined);
-  await page.getByLabel(/I understand my task text/).check();
+  await page.getByLabel(/I understand that every generation/).check();
   await page.getByRole("button", { name: "Generate" }).click();
   const t0 = Date.now();
   await page.getByText(/✓ passed — validated and every task test passed in your browser|■ stopped|✕ infrastructure error/).first().waitFor({ timeout: 600_000 });

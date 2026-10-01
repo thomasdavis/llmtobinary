@@ -137,8 +137,10 @@ export class GenerationSession extends DurableObject<Env> {
     const now = Date.now();
     this.state = createSession({ sessionId: p.sessionId, task: p.request.task, mode: p.request.mode, profile: p.profile, budget: p.budget, now, ttlMs: p.ttlMs });
     await this.save();
-    if (p.request.publish === true) await this.ctx.storage.put("publish", true);
     await this.ctx.storage.setAlarm(this.state.expiresAt);
+    // List it straight away (as in progress), so the program list shows generations as they start.
+    const entry = this.env.DEBUG_ARCHIVE ? buildGalleryEntry({ state: this.state, events: [], expired: false, now }) : null;
+    if (entry) this.ctx.waitUntil(putGalleryEntry(this.env.DEBUG_ARCHIVE!, entry).catch(() => log({ event: "gallery-failed", sessionId: p.sessionId })));
     log({ event: "created", sessionId: p.sessionId, mode: p.request.mode, task: p.request.task.taskId ?? "open" });
     return Response.json({ sessionId: p.sessionId, budget: this.state.budget, expiresAt: this.state.expiresAt });
   }
@@ -201,7 +203,6 @@ export class GenerationSession extends DurableObject<Env> {
         this.running = null;
         await this.save();
         await this.archive(s.status === "stopped" ? `stopped:${s.outcome}` : "attempt-end");
-        if (req.feedback && (s.outcome === "passed" || s.outcome === "passed-unverified")) await this.publish(s, req.feedback.candidateSha256);
         log({ event: "attempt-end", sessionId: s.sessionId, ms: Date.now() - started, status: s.status, outcome: s.outcome, turns: s.counters.turns, outputTokens: s.counters.outputTokens, inputTokens: s.counters.inputTokens, unknownUsageTurns: s.counters.unknownUsageTurns });
         try {
           await writer.close();
@@ -246,7 +247,8 @@ export class GenerationSession extends DurableObject<Env> {
   }
 
   /**
-   * Write the debug archive (sessions/<id>.json) to the private R2 bucket. Best-effort: archiving
+   * Write the debug archive (sessions/<id>.json) to the private R2 bucket, and the session's public
+   * program-list entry (gallery/<id>.json). Best-effort: archiving
    * must never break a session, so failures are logged and swallowed.
    */
   private async archive(reason: string): Promise<{ key: string; bytes: number } | null> {
@@ -259,24 +261,13 @@ export class GenerationSession extends DurableObject<Env> {
       const body = JSON.stringify(buildDebugArchive({ state: s, events: [...evs.values()], reason, environment: this.env.ENVIRONMENT ?? "unknown", build: this.env.CF_VERSION_METADATA?.id ?? null, archivedAt: Date.now(), browserSharedAt: sharedAt }));
       const key = `sessions/${s.sessionId}.json`;
       await bucket.put(key, body, { httpMetadata: { contentType: "application/json" }, customMetadata: { reason, status: s.status, outcome: s.outcome ?? "" } });
+      // Every generation is public: refresh its entry in the program list too.
+      const entry = buildGalleryEntry({ state: s, events: [...evs.values()], expired: reason === "purge", now: Date.now() });
+      if (entry) await putGalleryEntry(bucket, entry);
       return { key, bytes: body.length };
     } catch (e) {
       log({ event: "archive-failed", sessionId: s.sessionId, reason, name: (e as Error)?.name });
       return null;
-    }
-  }
-
-  /** List a passing program in the public gallery when the visitor opted in. Best-effort, like the archive. */
-  private async publish(s: SessionState, sha: string): Promise<void> {
-    const bucket = this.env.DEBUG_ARCHIVE;
-    if (!bucket || !(await this.ctx.storage.get<boolean>("publish"))) return;
-    try {
-      const entry = buildGalleryEntry(s, sha, Date.now());
-      if (!entry) return;
-      await putGalleryEntry(bucket, entry);
-      log({ event: "published", sessionId: s.sessionId, bytes: entry.bytes });
-    } catch (e) {
-      log({ event: "publish-failed", sessionId: s.sessionId, name: (e as Error)?.name });
     }
   }
 

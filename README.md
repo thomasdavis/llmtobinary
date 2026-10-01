@@ -80,11 +80,16 @@ New visitors see a short explainer (what binary is, why AI might write it direct
 
 ## The program list
 
-The bar under the top bar is one dropdown with every program a visitor can run: the featured AI-written programs, everything visitors chose to publish (newest first, with the prompt, age, model, turns, size, devices and result), and the reference programs made by this project's tools. Loading a published program shows its prompt in a card, and `?program=<id>` links straight to it.
+The bar under the top bar has a search box and one dropdown with every program a visitor can open: the featured AI-written programs, **every generation anyone has run** (newest first, whatever happened: working, in progress, stuck, out of budget, cancelled), and the reference programs made by this project's tools. Each row shows the label (the AI's own summary of its program), the prompt, how long ago it was asked, its status, model, turns, size and devices; "Only working programs" narrows it. Opening one shows a card with the prompt and how it went, and `?program=<id>` links straight to it.
 
-A program is published only when the visitor leaves **"If it works, list the program and my prompt publicly"** ticked (it is on by default) and the program passes. The server writes `gallery/<id>.json` to the same R2 bucket as the debug archive. The bytes come from the server's own record of the model's submission, never from the browser, and every visitor's browser re-validates and re-tests them on load. Endpoints: `GET /api/gallery?cursor=` (list) and `GET /api/gallery/<id>` (one program). To take an entry down:
+Every generation is public; the consent box says so and there is no opt-out. The session Durable Object writes `gallery/<id>.json` to the debug R2 bucket when the session is created and each time it is archived. The bytes shown are the passing program, else the AI's last submission, else its last checked draft. They come from the server's own record of the model's tool calls, never from the browser, and every visitor's browser re-validates and re-tests them on load. Endpoints: `GET /api/gallery?cursor=` (list) and `GET /api/gallery/<id>` (one).
+
+Operator tasks (the admin key is the `GALLERY_ADMIN_KEY` Worker secret; this box keeps it in `~/.config/llmtobinary/gallery-admin-key`):
 
 ```sh
+# rebuild entries from the debug archives (idempotent; pages with ?cursor=)
+curl -X POST -H "authorization: Bearer $(cat ~/.config/llmtobinary/gallery-admin-key)" https://llmtobinary.thomasalwyndavis.workers.dev/api/admin/gallery/rebuild
+# take an entry down
 cd apps/web && npx wrangler r2 object delete llmtobinary-debug/gallery/<id>.json --remote
 ```
 

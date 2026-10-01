@@ -422,3 +422,22 @@ dialog.genmodal[open] { animation: intro-in 220ms cubic-bezier(0.22, 1, 0.36, 1)
   .picker-pop, .picker-scrim { animation: none; }
   .picker-caret { transition: none; }
 }
+
+/* search in the bar; the dropdown's own search box is for narrow screens */
+.bar-search { flex: 1 1 320px; max-width: 520px; min-width: 0; display: flex; align-items: center; gap: 6px; padding: 0 10px; height: 38px; background: var(--panel); border: 1px solid #c4cdd8; border-radius: 7px; cursor: text; }
+.bar-search:focus-within { border-color: var(--accent); outline: 2px solid var(--accent); outline-offset: 0; }
+.bar-search input { flex: 1; min-width: 0; border: 0; outline: none; background: none; font: 14px var(--sans); color: var(--ink); }
+.bar-search-icon { color: var(--muted); font-size: 16px; line-height: 1; }
+.pop-search { display: none; }
+.picker-working { margin: 0; font-size: 13px; align-items: center; }
+.picker-status { font-size: 12px; font-weight: 600; }
+.tone-ok { color: var(--ok); }
+.tone-bad { color: var(--bad); }
+.tone-live { color: var(--accent); }
+.tone-plain { color: var(--muted); }
+.picker-detail-tags { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; }
+.program-card-status { margin: 0 0 6px; font-size: 13.5px; }
+@media (max-width: 640px) {
+  .bar-search { display: none; }
+  .pop-search { display: block; flex-basis: 100%; }
+}

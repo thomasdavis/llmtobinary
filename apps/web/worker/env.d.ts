@@ -30,6 +30,8 @@ interface Env {
   // secrets (wrangler secret put / .dev.vars) — never in wrangler.jsonc
   OPENAI_API_KEY?: string;
   SESSION_SIGNING_KEY?: string;
+  /** Operator key for /api/admin/* (program-list rebuild). */
+  GALLERY_ADMIN_KEY?: string;
   // test-only (never set for deployed environments)
   TEST_FAKE_MODEL?: string;
   TEST_FAKE_SCRIPT?: string;

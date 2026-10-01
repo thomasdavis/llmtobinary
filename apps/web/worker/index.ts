@@ -9,7 +9,7 @@ import { PROTOCOL_VERSION, type ConfigResponse, type CreateSessionRequest, type 
 import { signToken, verifyToken } from "./auth.ts";
 import { HttpError, checkOrigin, errorResponse, json, readJson, API_HEADERS } from "./http.ts";
 import type { CreatePayload } from "./session.ts";
-import { getGalleryEntry, isGalleryId, listGallery } from "./gallery.ts";
+import { getGalleryEntry, isGalleryId, listGallery, rebuildFromArchives } from "./gallery.ts";
 
 export { GenerationSession } from "./session.ts";
 export { BudgetLedger } from "./ledger.ts";
@@ -63,7 +63,6 @@ function validateCreate(body: unknown, env: Env): CreateSessionRequest {
   const b = body as Partial<CreateSessionRequest> | null;
   if (!b || typeof b !== "object") throw new HttpError(400, "body must be an object");
   if (b.mode !== "tools" && b.mode !== "raw-hex") throw new HttpError(400, 'mode must be "tools" or "raw-hex"');
-  if (b.publish !== undefined && typeof b.publish !== "boolean") throw new HttpError(400, "publish must be a boolean");
   if (b.profile !== "default") throw new HttpError(400, "unknown model profile (clients cannot choose models outside the allowlist)");
   const t = b.task as CreateSessionRequest["task"] | undefined;
   if (!t || typeof t !== "object") throw new HttpError(400, "task is required");
@@ -84,7 +83,14 @@ function validateCreate(body: unknown, env: Env): CreateSessionRequest {
   }
   // Curated tasks use the registry's own feature set; clients cannot widen it.
   const task = t.taskId ? { ...t, description: null, allowedFeatures: TASK_BY_ID.get(t.taskId)!.features & t.allowedFeatures } : t;
-  return { task, mode: b.mode, profile: "default", publish: b.publish === true };
+  return { task, mode: b.mode, profile: "default" };
+}
+
+/** Constant-time comparison of two strings (via their SHA-256 digests). */
+async function sameSecret(a: string, b: string): Promise<boolean> {
+  const enc = new TextEncoder();
+  const [x, y] = await Promise.all([crypto.subtle.digest("SHA-256", enc.encode(a)), crypto.subtle.digest("SHA-256", enc.encode(b))]);
+  return crypto.subtle.timingSafeEqual(x, y);
 }
 
 async function admit(request: Request, env: Env, what: string): Promise<void> {
@@ -116,7 +122,16 @@ async function route(request: Request, env: Env): Promise<Response> {
 
   if (path === "/api/config" && request.method === "GET") return json(config(env));
 
-  // The public gallery: programs visitors chose to publish (read-only, cacheable briefly).
+  // Operator only: list generations made before the program list existed, from the debug archive.
+  if (path === "/api/admin/gallery/rebuild" && request.method === "POST") {
+    const key = env.GALLERY_ADMIN_KEY;
+    const auth = request.headers.get("authorization") ?? "";
+    if (!key || !env.DEBUG_ARCHIVE || !(await sameSecret(auth, `Bearer ${key}`))) return json({ error: "not found" }, 404);
+    const cursor = url.searchParams.get("cursor");
+    return json(await rebuildFromArchives(env.DEBUG_ARCHIVE, cursor || null, 100));
+  }
+
+  // The public program list: every generation (read-only, cacheable briefly).
   if (path === "/api/gallery" && request.method === "GET") {
     if (!env.DEBUG_ARCHIVE) return json({ items: [], cursor: null });
     const cursor = url.searchParams.get("cursor");

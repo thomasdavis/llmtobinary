@@ -194,8 +194,6 @@ export interface CreateSessionRequest {
   task: TaskRequest;
   mode: OutputMode;
   profile: string;
-  /** The visitor agreed to list a passing program, with its prompt, in the public gallery. */
-  publish?: boolean;
 }
 
 export interface CreateSessionResponse {
@@ -423,23 +421,39 @@ export type MicroEventKind = MicroEvent["u"];
 
 export const GALLERY_VERSION = "llmtobinary-gallery/1";
 
+/**
+ * Where a generation ended up. Stop outcomes come from the loop; "in-progress" is a session still
+ * working (or waiting on the visitor's browser), "unfinished" one that expired before it stopped.
+ */
+export type GalleryOutcome = StopOutcome | "in-progress" | "unfinished";
+
 export interface GallerySummary {
-  /** `<inverted time>-<sessionId>`: the key under gallery/ and the id clients fetch by. */
+  /** `<inverted creation time>-<sessionId>`: the key under gallery/ and the id clients fetch by. */
   id: string;
   sessionId: string;
   label: string;
-  /** The visitor's prompt (open tasks) or the curated task's own prompt, shortened for the list. */
+  /** The visitor's prompt (open tasks) or the curated task's own prompt (shortened in lists). */
   prompt: string;
   taskId: string | null;
-  outcome: "passed" | "passed-unverified";
+  outcome: GalleryOutcome;
+  /**
+   * Which bytes the entry carries: the program that passed, else the AI's last submission, else
+   * its last checked draft, else none (it never wrote a complete candidate).
+   */
+  program: "passed" | "submission" | "draft" | null;
+  /** For a draft: whether the checker accepted it. Null when not known server-side. */
+  checkerOk: boolean | null;
   createdAt: number;
-  finishedAt: number;
+  /** When the loop stopped; null while in progress or when it never stopped. */
+  finishedAt: number | null;
+  updatedAt: number;
   bytes: number;
   instructions: number;
   model: string;
   reasoningEffort: string | null;
   turns: number;
   checks: number;
+  submissions: number;
   outputTokens: number;
   features: number;
   signature: string;
@@ -447,14 +461,16 @@ export interface GallerySummary {
 
 export interface GalleryEntry extends GallerySummary {
   version: typeof GALLERY_VERSION;
+  /** Empty when `program` is null. */
   hex: string;
   annotations: unknown;
-  sha256: string;
-  candidateSeq: number;
-  attemptId: string;
+  sha256: string | null;
+  candidateSeq: number | null;
+  attemptId: string | null;
   mode: "tools" | "raw-hex";
   promptVersion: string;
   returnedModels: string[];
+  stopDetail: string | null;
 }
 
 export interface GalleryPage {

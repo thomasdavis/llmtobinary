@@ -16,7 +16,7 @@ import { Intro, type IntroAction } from "./Intro.tsx";
 import { GenerationModal } from "./GenerationModal.tsx";
 import { BinaryView } from "./BinaryView.tsx";
 import { AI_EXAMPLES, REFERENCE_EXAMPLES, loadExample, type AiExample } from "./examples.ts";
-import { ProgramBar, ProgramCard, devices, duration, ago, type ChosenProgram, type Pick, type RefExample } from "./ProgramPicker.tsx";
+import { ProgramBar, ProgramCard, devices, duration, ago, outcomeStatus, programText, type ChosenProgram, type Pick, type RefExample } from "./ProgramPicker.tsx";
 import { MachineClient, type MachineView } from "./machine-client.ts";
 import { TaskPanel } from "./TaskPanel.tsx";
 import type { CompareRow, EngineKind } from "./worker-protocol.ts";
@@ -62,20 +62,21 @@ function chosenRef(r: RefExample): ChosenProgram {
 }
 
 function chosenPublic(g: GalleryEntry): ChosenProgram {
-  const took = duration(g.finishedAt - g.createdAt);
+  const took = g.finishedAt ? duration(g.finishedAt - g.createdAt) : "";
   return {
     key: `public:${g.id}`,
     label: g.label || "Untitled program",
     by: "ai",
     askedBy: "a visitor",
     prompt: g.prompt,
+    status: outcomeStatus(g.outcome),
     facts: [
-      { k: "Generated", v: `${ago(g.finishedAt)}${took ? ` · took ${took}` : ""}` },
+      { k: "Asked", v: `${ago(g.createdAt)}${took ? ` · took ${took}` : ""}` },
       { k: "Model", v: `${g.model}${g.reasoningEffort ? `, ${g.reasoningEffort} reasoning` : ""}` },
-      { k: "Work", v: `${g.turns} turns · ${g.checks} checks · ${g.outputTokens.toLocaleString()} tokens` },
-      { k: "Size", v: `${g.bytes.toLocaleString()} bytes · ${g.instructions.toLocaleString()} instructions` },
+      { k: "Work", v: `${g.turns} turns · ${g.checks} checks · ${g.submissions} submissions · ${g.outputTokens.toLocaleString()} tokens` },
+      { k: "Bytes shown", v: programText(g) },
+      ...(g.bytes ? [{ k: "Size", v: `${g.bytes.toLocaleString()} bytes · ${g.instructions.toLocaleString()} instructions` }] : []),
       { k: "Devices", v: devices(g.features).join(", ") || "none" },
-      { k: "Result", v: g.outcome === "passed" ? "passed every test" : "runs; its own examples hold" },
     ],
     link: programLink(g.id),
     remix: g.taskId ? undefined : { description: g.prompt, params: parseSignature(g.signature).params, returns: parseSignature(g.signature).returns, features: g.features },
@@ -119,7 +120,7 @@ export function App() {
   const [promptFocus, setPromptFocus] = useState(0);
   const [genOpen, setGenOpen] = useState(false);
   /** The program picked in the program bar, and the bytes it loaded (the card hides once others load). */
-  const [chosen, setChosen] = useState<{ program: ChosenProgram; sha: string } | null>(null);
+  const [chosen, setChosen] = useState<{ program: ChosenProgram; sha: string | null } | null>(null);
   const [galleryRefresh, setGalleryRefresh] = useState(0);
   const [remix, setRemix] = useState<{ n: number; value: NonNullable<ChosenProgram["remix"]> } | null>(null);
   const closeIntro = () => {
@@ -212,16 +213,23 @@ export function App() {
   const openPublic = async (id: string) => {
     try {
       const g = await getGalleryEntry(id);
-      const h = parseHex(g.hex);
-      if (!h.ok) throw new Error("the published program's bytes could not be read");
-      const provenance: Provenance = { kind: "model-generated", sessionId: g.sessionId, attemptId: g.attemptId, candidateSeq: g.candidateSeq, requestedModel: g.model, returnedModels: g.returnedModels, mode: g.mode, promptVersion: g.promptVersion, modelOutput: true };
-      const a = await loadArtifact({ bytes: h.bytes, annotations: g.annotations, name: `published-${g.sha256.slice(0, 8)}.anma`, taskId: g.taskId && TASK_BY_ID.has(g.taskId) ? g.taskId : null, provenance, allowedFeatures: g.features & allowed });
-      setAutoRun(a.record.sha256);
-      setChosen({ program: chosenPublic(g), sha: a.record.sha256 });
       setProgramParam(g.id);
+      if (!g.program || !g.hex || !g.sha256 || !g.attemptId || g.candidateSeq === null) {
+        // Nothing to run (the AI never wrote a complete program): show what was asked.
+        machine.hardReset();
+        setArtifact(null);
+        setChosen({ program: chosenPublic(g), sha: null });
+        return;
+      }
+      const h = parseHex(g.hex);
+      if (!h.ok) throw new Error("its bytes could not be read");
+      const provenance: Provenance = { kind: "model-generated", sessionId: g.sessionId, attemptId: g.attemptId, candidateSeq: g.candidateSeq, requestedModel: g.model, returnedModels: g.returnedModels, mode: g.mode, promptVersion: g.promptVersion, modelOutput: true };
+      const a = await loadArtifact({ bytes: h.bytes, annotations: g.annotations, name: `generation-${g.sha256.slice(0, 8)}.anma`, taskId: g.taskId && TASK_BY_ID.has(g.taskId) ? g.taskId : null, provenance, allowedFeatures: g.features & allowed });
+      if (a.module) setAutoRun(a.record.sha256);
+      setChosen({ program: chosenPublic(g), sha: a.record.sha256 });
       await select(a);
     } catch (err) {
-      setNotice(`That published program could not be loaded: ${(err as Error).message}`);
+      setNotice(`That generation could not be opened: ${(err as Error).message}`);
     }
   };
 
@@ -231,7 +239,7 @@ export function App() {
     else await openPublic(p.summary.id);
   };
 
-  // A shared link (?program=<id>) opens that published program.
+  // A shared link (?program=<id>) opens that generation.
   useEffect(() => {
     const id = new URLSearchParams(window.location.search).get(PROGRAM_PARAM);
     if (id) void openPublic(id);
@@ -265,25 +273,26 @@ export function App() {
           by: "ai",
           askedBy: "you",
           prompt: task ? task.prompt : req.task.description,
+          status: { text: "✓ works", tone: "ok" },
           facts: [
             { k: "Generated", v: `just now${s.startedAt ? ` · took ${duration(Date.now() - s.startedAt)}` : ""}` },
             { k: "Model", v: config?.profiles[0]?.model ?? "?" },
             ...(s.counters ? [{ k: "Work", v: `${s.counters.turns} turns · ${s.counters.checks} checks` }] : []),
             ...(c.bytes ? [{ k: "Size", v: `${c.bytes.length.toLocaleString()} bytes` }] : []),
-            { k: "Listed publicly", v: req.publish ? "yes, in the program list" : "no" },
+            { k: "Listed", v: "publicly, in the program list" },
           ],
         },
       });
     };
   }, [gen, onSubmission, config]);
 
-  // A program the visitor published shows up in the list once the session finishes.
+  // The visitor's own generation appears in the list when it starts, and updates when it stops.
   useEffect(() => {
-    if (genState.phase === "stopped" && (genState.outcome === "passed" || genState.outcome === "passed-unverified") && genState.request?.publish) {
+    if (genState.phase === "stopped" || (genState.phase === "streaming" && genState.sessionId)) {
       const t = setTimeout(() => setGalleryRefresh((n) => n + 1), 1500);
       return () => clearTimeout(t);
     }
-  }, [genState.phase, genState.outcome, genState.request]);
+  }, [genState.phase, genState.sessionId]);
 
   // Record finished generation sessions locally (the transcript is exported only on opt-in).
   useEffect(() => {
@@ -443,6 +452,8 @@ export function App() {
   };
 
   const running = view.status === "running" || view.status === "waiting-input";
+  // The card follows the program it describes: it hides once other bytes are loaded.
+  const chosenShown = !!chosen && (chosen.sha === null ? !artifact : artifact?.record.sha256 === chosen.sha);
   const onIntroAction = (a: IntroAction) => {
     closeIntro();
     if (a === "watch") {
@@ -466,7 +477,7 @@ export function App() {
         </div>
       </div>
     </nav>
-    <ProgramBar chosen={chosen && artifact?.record.sha256 === chosen.sha ? chosen.program : null} onPick={onPick} onAsk={() => { setTab("program"); setPromptFocus((n) => n + 1); }} refresh={galleryRefresh} />
+    <ProgramBar chosen={chosenShown ? chosen.program : null} onPick={onPick} onAsk={() => { setTab("program"); setPromptFocus((n) => n + 1); }} refresh={galleryRefresh} />
     <div className={`app${expert ? " is-expert" : " is-simple"}`}>
       <Intro open={introOpen} onClose={closeIntro} onAction={onIntroAction} canGenerate={!!config?.liveGeneration} />
       <GenerationModal
@@ -491,7 +502,7 @@ export function App() {
           </p>
         )}
       </header>
-      {chosen && artifact?.record.sha256 === chosen.sha && <ProgramCard chosen={chosen.program} onRemix={(r) => { setTab("program"); setRemix((x) => ({ n: (x?.n ?? 0) + 1, value: r })); setPromptFocus((n) => n + 1); }} />}
+      {chosenShown && <ProgramCard chosen={chosen.program} onRemix={(r) => { setTab("program"); setRemix((x) => ({ n: (x?.n ?? 0) + 1, value: r })); setPromptFocus((n) => n + 1); }} />}
       {notice && <p className="notice" role="status">{notice} <button className="link" onClick={() => setNotice(null)}>dismiss</button></p>}
       <nav className="tabs mobile" role="tablist" aria-label="Panels">
         {(["program", "executable", "machine"] as const).map((t) => <button key={t} role="tab" aria-selected={tab === t} className={tab === t ? "on" : ""} onClick={() => setTab(t)}>{t}</button>)}

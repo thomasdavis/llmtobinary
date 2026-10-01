@@ -84,7 +84,6 @@ export function TaskPanel(props: {
   const [requireClaims, setRequireClaims] = usePersistentState("requireClaims", false, isBool);
   const [mode, setMode] = usePersistentState<"tools" | "raw-hex">("outputMode", "tools", oneOf("tools", "raw-hex"));
   const [consent, setConsent] = useState(false);
-  const [publish, setPublish] = usePersistentState("publish", true, isBool);
   const [withPrompts, setWithPrompts] = usePersistentState("exportWithPrompts", false, isBool);
   const live = !!props.config?.liveGeneration;
   // The simple view always writes its own prompt; curated tasks live in the expert view.
@@ -117,8 +116,8 @@ export function TaskPanel(props: {
   const busy = props.gen.phase === "creating" || props.gen.phase === "streaming" || props.gen.phase === "testing";
   const request = (): CreateSessionRequest =>
     task
-      ? { task: { taskId: task.id, description: null, params: task.params, returns: task.returns, allowedFeatures: task.features, requireClaims }, mode, profile: "default", publish }
-      : { task: { taskId: null, description, params, returns, allowedFeatures: features & (props.config?.allowedFeatures ?? 15), requireClaims }, mode, profile: "default", publish };
+      ? { task: { taskId: task.id, description: null, params: task.params, returns: task.returns, allowedFeatures: task.features, requireClaims }, mode, profile: "default" }
+      : { task: { taskId: null, description, params, returns, allowedFeatures: features & (props.config?.allowedFeatures ?? 15), requireClaims }, mode, profile: "default" };
   const b = props.config?.budget;
   return (
     <section className="panel" aria-label="Task">
@@ -218,8 +217,7 @@ export function TaskPanel(props: {
       </div>}
       {b && !props.expert && <p className="small muted">The AI ({props.config?.profiles[0]?.model ?? "not configured"}) works in a loop: it drafts, the checker points out mistakes, it fixes them. This can take a few minutes.</p>}
       {b && props.expert && <p className="small muted">Budget per session: {b.maxTurns} turns · {b.maxChecks} checks · {b.maxSubmissions} submissions · {b.maxOutputTokensPerSession.toLocaleString()} output tokens · {Math.round(b.maxWallClockMs / 60000)} min. Model: {props.config?.profiles[0]?.label ?? "not configured"}{effSource === "custom" && props.config?.profiles[0]?.openTaskReasoningEffort && props.config.profiles[0].openTaskReasoningEffort !== props.config.profiles[0].reasoningEffort ? `; your own prompts use ${props.config.profiles[0].openTaskReasoningEffort} reasoning` : ""}.</p>}
-      <label className="check consent"><input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} /> I understand my task text and any failing test results are sent through this site's Cloudflare-hosted server to OpenAI, and that each session (task text, the model's drafts and submissions, loop events) is archived privately on that server for debugging. Runtime inputs are not sent unless I press “Share for debugging”.</label>
-      <label className="check publish"><input type="checkbox" checked={publish} onChange={(e) => setPublish(e.target.checked)} /> If it works, list the program and my prompt publicly in the program list, so anyone can run it.</label>
+      <label className="check consent"><input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} /> I understand that every generation here is public: my prompt, the program and how it went are listed for anyone in the program list. My task text and any failing test results go through this site's Cloudflare-hosted server to OpenAI, and the full session (including the model's drafts) is archived on that server for debugging. Runtime inputs are not sent unless I press “Share for debugging”.</label>
       <div className="row">
         <button className="primary" disabled={!live || !consent || busy || (!task && !description.trim())} onClick={() => props.onGenerate(request())}>Generate</button>
         <button onClick={props.onCancel} disabled={!busy}>Cancel generation</button>
