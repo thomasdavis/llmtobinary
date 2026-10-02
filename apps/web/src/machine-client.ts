@@ -35,7 +35,11 @@ export class MachineClient {
   private tickTimer: ReturnType<typeof setInterval> | null = null;
   private tickNo = 0;
   private stopTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Keys held now (bit i = KEYS[i]). Change them with press/release so taps and listeners work. */
   keys = 0;
+  /** Keys pressed since the last tick, even if already released: a quick tap still reaches the program. */
+  private tapped = 0;
+  private keyListeners = new Set<(held: number) => void>();
   view: MachineView = { status: "empty", snapshot: null, terminal: "", frame: null, framesPresented: 0, result: null, error: null, ticks: [] };
   private listeners = new Set<(v: MachineView) => void>();
   private interactive = false;
@@ -180,6 +184,33 @@ export class MachineClient {
     this.update({ status: reason ? "cancelled" : "empty", snapshot: reason ? this.view.snapshot : null, result: null, error: reason, ...(reason ? {} : { terminal: "", frame: null, framesPresented: 0, ticks: [] }) });
   }
 
+  press(bit: number): void {
+    this.keys |= 1 << bit;
+    this.tapped |= 1 << bit;
+    this.emitKeys();
+  }
+
+  release(bit: number): void {
+    this.keys &= ~(1 << bit);
+    this.emitKeys();
+  }
+
+  releaseAll(): void {
+    if (!this.keys) return;
+    this.keys = 0;
+    this.emitKeys();
+  }
+
+  /** Held keys as they change (the on-screen controls light up from this). */
+  subscribeKeys(fn: (held: number) => void): () => void {
+    this.keyListeners.add(fn);
+    return () => this.keyListeners.delete(fn);
+  }
+
+  private emitKeys(): void {
+    for (const fn of this.keyListeners) fn(this.keys);
+  }
+
   /** Change the offered tick rate; an interactive run in progress switches immediately. */
   setTickRate(perSecond: number): void {
     this.tickRate = perSecond;
@@ -193,7 +224,8 @@ export class MachineClient {
       // rate would otherwise fall behind a growing queue (key presses applied seconds late, then
       // dropped when the queue fills). Every sent tick is recorded, so replay stays exact.
       if (this.view.status !== "waiting-input") return;
-      const event: TickEvent = { tick: String(++this.tickNo), keys: this.keys };
+      const event: TickEvent = { tick: String(++this.tickNo), keys: this.keys | this.tapped };
+      this.tapped = 0;
       this.view.ticks.push(event); // recorded for exact replay
       this.send({ type: "tick", runId: this.runId, event });
       this.view.status = "running"; // until the worker reports waiting again

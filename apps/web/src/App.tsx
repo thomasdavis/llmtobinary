@@ -335,11 +335,13 @@ export function App() {
     if (!autoRun || artifact?.record.sha256 !== autoRun || !artifact.module) return;
     setAutoRun(null);
     loadRun();
-    // Games take keys at once: focus the screen and bring the chip into view.
+    // Bring the running program into view (on a phone, its tab) with its screen and controls.
+    setTab("machine");
     setTimeout(() => {
-      const fb = document.querySelector<HTMLCanvasElement>("section.livechip canvas.fb");
-      document.querySelector("section.livechip")?.scrollIntoView({ block: "start", behavior: "smooth" });
-      if (fb && fb.tabIndex >= 0) fb.focus({ preventScroll: true });
+      // Phones show the program's screen (or controls) first; wider screens show the whole chip.
+      const narrow = window.matchMedia("(max-width: 1100px)").matches;
+      const target = narrow ? (document.querySelector("section.livechip .fb-wrap") ?? document.querySelector("section.keypad")) : null;
+      (target ?? document.querySelector("section.livechip"))?.scrollIntoView({ block: "start", behavior: "smooth" });
     }, 150);
   }, [artifact, autoRun]); // eslint-disable-line react-hooks/exhaustive-deps
 

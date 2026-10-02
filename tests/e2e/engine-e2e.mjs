@@ -73,10 +73,26 @@ ok(/for this run so far|per frame/.test((await page.locator(".chip-time-big").te
 await loadFixture("ball-paddle.anma");
 await page.getByRole("button", { name: "▶ Run" }).click();
 await statusIs(/state: (running|waiting-input)/);
-await page.locator("section.livechip canvas.fb").click();
+// The controls appear for a program that reads keys, ask for input, and light up for real presses.
+const pad = page.locator("section.keypad");
+ok(await pad.isVisible(), "a program that reads keys shows its controls");
+ok(/Your turn/.test((await pad.locator(".keypad-status").textContent()) ?? ""), "the controls say the program is waiting for keys");
+await page.mouse.click(5, 300); // focus the page, not a field: no need to click the screen first
 await page.keyboard.down("ArrowRight");
-await page.waitForTimeout(2000);
+await page.waitForTimeout(300);
+ok((await pad.getByRole("button", { name: "Right arrow" }).getAttribute("aria-pressed")) === "true", "a held keyboard key lights its on-screen key");
+ok(/Listening/.test((await pad.locator(".keypad-status").textContent()) ?? ""), "the controls confirm they are listening");
+await page.waitForTimeout(1700);
 await page.keyboard.up("ArrowRight");
+ok((await pad.getByRole("button", { name: "Right arrow" }).getAttribute("aria-pressed")) === "false", "releasing the key releases it");
+await pad.getByRole("button", { name: "Left arrow" }).scrollIntoViewIfNeeded();
+const left = await pad.getByRole("button", { name: "Left arrow" }).boundingBox();
+await page.mouse.move(left.x + left.width / 2, left.y + left.height / 2);
+await page.mouse.down();
+await page.waitForTimeout(200);
+ok((await pad.getByRole("button", { name: "Left arrow" }).getAttribute("aria-pressed")) === "true", "holding an on-screen key presses it");
+await page.mouse.up();
+await page.getByPlaceholder(/Describe the program/).focus().catch(() => undefined);
 const ticks = async () => Number(/\((\d+)\)/.exec((await page.getByRole("button", { name: /Replay ticks/ }).textContent()) ?? "")?.[1] ?? 0);
 ok((await ticks()) > 20, `pong runs on the fast engine (${await ticks()} ticks in ~2 s)`);
 ok(await page.locator("section.livechip input[type=checkbox]").first().isDisabled(), "lights are off on the fast engine");

@@ -10,6 +10,7 @@ import { disassemble } from "@llmtobinary/decode";
 import { COST_MODEL_ID } from "@llmtobinary/runtime";
 import type { MachineSnapshot, MicroEvent } from "@llmtobinary/protocol";
 import type { LoadedArtifact } from "../artifact.ts";
+import { Keypad } from "../Keypad.tsx";
 import { Framebuffer } from "../Framebuffer.tsx";
 import type { MachineClient, MachineView } from "../machine-client.ts";
 import { Analyzer } from "./Analyzer.tsx";
@@ -316,12 +317,10 @@ export function LiveChip(props: { artifact: LoadedArtifact; view: MachineView; m
           {props.hasFramebuffer && (
             <Framebuffer
               frame={view.frame}
-              interactive={props.interactive}
-              machine={machine}
-              autoFocus={expanded}
               note={!view.frame && (view.snapshot?.counters.executedInstructions ?? 0) > 0 ? "Nothing shown yet: the program has not called display.present, so its drawing has not been published to the screen." : null}
             />
           )}
+          {props.interactive && <Keypad machine={machine} view={view} />}
           <div>
             <h3>Terminal</h3>
             <pre className="livechip-terminal" aria-label="Terminal output">{view.terminal || " "}</pre>

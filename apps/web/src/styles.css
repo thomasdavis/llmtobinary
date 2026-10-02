@@ -105,7 +105,6 @@ button.icon { padding: 2px 7px; line-height: 1.2; }
 .status-error { margin: -2px 0 6px; overflow-wrap: anywhere; }
 .fb-stage { position: relative; }
 .fb-stage .fb { display: block; }
-.fb-hint { min-height: 2.9em; margin: 4px 0 0; }
 .machine-text { margin: 8px 0; }
 .machine-text > summary { cursor: pointer; }
 footer { margin-top: 16px; }
