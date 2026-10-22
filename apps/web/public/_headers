@@ -1,11 +1,12 @@
 # Security headers for static assets (PRD Section 8.6). The Worker sets matching headers on /api/*.
 # Same-origin scripts, workers, and fetches, plus Cloudflare Web Analytics (cookieless; the zone
-# injects its beacon on llmtobinary.com), the only third party allowed. No unsafe-eval; the browser
-# never contacts OpenAI. COOP+COEP make the page cross-origin isolated (SharedArrayBuffer for the T3
-# solver's threads); 'wasm-unsafe-eval' lets trusted solver WebAssembly compile. Neither applies to
-# guest code, which is never compiled or evaluated.
+# injects its beacon on llmtobinary.com) and Google Analytics (src/analytics.ts, production only),
+# the only third parties allowed. No unsafe-eval; the browser never contacts OpenAI. COOP+COEP make
+# the page cross-origin isolated (SharedArrayBuffer for the T3 solver's threads); 'wasm-unsafe-eval'
+# lets trusted solver WebAssembly compile. Neither applies to guest code, which is never compiled
+# or evaluated.
 /*
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval' https://static.cloudflareinsights.com; worker-src 'self'; connect-src 'self' https://cloudflareinsights.com; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval' https://static.cloudflareinsights.com https://www.googletagmanager.com; worker-src 'self'; connect-src 'self' https://cloudflareinsights.com https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com; img-src 'self' data: blob: https://*.google-analytics.com https://*.googletagmanager.com; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'
   X-Content-Type-Options: nosniff
   Referrer-Policy: no-referrer
   Permissions-Policy: camera=(), microphone=(), geolocation=()
