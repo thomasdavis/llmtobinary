@@ -7,6 +7,7 @@ import { DurableObject } from "cloudflare:workers";
 import { FakeModelClient, OpenAIModelClient, MAX_DEBUG_BROWSER_BYTES, buildDebugArchive, cancelSession, createSession, recoverLostAttempt, runAttempt, LoopError, type BudgetGate, type ModelClient, type ModelProfile, type ScriptedTurn, type SessionState } from "@llmtobinary/broker";
 import type { AttemptRequest, CreateSessionRequest, LoopBudget, LoopEvent, SessionSummary } from "@llmtobinary/protocol";
 import { buildGalleryEntry, galleryId, putGalleryEntry } from "./gallery.ts";
+import { publishGeneration } from "./community/registry.ts";
 
 const enc = new TextEncoder();
 const pad = (n: number) => String(n).padStart(10, "0");
@@ -263,7 +264,16 @@ export class GenerationSession extends DurableObject<Env> {
       await bucket.put(key, body, { httpMetadata: { contentType: "application/json" }, customMetadata: { reason, status: s.status, outcome: s.outcome ?? "" } });
       // Every generation is public: refresh its entry in the program list too.
       const entry = buildGalleryEntry({ state: s, events: [...evs.values()], expired: reason === "purge", now: Date.now() });
-      if (entry) await putGalleryEntry(bucket, entry);
+      if (entry) {
+        await putGalleryEntry(bucket, entry);
+        // Best-effort: the registry can be rebuilt from the archive, so a failure here must not lose the archive.
+        try {
+          const author = await this.env.COMMUNITY_DB?.prepare("SELECT user_id FROM generations WHERE session_id = ?1").bind(s.sessionId).first<{ user_id: number | null }>();
+          await publishGeneration(this.env, entry, { backfilled: false, authorId: author?.user_id ?? null, now: Date.now() });
+        } catch (e) {
+          log({ event: "registry-publish-failed", sessionId: s.sessionId, name: (e as Error)?.name });
+        }
+      }
       return { key, bytes: body.length };
     } catch (e) {
       log({ event: "archive-failed", sessionId: s.sessionId, reason, name: (e as Error)?.name });

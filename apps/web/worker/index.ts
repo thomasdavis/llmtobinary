@@ -11,10 +11,14 @@ import { HttpError, checkOrigin, errorResponse, json, readJson, API_HEADERS } fr
 import type { CreatePayload } from "./session.ts";
 import { programPage, sitemap } from "./seo.ts";
 import { getGalleryEntry, hideGalleryEntry, isGalleryId, listGallery, rebuildFromArchives } from "./gallery.ts";
+import { addComment, addReport, listComments, setStar } from "./community/social.ts";
+import { getObject, getPackage, listPackages, loadAttestations, parseObjectId, pendingJobs, publishGeneration, registryConfigured, submitAttestation, takeDown } from "./community/registry.ts";
+import type { Envelope, EvidenceClass } from "@llmtobinary/registry";
 import { accountsConfigured, avatar, beginSignIn, currentMember, deleteAccount, fakeOAuthEnabled, fakeSignIn, finishSignIn, quotaRemaining, requireMember, reserveMemberSpend, revokeAllSessions, signOut } from "./accounts.ts";
 
 export { GenerationSession } from "./session.ts";
 export { BudgetLedger } from "./ledger.ts";
+export { RegistryLog } from "./community/log.ts";
 
 const MAX_CREATE_BODY = 64 * 1024;
 const MAX_ATTEMPT_BODY = 1024 * 1024;
@@ -192,6 +196,22 @@ async function route(request: Request, env: Env): Promise<Response> {
       const cursor = url.searchParams.get("cursor");
       return json(await rebuildFromArchives(env.DEBUG_ARCHIVE, cursor || null, 100));
     }
+    if (path === "/api/admin/registry/backfill" && request.method === "POST") {
+      if (!registryConfigured(env)) throw new HttpError(503, "the registry is not configured");
+      const page = await listGallery(env.DEBUG_ARCHIVE, url.searchParams.get("cursor"), 50);
+      let published = 0;
+      for (const item of page.items) {
+        const body = await getGalleryEntry(env.DEBUG_ARCHIVE, item.id);
+        if (body && (await publishGeneration(env, JSON.parse(body), { backfilled: true, authorId: null, now: Date.now() }))) published++;
+      }
+      return json({ published, seen: page.items.length, cursor: page.cursor });
+    }
+    const down = /^\/api\/admin\/registry\/(sha256:[0-9a-f]{64})$/.exec(path);
+    if (down && request.method === "DELETE" && registryConfigured(env)) {
+      const reason = url.searchParams.get("reason") ?? "takedown";
+      await takeDown(env, parseObjectId(down[1]!), reason.slice(0, 200), Date.now());
+      return json({ takenDown: down[1] });
+    }
     const del = /^\/api\/admin\/gallery\/([0-9a-f-]+)$/.exec(path);
     if (del && request.method === "DELETE" && isGalleryId(del[1]!)) {
       // Removes the public entry for good (later archive writes skip it); the private archive is kept.
@@ -214,6 +234,11 @@ async function route(request: Request, env: Env): Promise<Response> {
     const body = await getGalleryEntry(env.DEBUG_ARCHIVE, g[1]!);
     if (!body) return json({ error: "not found" }, 404);
     return new Response(body, { headers: { ...API_HEADERS, "content-type": "application/json", "cache-control": "public, max-age=3600" } });
+  }
+
+  if (path.startsWith("/api/registry") || path.startsWith("/api/reports") || path.startsWith("/api/verifier")) {
+    if (!registryConfigured(env)) return json({ error: "the registry is not configured" }, 503);
+    return registryRoute(request, env, url, path);
   }
 
   if (path === "/api/generation-sessions" && request.method === "POST") {
@@ -272,6 +297,65 @@ async function route(request: Request, env: Env): Promise<Response> {
     if (sub === "" && request.method === "GET") return withApiHeaders(await stub.fetch("https://session/summary"));
   }
   return json({ error: "not found" }, 404);
+}
+
+const EVIDENCE: readonly string[] = ["E0", "E1", "E2", "E3", "E4", "E5"];
+const MAX_ATTESTATION_BODY = 64 * 1024;
+
+async function registryRoute(request: Request, env: Env, url: URL, path: string): Promise<Response> {
+  const now = Date.now();
+  if (path === "/api/registry" && request.method === "GET") {
+    const evidence = url.searchParams.get("class");
+    const before = url.searchParams.get("before");
+    const limit = Math.min(Math.max(Number(url.searchParams.get("limit") ?? "50") || 50, 1), 200);
+    const q = url.searchParams.get("q");
+    return json(await listPackages(env, { q: q ? q.slice(0, 200) : null, evidence: evidence && EVIDENCE.includes(evidence) ? (evidence as EvidenceClass) : null, author: url.searchParams.get("author"), before: before ? Number(before) : null, limit }), 200, { "cache-control": "public, max-age=15" });
+  }
+  if (path === "/api/reports" && request.method === "POST") {
+    checkOrigin(request);
+    await admit(request, env, "report");
+    const b = await readJson<{ target?: unknown; reason?: unknown }>(request, 8 * 1024);
+    await addReport(env, await currentMember(request, env), b.target, b.reason, now);
+    return json({ reported: true }, 201);
+  }
+  if (path === "/api/verifier/jobs" && request.method === "GET") {
+    const auth = request.headers.get("authorization") ?? "";
+    if (!env.VERIFIER_TOKEN || !(await sameSecret(auth, `Bearer ${env.VERIFIER_TOKEN}`))) return json({ error: "not found" }, 404);
+    return json({ jobs: await pendingJobs(env, 20) });
+  }
+  const m = /^\/api\/registry\/(sha256:[0-9a-f]{64}|sha256%3A[0-9a-f]{64})(\/bytes|\/attestations|\/comments|\/star)?$/.exec(path);
+  if (!m) return json({ error: "not found" }, 404);
+  const id = parseObjectId(m[1]!);
+  const sub = m[2] ?? "";
+  if (sub === "" && request.method === "GET") {
+    const p = await getPackage(env, id);
+    if (!p) return json({ error: "not found" }, 404);
+    const attestations = (await loadAttestations(env, id)).map((a) => ({ predicateType: a.verified?.statement.predicateType ?? null, keyid: a.verified?.keyid ?? null, verified: !!a.verified }));
+    return json({ package: p, attestations, comments: await listComments(env, id) });
+  }
+  if (sub === "/bytes" && request.method === "GET") return getObject(env, id);
+  if (sub === "/attestations" && request.method === "POST") {
+    checkOriginOrToken(request);
+    const r = await submitAttestation(env, id, await readJson<Envelope>(request, MAX_ATTESTATION_BODY), now);
+    return json(r, r.accepted ? 201 : 403);
+  }
+  if (sub === "/comments" && request.method === "POST") {
+    checkOrigin(request);
+    const member = await requireMember(request, env);
+    const b = await readJson<{ body?: unknown }>(request, 8 * 1024);
+    return json(await addComment(env, member, id, b.body, now), 201);
+  }
+  if (sub === "/star" && (request.method === "PUT" || request.method === "DELETE")) {
+    checkOrigin(request);
+    await setStar(env, await requireMember(request, env), id, request.method === "PUT", now);
+    return json({ starred: request.method === "PUT" });
+  }
+  return json({ error: "not found" }, 404);
+}
+
+/** The verifier posts from outside a browser; its signature, not its origin, is what counts. */
+function checkOriginOrToken(request: Request): void {
+  if (request.headers.get("origin")) checkOrigin(request);
 }
 
 export default {

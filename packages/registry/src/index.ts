@@ -63,7 +63,9 @@ export interface SigningKey {
 
 export async function generateKeyPair(): Promise<{ publicKeyHex: string; privateKeyPkcs8Hex: string }> {
   const k = (await crypto.subtle.generateKey("Ed25519", true, ["sign", "verify"])) as CryptoKeyPair;
-  return { publicKeyHex: hexOf(new Uint8Array(await crypto.subtle.exportKey("raw", k.publicKey))), privateKeyPkcs8Hex: hexOf(new Uint8Array(await crypto.subtle.exportKey("pkcs8", k.privateKey))) };
+  const raw = (await crypto.subtle.exportKey("raw", k.publicKey)) as ArrayBuffer;
+  const pkcs8 = (await crypto.subtle.exportKey("pkcs8", k.privateKey)) as ArrayBuffer;
+  return { publicKeyHex: hexOf(new Uint8Array(raw)), privateKeyPkcs8Hex: hexOf(new Uint8Array(pkcs8)) };
 }
 
 export async function importSigningKey(keyid: string, privateKeyPkcs8Hex: string): Promise<SigningKey> {

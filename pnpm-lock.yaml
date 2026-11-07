@@ -211,6 +211,9 @@ importers:
       '@llmtobinary/reference':
         specifier: workspace:*
         version: link:../../packages/reference
+      '@llmtobinary/registry':
+        specifier: workspace:*
+        version: link:../../packages/registry
       '@llmtobinary/research':
         specifier: workspace:*
         version: link:../../packages/research

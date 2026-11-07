@@ -13,6 +13,12 @@ interface Env {
   ADMISSION_LIMITER?: RateLimit;
   /** Accounts and social data (D1). */
   COMMUNITY_DB?: D1Database;
+  /** Content-addressed objects and attestations (R2). */
+  REGISTRY?: R2Bucket;
+  REGISTRY_LOG?: DurableObjectNamespace<import("./community/log.ts").RegistryLog>;
+  /** JSON list of trusted public keys: [{ keyid, publicKeyHex, role }]. */
+  TRUSTED_KEYS?: string;
+  BROKER_KEY_ID?: string;
   CF_VERSION_METADATA?: { id: string; tag: string; timestamp: string };
   // vars
   ENVIRONMENT: string;
@@ -38,6 +44,9 @@ interface Env {
   SESSION_SIGNING_KEY?: string;
   /** Operator key for /api/admin/* (program-list rebuild). */
   GALLERY_ADMIN_KEY?: string;
+  /** PKCS8 hex. Signs provenance at generation time. */
+  BROKER_SIGNING_KEY?: string;
+  VERIFIER_TOKEN?: string;
   GITHUB_CLIENT_ID?: string;
   GITHUB_CLIENT_SECRET?: string;
   // test-only (never set for deployed environments)

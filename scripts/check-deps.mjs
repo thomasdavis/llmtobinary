@@ -51,6 +51,12 @@ const rel = (f) => f.replace(`${root}/`, "");
 
 // 1 + 2: the Worker graph
 const FORBIDDEN_IN_WORKER = ["packages/runtime/", "packages/reference/", "packages/devices/", "packages/verify/", "packages/research/", "tools/", "packages/tasks/src/runner.ts", "packages/tasks/src/oracles.ts"];
+// The model's tool path: the broker must never reach the linker or anything that writes bytes.
+const brokerGraph = graph(join(root, "packages/broker/src/index.ts"));
+for (const [file, chain] of brokerGraph) {
+  const r = rel(file);
+  if (r.startsWith("packages/link/") || r.startsWith("tools/")) errors.push(`broker reaches ${r} via ${chain.map(rel).join(" -> ")}`);
+}
 const workerGraph = graph(join(root, "apps/web/worker/index.ts"));
 for (const [file, chain] of workerGraph) {
   const r = rel(file);
