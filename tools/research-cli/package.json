@@ -18,6 +18,10 @@
     "@llmtobinary/annotations": "workspace:*",
     "@llmtobinary/verify": "workspace:*",
     "@llmtobinary/spec": "workspace:*",
-    "@llmtobinary/broker": "workspace:*"
-  }
+    "@llmtobinary/broker": "workspace:*",
+    "@llmtobinary/link": "workspace:*",
+    "@llmtobinary/reference": "workspace:*",
+    "@llmtobinary/decode": "workspace:*"
+  },
+  "devDependencies": {}
 }
