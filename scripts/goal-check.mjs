@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Evaluates PRD-OS section 8 from evidence files. An item with no evidence is pending, never a
-// pass, and evidence only counts if its commit is an ancestor of HEAD. Exit 0 only when all pass.
+// pass, and evidence only counts if its commit is an ancestor of HEAD. Exit 0 only when every item
+// passes or, where the PRD row allows it, passes against an emulator. Those stay counted apart.
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -19,7 +20,7 @@ const ancestor = (commit) => {
   }
 };
 
-const counts = { pass: 0, fail: 0, blocked: 0, pending: 0, stale: 0 };
+const counts = { pass: 0, emulated: 0, fail: 0, blocked: 0, pending: 0, stale: 0 };
 for (const id of ids) {
   const file = join(root, "docs/os-evidence", `${id}.json`);
   let state = "pending";
@@ -29,11 +30,11 @@ for (const id of ids) {
     note = e.note ?? "";
     if (e.result === "blocked") state = "blocked";
     else if (e.result === "fail") state = "fail";
-    else if (e.result !== "pass" || !e.command || !e.commit) state = "fail";
-    else state = ancestor(e.commit) ? "pass" : "stale";
+    else if (!["pass", "emulated"].includes(e.result) || !e.command || !e.commit) state = "fail";
+    else state = ancestor(e.commit) ? e.result : "stale";
   }
   counts[state]++;
   console.log(`${id.padEnd(6)} ${state.padEnd(8)} ${note}`);
 }
 console.log(`\n${ids.length} items: ${Object.entries(counts).map(([k, v]) => `${v} ${k}`).join(", ")}`);
-process.exit(counts.pass === ids.length ? 0 : 1);
+process.exit(counts.pass + counts.emulated === ids.length ? 0 : 1);

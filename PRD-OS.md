@@ -366,7 +366,7 @@ Build accounts, D1, the registry, package pages, profiles, stars, comments, remi
 | A1.9 | With the verifier down, the site works and jobs show as pending |
 | A1.10 | A takedown removes the blob and text, keeps the tombstone, and makes pinned lock files fail closed |
 | A1.11 | `/`, `/chip` and existing permalinks still work; `tests/e2e` passes; COOP and COEP are unchanged, and z3 still runs in the browser |
-| A1.12 | The owner completes a real GitHub sign-in on staging, then releases to production, and a production smoke test passes |
+| A1.12 | Amended by the owner on 2026-11-07, because no OAuth App exists: sign-in through the owner-only GitHub emulator passes in a real browser on staging, the release reaches production, and a production smoke test passes. This item does not cover real GitHub sign-in, which is still untested (section 10) |
 
 ### Phase 2: Link and compose
 
@@ -467,7 +467,7 @@ Add the `gen` device, the browser confirmation, the OS interface card and the sh
 - Set `PER_TOKEN_USD_BUDGET` above 0, or raise any site spending cap.
 - Tag production releases and run production migrations. This must happen at least after phases 1, 2, 3, 6 and 7. Until the phase 1 release, public generations stay unsigned, and that gap can never be repaired later.
 - Install the verifier's systemd unit and its signing key.
-- Complete the real GitHub sign-in check on staging.
+- Complete the real GitHub sign-in check on staging. Still open after A1.12 was amended: setting `GITHUB_CLIENT_ID` turns the emulator off, and `GENERATION_REQUIRES_SIGN_IN` can then be switched on.
 - Appoint curators.
 - Decide how pre-licence gallery entries are treated.
 - Handle legal requests.

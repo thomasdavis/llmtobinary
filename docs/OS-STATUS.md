@@ -96,7 +96,8 @@ The research report suggested a limit near 33k output tokens. Production data ru
 - **Mailboxes are copied, not shared,** as PRD-OS 6.9 planned for process boundaries.
 - **Linked images are plain ANMA-1.** Only `FUNC` field `a` and `CALL` field `b` are rewritten, so the unchanged validator judges the result.
 - **Read-only data is root-only in link version 0.** Data offsets are runtime values, so the linker cannot move them.
-- **Sign-in sits behind `GENERATION_REQUIRES_SIGN_IN`,** and is ignored until sign-in is configured, so a missing OAuth App cannot stop generation.
+- **Sign-in sits behind `GENERATION_REQUIRES_SIGN_IN`,** and is ignored until the public can sign in, so a missing OAuth App cannot stop generation.
+- **Sign-in is emulated, and real GitHub sign-in is untested.** No OAuth App exists, so the owner amended A1.12 to accept `apps/web/worker/github-emulator.ts`. It speaks GitHub's OAuth web flow, so the site's authorize redirect, state cookie, code exchange, profile read and session code all run. It proves nothing about GitHub itself: the App's callback URL, GitHub's real responses and real profiles are all unchecked. The emulator needs a per-environment passcode (`GITHUB_EMULATOR_PASSCODE`, kept in `~/.config/llmtobinary/`), can only issue one account (`emulated-owner`, ID -1, role member), and turns off once `GITHUB_CLIENT_ID` is set. Until then the public cannot sign in, sees no sign-in button, and generates anonymously under the site caps, so production does not yet meet the PRD's "sign-in required to generate".
 - **The per-member quota charges a flat $0.05 per session.** It approximates actual spend. The BudgetLedger stays the hard site-wide cap.
 
 ## Side effects
