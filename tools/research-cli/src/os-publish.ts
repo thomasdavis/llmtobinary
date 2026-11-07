@@ -10,7 +10,7 @@ import { parseModule } from "@llmtobinary/module";
 import { Op } from "@llmtobinary/spec";
 import { validateBytes } from "@llmtobinary/validate";
 import { buildDisk, boot, DEMO_STEPS, keysFor, privateSeed, transcript } from "./os-tests.ts";
-import { built, bytesOf, bySlot, closure, judge, linkFor, linkInput, programFiles, setBuildDir } from "./os-lib.ts";
+import { LIBRARY_SLOTS, built, bytesOf, bySlot, closure, judge, linkFor, linkInput, programFiles, setBuildDir } from "./os-lib.ts";
 import { SLOTS } from "../../../os/slots.ts";
 
 const arg = (name: string, fallback?: string): string => {
@@ -33,13 +33,15 @@ const verifier2Key = await importSigningKey(`verifier-${environment}-2`, keys.ve
 const seed = privateSeed();
 const log = (s: unknown) => console.log(s);
 
-const missing = SLOTS.filter((s) => !built(s.id));
+// Everything the chosen image needs must exist. A live image needs the live packages too.
+const wanted = [...new Set([...closure(bySlot.get(arg("image", "kernel-live"))!), ...SLOTS.filter((s) => s.kind === "program"), ...(built("kernel-live") ? SLOTS : SLOTS.filter((s) => s.id !== "kernel-live" && s.id !== "live")), ...LIBRARY_SLOTS])];
+const missing = wanted.filter((s) => !built(s.id));
 if (missing.length) throw new Error(`not built yet: ${missing.map((s) => s.id).join(", ")}`);
 
 // 1. Re-judge everything. A package that does not pass here is not published.
 const ids = new Map<string, ObjectId>();
 const envelopes = new Map<string, Envelope[]>();
-for (const s of SLOTS) {
+for (const s of wanted) {
   const b = built(s.id)!;
   const bytes = bytesOf(b.hex);
   const failures = judge(s, bytes, seed);
@@ -102,8 +104,8 @@ log(`audit passed: all ${image.length} records trace to ${linked.modules.length}
 const imageId = await objectId(linked.bytes);
 const diskId = await objectId(disk);
 const hex = (b: Uint8Array): string => Buffer.from(b).toString("hex");
-const lock: LockFile = { kind: "llmtobinary-lock/1", root: ids.get("kernel")!, specDigest: "anma-2", engineDigest: "reference", policy: { minimumClass: "E3" }, slots: Object.fromEntries(SLOTS.map((s) => [s.id, ids.get(s.id)!])) };
-const build = { name: "Community OS 0", imageHex: hex(linked.bytes), imageSha256: imageId.slice(7), diskHex: hex(disk), diskSha256: diskId.slice(7), lock, authority: linked.authority, packages: SLOTS.map((s) => ({ slot: s.id, sha256: ids.get(s.id)!.slice(7), records: built(s.id)!.records, model: built(s.id)!.model })) };
+const lock: LockFile = { kind: "llmtobinary-lock/1", root: ids.get("kernel")!, specDigest: "anma-2", engineDigest: "reference", policy: { minimumClass: "E3" }, slots: Object.fromEntries(wanted.map((s) => [s.id, ids.get(s.id)!])) };
+const build = { name: "Community OS 0", imageHex: hex(linked.bytes), imageSha256: imageId.slice(7), diskHex: hex(disk), diskSha256: diskId.slice(7), lock, authority: linked.authority, packages: linked.modules.map((m) => ({ slot: m, sha256: ids.get(m)!.slice(7), records: built(m)!.records, model: built(m)!.model })) };
 writeFileSync(arg("build-out", "apps/web/public/os/default-build.json"), JSON.stringify(build));
 log(`image ${imageId.slice(0, 19)}, authority: ${linked.authority.join(", ")}`);
 if (dry || !url) process.exit(0);
@@ -114,8 +116,8 @@ const post = async (path: string, body: unknown): Promise<unknown> => {
   if (!r.ok) throw new Error(`${path}: HTTP ${r.status} ${await r.text()}`);
   return r.json();
 };
-await post("/api/admin/slots", SLOTS.map((s) => ({ id: s.id, title: s.id, kind: s.kind, features: s.features, depends: s.depends, interface: s.exports, prompt: s.brief })));
-for (const s of SLOTS) {
+await post("/api/admin/slots", wanted.map((s) => ({ id: s.id, title: s.id, kind: s.kind, features: s.features, depends: s.depends, interface: s.exports, prompt: s.brief })));
+for (const s of wanted) {
   const b = built(s.id)!;
   const entry = { version: 2, id: `slot-${s.id}`, sessionId: b.sessionId, label: `OS package: ${s.id}`, prompt: s.brief, taskId: null, outcome: "passed", program: "passed", checkerOk: true, createdAt: Date.parse(b.builtAt), finishedAt: Date.parse(b.builtAt), updatedAt: Date.parse(b.builtAt), bytes: b.hex.length / 2, instructions: b.records, model: b.model, reasoningEffort: "medium", turns: 0, checks: 0, submissions: b.submissions, outputTokens: b.outputTokens, features: s.features, signature: "", hex: b.hex, annotations: null, sha256: b.sha256, candidateSeq: null, attemptId: null, mode: "tools", promptVersion: "os-build", returnedModels: [b.model], stopDetail: null };
   const r = (await post("/api/admin/registry/publish", { entry, slot: s.id, attestations: envelopes.get(s.id) })) as { id: string; results: boolean[] };

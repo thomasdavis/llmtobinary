@@ -25,7 +25,8 @@
     "@llmtobinary/os": "workspace:*",
     "@llmtobinary/devices": "workspace:*",
     "@llmtobinary/module": "workspace:*",
-    "@llmtobinary/runtime": "workspace:*"
+    "@llmtobinary/runtime": "workspace:*",
+    "@llmtobinary/registry": "workspace:*"
   },
   "devDependencies": {}
 }

@@ -10,9 +10,9 @@ Progress log for `PRD-OS.md`. `node scripts/goal-check.mjs` is the measure of do
 
 ## The OS
 
-A model-written OS boots and passes its acceptance tests. The first image is 6 packages: `kernel`, `cmd`, `str`, `fs`, `proc` and `line`. It holds about 1,640 records in 24.8 KB, for about 77,000 output tokens.
+A model-written OS boots and passes its acceptance tests. The first image is 6 packages: `kernel`, `cmd`, `str`, `fs`, `proc` and `line`. It holds 1,547 records in 24.8 KB, for about 77,000 output tokens.
 
-**Estimates that turned out wrong.** PRD-OS and the research report estimated 25,000 to 50,000 records and said direct generation stopped near 250 operations. The smallest honest system took about 1,640 records, 15 to 30 times less. Packages of 533 records passed first time, and Gate A's 512 bucket scored 20 of 20, so the ceiling is well above what the report suggested.
+**Estimates that turned out wrong.** PRD-OS and the research report estimated 25,000 to 50,000 records and said direct generation stopped near 250 operations. The smallest honest system took 1,547 records, 15 to 30 times less. Packages of 533 records passed first time, and Gate A's 512 bucket scored 20 of 20, so the ceiling is well above what the report suggested.
 
 **This is a small OS.** It has cooperative tasks, a flat 16-file directory and five shell commands. It has no scheduler, no isolation between files, and no way to pass arguments to programs. It runs as a guest on a trusted TypeScript VM, and the interfaces, tests and decomposition were written by people and agents.
 
