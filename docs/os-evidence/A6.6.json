@@ -1,0 +1,8 @@
+{
+  "id": "A6.6",
+  "result": "pass",
+  "command": "tests/e2e/boot-e2e.mjs https://llmtobinary.com",
+  "commit": "ddb221ac049ee2d1440e81603139606483ef845b",
+  "note": "Anonymous visitors boot the OS on production at desktop and phone width, and pass the demo. Image: kernel.",
+  "recordedAt": "2026-11-07T05:41:52.469Z"
+}

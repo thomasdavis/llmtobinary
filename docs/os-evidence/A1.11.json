@@ -1,0 +1,8 @@
+{
+  "id": "A1.11",
+  "result": "pass",
+  "command": "tests/e2e/browser-e2e.mjs, community-e2e.mjs, boot-e2e.mjs against production",
+  "commit": "ddb221ac049ee2d1440e81603139606483ef845b",
+  "note": "/, /chip and permalinks work; COOP and COEP unchanged; z3 runs in the browser. Chromium only: Firefox not run in this pass.",
+  "recordedAt": "2026-11-07T05:41:52.534Z"
+}
