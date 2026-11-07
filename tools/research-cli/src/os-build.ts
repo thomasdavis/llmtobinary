@@ -35,13 +35,13 @@ const BUDGET = { maxTurns: 40, maxChecks: 24, maxSubmissions: 8, maxWallClockMs:
 const profile: ModelProfile = { id: CODEX_LANE, label: `${model} via codex exec`, model, reasoningEffort: "medium", carryReasoning: false, inputPerMTok: 0, outputPerMTok: 0, maxContextChars: 400_000 };
 const TYPE: Record<number, string> = { 0: "0 (unit)", 1: "1 (u64)", 2: "2 (bool)", 3: "3 (handle<u8>)", 4: "4 (handle<u64>)" };
 
-const DEVICES = IMPORTS_V2.slice(7, 16).map((i) => `import ${i.id}: ${i.name}(${i.paramNames.join(", ")}), parameter types ${i.params.map((p) => TYPE[p]).join(", ") || "none"}, returns ${TYPE[i.result]}`).join("\n");
+const DEVICES = IMPORTS_V2.filter((i) => i.id >= 7 && i.id !== 16).map((i) => `import ${i.id}: ${i.name}(${i.paramNames.join(", ")}), parameter types ${i.params.map((p) => TYPE[p]).join(", ") || "none"}, returns ${TYPE[i.result]}`).join("\n");
 
 function promptFor(s: Slot): string {
   const list = s.exports.map((e) => `function ${e.id}: ${e.symbol}${e.signature}\n  ${e.behaviour}`).join("\n");
   const imports = importsOf(s).map((e, k) => `import ${k}: ${e.symbol}${e.signature}\n  ${e.behaviour}\n  IMPORT return type ${TYPE[e.ret]}, parameter types ${e.params.map((p) => TYPE[p]).join(", ") || "none"}`).join("\n");
   const module = `This program is an ANMA-2 module: an ANMA-1 file with these differences.
-- Header word 1 (version) is 2. Header word 2 may also set bit 4 (0x10, text), bit 5 (0x20, block) and bit 6 (0x40, tasks).
+- Header word 1 (version) is 2. Header word 2 may also set bit 4 (0x10, text), bit 5 (0x20, block), bit 6 (0x40, tasks) and bit 8 (0x100, gen).
 - After the last END_FUNC it may list IMPORT declarations. Record 0x70 IMPORT has fields: function ID, parameter count, return type. Each IMPORT is immediately followed by its parameter count of PARAM records, where parameter k is PARAM with value ID k, its type tag, and parameter index k.
 - Imports take the function IDs right after your defined functions, and CALL reaches them like any function.
 - recordCount includes the IMPORT and PARAM records.

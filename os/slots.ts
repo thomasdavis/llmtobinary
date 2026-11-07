@@ -96,12 +96,27 @@ Keep message text in your read-only data section and print it with terminal.prin
   exports: [],
 };
 
+const GEN = 1 << 8;
+
+/** The kernel plus live generation. Separate, so the plain kernel stands as its own milestone. */
+export const KERNEL_LIVE: Slot = {
+  ...KERNEL,
+  id: "kernel-live",
+  features: KERNEL.features | GEN,
+  brief: `${KERNEL.brief}
+
+Also add live generation. A program can be requested while the system keeps running.
+- "gen <name> <prompt>": the prompt is everything after the name. If a job is already running, print "busy\n". Otherwise copy the prompt into a buffer, call gen.request(buffer, length), remember the job and the name, and print "started\n". If gen.request returns 0, print "failed\n" instead.
+- Just before printing each "> " prompt, if a job is running, call gen.poll(job). Result 0 means still pending, so do nothing. Result 2 means it failed: print "generation failed\n" and forget the job. Result 1 means ready: call gen.read(job, buffer) with a 4608-byte buffer to get the length, save it with fs.write under the remembered name, print "generated <name>\n", and forget the job.
+The shell must never wait for a job. Keep the remembered job and name in a heap buffer passed through your functions, or in values carried around your main loop.`,
+};
+
 export const HELLO: Slot = { id: "hello", kind: "program", features: TERMINAL, depends: [], exports: [], brief: `A program stored on disk. Entry fn0() -> u64. Print exactly "hello from disk\\n" with terminal.print_utf8, then return 0.` };
 export const CRASH: Slot = { id: "crash", kind: "program", features: 0, depends: [], exports: [], brief: "A program stored on disk that always crashes. Entry fn0() -> u64. Divide 1 by 0 at run time with UDIV_U64 so the program traps, and return the result." };
 export const SPIN: Slot = { id: "spin", kind: "program", features: 0, depends: [], exports: [], brief: "A program stored on disk that never finishes. Entry fn0() -> u64. Loop forever using JUMP between blocks." };
 
 /** Dependency order, so each package is judged against packages that already passed. */
-export const SLOTS: Slot[] = [STR, FMT, HELLO, CRASH, SPIN, FS, LINE, PROC, KERNEL];
+export const SLOTS: Slot[] = [STR, FMT, HELLO, CRASH, SPIN, FS, LINE, PROC, KERNEL, KERNEL_LIVE];
 
 const bytes = (s: string): Uint8Array => new TextEncoder().encode(s);
 const padded = (s: string, n: number): Uint8Array => {

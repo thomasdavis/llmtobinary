@@ -5,7 +5,7 @@ import { link, type LinkInput } from "@llmtobinary/link";
 import { parseModule } from "@llmtobinary/module";
 import { validateBytes } from "@llmtobinary/validate";
 import { OsMachine } from "@llmtobinary/os";
-import { ALL, buildDisk, runKernelTests, runLibraryTests, runProcTests, type Failure, type Image } from "./os-tests.ts";
+import { ALL, buildDisk, runKernelTests, runLibraryTests, runLiveTests, runProcTests, type Failure, type Image } from "./os-tests.ts";
 import { SLOTS, type ExportSpec, type Slot } from "../../../os/slots.ts";
 import { LIBRARY, librarySlot } from "../../../os/library.ts";
 
@@ -81,10 +81,12 @@ export function judge(s: Slot, bytes: Uint8Array, seed: bigint | null): Failure[
   const l = linkFor(s, bytes);
   if ("error" in l) return [{ name: "link", detail: l.error, holdout: false }];
   if (s.id === "proc") return runProcTests(l.image, programFiles());
-  if (s.id === "kernel") {
+  if (s.id === "kernel" || s.id === "kernel-live") {
     const fs = linkFor(bySlot.get("fs")!, bytesOf(built("fs")!.hex));
     if ("error" in fs) return [{ name: "fs", detail: fs.error, holdout: false }];
-    return runKernelTests(l.image.module, buildDisk(fs.image, programFiles()), seed);
+    const disk = buildDisk(fs.image, programFiles());
+    const failures = runKernelTests(l.image.module, disk, seed);
+    return failures.length || s.id === "kernel" ? failures : runLiveTests(l.image.module, disk, bytesOf(built("hello")!.hex));
   }
   return runLibraryTests(s.id, l.image, seed);
 }

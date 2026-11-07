@@ -4,7 +4,7 @@
 import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { Feature, Feature2 } from "@llmtobinary/spec";
-import { OsMachine, SECTOR_BYTES } from "@llmtobinary/os";
+import { GenStatus, OsMachine, SECTOR_BYTES, type GenProvider } from "@llmtobinary/os";
 import type { Heap } from "@llmtobinary/devices";
 import type { RuntimeValue } from "@llmtobinary/protocol";
 import type { Module } from "@llmtobinary/validate";
@@ -282,8 +282,8 @@ export interface Session {
   disk: Uint8Array;
 }
 
-export function boot(kernel: Module, disk: Uint8Array, lines: string[]): Session {
-  const m = new OsMachine({ kernel, disk, keys: keysFor(lines), fuel: 40_000_000 });
+export function boot(kernel: Module, disk: Uint8Array, lines: string[], gen?: GenProvider): Session {
+  const m = new OsMachine({ kernel, disk, keys: keysFor(lines), fuel: 40_000_000, ...(gen ? { gen } : {}) });
   const status = m.run();
   return { terminal: m.terminal(), status, trap: m.result().trap?.code ?? null, disk: m.disk };
 }
@@ -330,5 +330,56 @@ export function runKernelTests(kernel: Module, disk: Uint8Array, seed: bigint | 
     }
     session("private session", disk, [...steps, ["exit", ""]], true);
   }
+  return out;
+}
+
+/** A provider that stays pending for `pending` polls, then delivers these bytes, or fails. */
+export function fakeGen(bytes: Uint8Array | null, pending: number): GenProvider & { requests: string[] } {
+  let polls = 0;
+  const requests: string[] = [];
+  return {
+    requests,
+    request(prompt) {
+      requests.push(new TextDecoder().decode(prompt));
+      return 7;
+    },
+    poll() {
+      if (polls++ < pending) return { status: GenStatus.PENDING };
+      return bytes ? { status: GenStatus.READY, bytes } : { status: GenStatus.FAILED };
+    },
+  };
+}
+
+/** Live generation: the program arrives mid-session, with no reboot, and the shell never waits. */
+export function runLiveTests(kernel: Module, disk: Uint8Array, program: Uint8Array): Failure[] {
+  const out: Failure[] = [];
+  const check = (name: string, steps: [string, string][], gen: ReturnType<typeof fakeGen>, prompt?: string) => {
+    const s = boot(kernel, disk, steps.map(([l]) => l), gen);
+    const want = transcript(steps);
+    if (s.terminal !== want || s.status !== "halted") {
+      let at = 0;
+      while (at < want.length && s.terminal[at] === want[at]) at++;
+      out.push({ name, detail: `ended ${s.status}; differs at ${at}: got ${JSON.stringify(s.terminal.slice(Math.max(0, at - 24), at + 40))}, expected ${JSON.stringify(want.slice(Math.max(0, at - 24), at + 40))}`, holdout: false });
+    }
+    if (prompt !== undefined && gen.requests[0] !== prompt) out.push({ name, detail: `requested ${JSON.stringify(gen.requests[0])}, expected ${JSON.stringify(prompt)}`, holdout: false });
+  };
+  // Each prompt polls once. The job stays pending through two commands, so the shell must not wait.
+  check("program arrives mid-session", [
+    ["gen tool print a greeting", "started\n"],
+    ["ls", "hello\ncrash\nspin\n"],
+    ["cat missing", "not found\ngenerated tool\n"],
+    ["run tool", "hello from disk\nok\n"],
+    ["exit", ""],
+  ], fakeGen(program, 2), "print a greeting");
+  check("a failed generation leaves the shell running", [
+    ["gen tool anything", "started\ngeneration failed\n"],
+    ["ls", "hello\ncrash\nspin\n"],
+    ["exit", ""],
+  ], fakeGen(null, 0));
+  check("a second job is refused", [
+    ["gen a one", "started\n"],
+    ["gen b two", "busy\n"],
+    ["exit", ""],
+  ], fakeGen(program, 99));
   return out;
 }
