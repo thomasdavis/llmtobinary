@@ -223,7 +223,7 @@ export function TaskPanel(props: {
         <button className="primary" disabled={!live || busy || (!task && !description.trim())} onClick={() => props.onGenerate(request())}>Generate</button>
         {props.expert && <button onClick={props.onCancel} disabled={!busy}>Cancel generation</button>}
       </div>
-      <p className="muted small public-note">Every generation is public: it is listed, with its prompt, in the program list.</p>
+      <p className="muted small public-note">Every generation is public: it is listed, with its prompt, in the program list and the registry, and released under CC0 so anyone can use it.</p>
       {/* The simple view follows a generation in its modal; the expert view keeps the full loop record here. */}
       {props.expert && <GenerationView gen={props.gen} onSelect={props.onSelectSubmission} onShareDebug={props.onShareDebug} />}
 

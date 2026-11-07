@@ -268,7 +268,8 @@ function PackagePage({ id }: { id: string }) {
 }
 
 export function Community() {
-  const path = location.pathname;
+  // The asset server redirects /package/sha256:… to its percent-encoded form.
+  const path = decodeURIComponent(location.pathname);
   const pkg = /^\/package\/(sha256:[0-9a-f]{64})$/.exec(path);
   const user = /^\/u\/([^/]+)$/.exec(path);
   return (
