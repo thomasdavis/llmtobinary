@@ -21,4 +21,4 @@ The smallest system that passes PRD-OS A6.1. Models write every byte of the pack
 
 **Shell commands.** `ls`, `cat <name>`, `write <name> <text>`, `run <name>`, `format`, `exit`. `ls` and `cat` are shell commands rather than programs on disk. PRD-OS named them as programs, but programs would need a file system-call protocol that A6.1 does not test.
 
-**Why the kernel is split.** The first design had one `kernel` package holding the shell. It never returned: one model call ran out a 25-minute limit, and the next was receiving almost nothing. Splitting it into `cmd` and a small root keeps every package near sizes that models handle reliably. Message text stays in the root, because version 0 allows read-only data only there.
+**Why the kernel is split.** Small packages are the plan, and they cost less when a call stalls. Message text stays in the root, because version 0 allows read-only data only there. The first design was a single kernel package, and its calls stalled, but the cause was never established.

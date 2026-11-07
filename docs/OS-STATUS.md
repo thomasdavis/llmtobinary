@@ -68,7 +68,7 @@ The research report suggested a limit near 33k output tokens. Production data ru
 
 ## Decision notes
 
-- **The kernel is split into `cmd`, a small root and `live`.** One package holding the whole shell never came back: a model call used its full 25-minute limit, and the next was receiving about 21 bytes a second. This is a real limit of single-shot generation, not a harness bug. The transcript tests are unchanged.
+- **The kernel is split into `cmd`, a small root and `live`.** The transcript tests are unchanged. The first design was one package. Its calls did not return, but that does not show it was too big: the cause was never established. A later comparison of the split kernel prompt finished 6 of 6 calls in about 2 minutes with or without the output schema, so the schema is ruled out too. Calls on this lane stall at random, with no known cause, and the single-package kernel may simply have been unlucky alongside the 240-second watchdog. The split is kept because small packages are the plan, not because a limit was proven.
 - **Module and task IDs are plain `u64`, not new handle types** (PRD-OS 6.10 said opaque handles). Only the kernel holds the tasks capability, so forging an ID reaches nothing it does not already own. This avoids new type tags and any change to validator typing.
 - **Mailboxes are copied, not shared,** as PRD-OS 6.9 planned for process boundaries.
 - **Linked images are plain ANMA-1.** Only `FUNC` field `a` and `CALL` field `b` are rewritten, so the unchanged validator judges the result.
