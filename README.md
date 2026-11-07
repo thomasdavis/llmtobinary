@@ -7,10 +7,36 @@ Describe a program; an OpenAI model writes its **literal ANMA-1 bytes** in a che
 
 The authority is [`PRD.md`](PRD.md) (v3.2). What is implemented, verified, tested live, and not yet tested is in [`docs/STATUS.md`](docs/STATUS.md).
 
+## The community OS
+
+llmtobinary now has a shared registry of every generation, and a small operating system assembled from model-written packages. Boot it at https://llmtobinary.com/boot. The goal and its acceptance tests are in [`PRD-OS.md`](PRD-OS.md), the results and their limits are in [`docs/OS-STATUS.md`](docs/OS-STATUS.md), and the design is in [`os/ARCHITECTURE.md`](os/ARCHITECTURE.md).
+
+- **Registry** (`/registry`): every generation, addressed by its SHA-256. An evidence class comes only from signed checks, never from popularity.
+- **OS board** (`/os`): the OS split into slots, each an interface plus tests. Anyone can have a model write a candidate.
+- **Compose** (`/compose`): pick a candidate per slot, link in the browser, and publish a build. The server repeats the link.
+- **Boot** (`/boot`): run the OS in your browser, with a disk kept in this browser. `gen <name> <prompt>` asks a model for a new program while the OS keeps running.
+
+Models wrote every instruction record of the OS as literal bytes. People and agents wrote the ISA, the interfaces, the tests and the decomposition. It runs as a guest on a trusted TypeScript virtual machine, not on hardware, and it is not formally verified.
+
+```sh
+node scripts/goal-check.mjs                                  # acceptance status, from evidence files
+node --experimental-transform-types --no-warnings tools/research-cli/src/os-build.ts --out <dir>      # build packages
+node --experimental-transform-types --no-warnings tools/research-cli/src/os-accept.ts --dir <dir> --image kernel-live
+node --experimental-transform-types --no-warnings tools/research-cli/src/os-publish.ts --dir <dir> --env staging --url <url>
+```
+
+The verifier runs on the box as the user service `llmtobinary-verifier`. A second verifier runs on GitHub's machines through the `rerun` workflow.
+
 ## Layout
 
 ```
 apps/web/               React UI, machine Web Worker (src/), Cloudflare Worker + Durable Objects (worker/), wrangler.jsonc
+packages/module         ANMA-2 module format (read only)
+packages/link           untrusted merge linker; the validator judges its output
+packages/os             the ANMA-2 machine: keys, block device, program loading, isolated tasks
+packages/registry       content addressing, DSSE attestations, evidence classes, log, lock files
+os/                     OS slots, tests' oracles and the leaf library. No bytes.
+tools/verifier          reruns packages and signs results
 packages/spec           ANMA-1 wire constants, opcode/import tables, u64 semantics, limits, SPEC_SHA256
 packages/decode         strict hex/envelope transport, header/record decoding, claim-syntax disassembly
 packages/diagnostics    versioned rule catalog (the manual's error chapter), root-cause-first report assembly
