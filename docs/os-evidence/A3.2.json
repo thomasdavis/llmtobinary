@@ -1,0 +1,8 @@
+{
+  "id": "A3.2",
+  "result": "pass",
+  "command": "gh workflow run rerun; curl /api/slots",
+  "commit": "11e1b918ace66f730d8577de2e309af5c2310204",
+  "note": "All 23 packages reached E4: a second key on GitHub's machines matched the output hashes bit for bit. Same code, so independent machines, not independent implementations.",
+  "recordedAt": "2026-11-07T05:56:19.914Z"
+}

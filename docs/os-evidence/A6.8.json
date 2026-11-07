@@ -1,0 +1,8 @@
+{
+  "id": "A6.8",
+  "result": "pass",
+  "command": "gh workflow run rerun",
+  "commit": "11e1b918ace66f730d8577de2e309af5c2310204",
+  "note": "The second verifier reproduced kernel-live's transcript and final disk hash from registry bytes on another machine.",
+  "recordedAt": "2026-11-07T05:56:19.984Z"
+}
