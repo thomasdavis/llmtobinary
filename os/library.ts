@@ -28,6 +28,15 @@ export interface LibFunction {
   random(next: () => bigint, int: (n: number) => number): LibCase;
 }
 
+/** The right answer for any input. This is what decides a "Break this package" claim. */
+export const ORACLES: Record<string, (args: Arg[]) => bigint | null> = {
+  "math.gcd": ([a, b]) => gcd(a as bigint, b as bigint),
+  "math.isqrt": ([n]) => isqrt(n as bigint),
+  "hash.fnv1a": ([b, n]) => fnv(b as Uint8Array, Number(n)),
+  "crc.crc8": ([b, n]) => crc8(b as Uint8Array, Number(n)),
+  "font.row": ([c, r]) => glyphRow(c as bigint, r as bigint),
+};
+
 export interface LibSlot {
   id: string;
   title: string;
