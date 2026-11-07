@@ -1,0 +1,27 @@
+.community { min-height: 100vh; background: var(--bg); color: var(--ink); font-family: var(--sans); }
+.community-bar { display: flex; align-items: center; gap: 16px; padding: 12px 16px; background: var(--panel); border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.community-brand { font-weight: 600; color: var(--ink); text-decoration: none; }
+.community-spacer { flex: 1; }
+.community-main { max-width: 860px; margin: 0 auto; padding: 16px; }
+.community-main h1 { font-size: 1.5rem; margin: 8px 0; overflow-wrap: anywhere; }
+.community-main h2 { font-size: 1rem; margin: 24px 0 8px; }
+.community-search { display: flex; gap: 8px; margin: 16px 0; flex-wrap: wrap; }
+.community-search input { flex: 1 1 220px; min-width: 0; padding: 8px; }
+.package-list { list-style: none; margin: 0; padding: 0; }
+.package-list li { padding: 12px 0; border-bottom: 1px solid var(--line); }
+.package-list a { font-weight: 600; margin-right: 8px; overflow-wrap: anywhere; }
+.package-prompt { margin: 4px 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.package-prompt-full, .comment p { white-space: pre-wrap; overflow-wrap: anywhere; }
+.package-facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 16px; margin: 16px 0; }
+.package-facts dt { color: var(--muted); }
+.package-facts dd { margin: 0; overflow-wrap: anywhere; }
+.package-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 16px 0; }
+.package-actions .action { padding: 6px 10px; border: 1px solid var(--line); background: var(--panel); text-decoration: none; }
+.evidence { display: inline-block; padding: 1px 6px; font: 12px var(--mono); border: 1px solid var(--line); background: var(--panel); color: var(--muted); }
+.evidence-E3, .evidence-E4, .evidence-E5 { color: var(--ok); border-color: var(--ok); }
+.warn-note { color: var(--warn); }
+.comment { padding: 8px 0; border-top: 1px solid var(--line); }
+.community textarea { width: 100%; min-height: 80px; box-sizing: border-box; padding: 8px; margin: 8px 0; }
+.community .mono { font-family: var(--mono); font-size: 12px; }
+.community .muted { color: var(--muted); }
+.community .small { font-size: 0.85em; }

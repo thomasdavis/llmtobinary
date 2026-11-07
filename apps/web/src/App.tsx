@@ -482,6 +482,7 @@ export function App() {
           <span className="topbar-byline">AI-written machine code, run in your browser</span>
         </div>
         <div className="topbar-actions">
+          <a className="topbar-help" href="/registry">Registry</a>
           <button className="topbar-help" onClick={() => setSysOpen(true)} aria-label="System prompt"><span className="wide-only">System prompt</span><span className="narrow-only">Prompt</span></button>
           <button className="topbar-help" onClick={() => setIntroOpen(true)} aria-label="What is this?"><span className="wide-only">What is this?</span><span className="narrow-only">?</span></button>
           <div className="segmented view-toggle" role="radiogroup" aria-label="View">
