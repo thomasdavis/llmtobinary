@@ -132,7 +132,12 @@ describe("the linker is not trusted", () => {
         const b = base.bytes.slice();
         b[at]! ^= x;
         const r = link([{ ...base, bytes: b }, lib()]);
-        if (r.ok) expect(validateBytes(r.bytes).ok).toBe(true);
+        if (!r.ok) return;
+        // A flipped feature bit can legitimately make this a version 2 image. Judge each by its own version.
+        const version = new DataView(r.bytes.buffer).getUint32(4, true);
+        expect([1, 2]).toContain(version);
+        expect(validateBytes(r.bytes, { anma2: version === 2 }).ok).toBe(true);
+        if (version === 1) expect(validateBytes(r.bytes).ok).toBe(true);
       }),
       { numRuns: 1500 },
     );
