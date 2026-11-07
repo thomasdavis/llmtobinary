@@ -1,0 +1,26 @@
+lcm3/search                5/5 passed, median output tokens 2568, median turns 2, median own records 45
+lcm3/alone                 5/5 passed, median output tokens 2823, median turns 2, median own records 40
+isqrt-sum/search           5/5 passed, median output tokens 2543, median turns 2, median own records 41
+isqrt-sum/alone            5/5 passed, median output tokens 2768, median turns 2, median own records 38
+digest/search              5/5 passed, median output tokens 1721, median turns 4, median own records 22
+digest/alone               4/5 passed, median output tokens 2695.5, median turns 2, median own records 46
+crc-sorted/search          5/5 passed, median output tokens 2047, median turns 4, median own records 28
+crc-sorted/alone           5/5 passed, median output tokens 5586, median turns 2, median own records 128
+collatz/search             5/5 passed, median output tokens 2461, median turns 2, median own records 40
+collatz/alone              4/5 passed, median output tokens 2793.5, median turns 2, median own records 40.5
+popcount-xor/search        5/5 passed, median output tokens 1863, median turns 2, median own records 33
+popcount-xor/alone         5/5 passed, median output tokens 2184, median turns 2, median own records 33
+
+search reuse tasks         20/20 passed, median output tokens 2349, median turns 3, median own records 33.5
+search control tasks       10/10 passed, median output tokens 2223, median turns 2, median own records 35.5
+search all                 30/30 passed, median output tokens 2311, median turns 2, median own records 35.5
+alone reuse tasks          19/20 passed, median output tokens 2845, median turns 2, median own records 46
+alone control tasks        9/10 passed, median output tokens 2264, median turns 2, median own records 34
+alone all                  28/30 passed, median output tokens 2795.5, median turns 2, median own records 40
+
+P1 real reuse: 10 of 20 passing search sessions on reuse tasks call an import: PASS
+P2 benefit: success 20/20 against 19/20; median tokens 2349 against 2845: PASS
+P3 no harm: 30 against 28 across all sessions: PASS
+Controls: 0 of 10 passing control sessions imported something.
+
+DECISION: release

@@ -446,6 +446,18 @@ Add the `gen` device, the browser confirmation, the OS interface card and the sh
 | A7.7 | Failed generation, spent quota and a dropped connection each leave the OS running with a clear message |
 | A7.8 | A live program that traps or spins cannot take down the OS |
 
+### Phase 8: Automatic reuse
+
+Added by the owner on 2026-11-07: "nothing should be manual". A model writing an open program decides for itself what to reuse from the library. It searches, chooses imports, and the server links them, so nobody picks packages by hand.
+
+| ID | Pass condition |
+|---|---|
+| A8.1 | An open generation can search the library and choose imports, the server links at submission, and the browser receives one valid plain ANMA-1 file. A plain program passes through byte for byte |
+| A8.2 | Only packages at E4 or above, within the task's features and with qualifying dependencies, can be imported; bytes are checked against their hash; a client cannot switch the library on |
+| A8.3 | A program's page shows what it was built from, with each package's class, and says if a package was withdrawn later |
+| A8.4 | Gate D (`docs/os-evidence/gate-d-prereg.md`) is run and reported, and production gets automatic reuse only if its pre-registered rule says release |
+| A8.5 | On production, with the site's own model, a generation reuses a package and is correct, and so does `gen` inside the running OS |
+
 ## 9. Follow-on work, not part of this goal
 
 - **Isolation:** scheduler, copying channels, capability kinds, quotas, drivers as services.
