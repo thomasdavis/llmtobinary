@@ -61,7 +61,8 @@ const callback = (origin: string): string => `${origin}/api/auth/github/callback
 const HEADERS = {
   "content-type": "text/html; charset=utf-8",
   "cache-control": "no-store",
-  "referrer-policy": "no-referrer",
+  // Not no-referrer: that makes browsers send `Origin: null` on the form post, which checkOrigin refuses.
+  "referrer-policy": "same-origin",
   "x-content-type-options": "nosniff",
   "x-robots-tag": "noindex, nofollow",
   "content-security-policy": "default-src 'none'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'",

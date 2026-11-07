@@ -181,6 +181,7 @@ describe("GitHub emulator", () => {
     const page = await call(location.pathname + location.search, {}, emu);
     expect(page.status).toBe(200);
     expect(await page.text()).toContain("This is not GitHub");
+    expect(page.headers.get("referrer-policy")).toBe("same-origin");
     const cookie = await signInEmulated();
     const me = (await (await call("/api/me", { headers: { cookie } }, emu)).json()) as { member: Member };
     expect(me.member).toMatchObject({ id: EMULATED_PROFILE.id, login: EMULATED_PROFILE.login, role: "member" });

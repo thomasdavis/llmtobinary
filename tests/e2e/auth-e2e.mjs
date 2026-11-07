@@ -53,7 +53,7 @@ const cookie = (await context.cookies()).find((c) => c.name === "__Host-lb_sessi
 check(cookie?.secure === true && cookie?.httpOnly === true && cookie?.sameSite === "Lax", "the session cookie is hardened");
 
 const list = await api("/api/registry?limit=1");
-const id = (list.body.items ?? list.body.packages ?? list.body.results ?? [])[0]?.id;
+const id = list.body.items?.[0]?.object_id;
 check(!!id, "a package is available to star");
 const star = `/api/registry/${id}/star`;
 check((await api(star, { method: "PUT" })).status === 200, "a signed-in member can star");
