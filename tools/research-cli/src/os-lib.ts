@@ -1,11 +1,19 @@
 // Shared by the build, the publisher and the verifier, so all three judge a package identically.
 
 import { existsSync, readFileSync } from "node:fs";
+import { randomUUID } from "node:crypto";
+import { createSession, runAttempt } from "@llmtobinary/broker";
+import type { ModelProfile } from "@llmtobinary/broker";
+import { checkCandidate } from "@llmtobinary/check";
+import { parseHex } from "@llmtobinary/decode";
+import { IMPORTS_V2 } from "@llmtobinary/spec";
+import type { BrowserFeedback, LoopEvent } from "@llmtobinary/protocol";
+import { CODEX_LANE, CodexModelClient } from "./codex-client.ts";
 import { link, type LinkInput } from "@llmtobinary/link";
 import { parseModule } from "@llmtobinary/module";
 import { validateBytes } from "@llmtobinary/validate";
 import { OsMachine } from "@llmtobinary/os";
-import { ALL, buildDisk, runKernelTests, runLibraryTests, runLiveTests, runProcTests, type Failure, type Image } from "./os-tests.ts";
+import { ALL, buildDisk, reportForModel, runKernelTests, runLibraryTests, runLiveTests, runProcTests, type Failure, type Image } from "./os-tests.ts";
 import { SLOTS, type ExportSpec, type Slot } from "../../../os/slots.ts";
 import { LIBRARY, librarySlot } from "../../../os/library.ts";
 
@@ -89,5 +97,76 @@ export function judge(s: Slot, bytes: Uint8Array, seed: bigint | null): Failure[
     return failures.length || s.id === "kernel" ? failures : runLiveTests(l.image.module, disk, bytesOf(built("hello")!.hex));
   }
   return runLibraryTests(s.id, l.image, seed);
+}
+
+
+export const BUDGET = { maxTurns: 40, maxChecks: 24, maxSubmissions: 8, maxWallClockMs: 30 * 60_000 };
+const TYPE: Record<number, string> = { 0: "0 (unit)", 1: "1 (u64)", 2: "2 (bool)", 3: "3 (handle<u8>)", 4: "4 (handle<u64>)" };
+
+export interface Generated {
+  bytes: Uint8Array | null;
+  sessionId: string;
+  submissions: number;
+  outputTokens: number;
+  hungCalls: number;
+  last: string;
+  audit: string[];
+}
+
+/** One session through the real loop. `test` is the only judge, and the harness never edits bytes. */
+export async function generate(s: Pick<Slot, "features">, prompt: string, test: (bytes: Uint8Array) => Failure[], o: { model: string; effort: string }): Promise<Generated> {
+  const profile: ModelProfile = { id: CODEX_LANE, label: `${o.model} via codex exec`, model: o.model, reasoningEffort: "medium", carryReasoning: false, inputPerMTok: 0, outputPerMTok: 0, maxContextChars: 400_000 };
+  const client = new CodexModelClient(o);
+  const events: LoopEvent[] = [];
+  const state = createSession({ sessionId: randomUUID(), task: { taskId: null, description: prompt, params: [], returns: "u64", allowedFeatures: s.features, requireClaims: false, module: true }, mode: "tools", profile, budget: BUDGET, now: Date.now(), ttlMs: 3_600_000 });
+  const abort = new AbortController();
+  const timer = setTimeout(() => abort.abort(), BUDGET.maxWallClockMs + 60_000);
+  let feedback: BrowserFeedback | null = null;
+  let last = "no submission";
+  let passed: Uint8Array | null = null;
+  try {
+    for (let i = 0; i <= BUDGET.maxSubmissions && !passed; i++) {
+      const before = events.length;
+      await runAttempt(state, { idempotencyKey: randomUUID(), feedback }, { model: client, ledger: { reserve: async () => ({ ok: true }), reconcile: async () => {} }, emit: async (e) => void events.push(e), now: () => Date.now(), signal: abort.signal, newId: () => randomUUID(), allowedFeatures: s.features });
+      if (state.status !== "active") {
+        last = `${state.outcome}: ${state.stopDetail ?? ""}`.slice(0, 300);
+        break;
+      }
+      const sub = events.slice(before).filter((e): e is Extract<LoopEvent, { type: "candidate.submitted" }> => e.type === "candidate.submitted").at(-1);
+      if (!sub) break;
+      const c = await checkCandidate({ envelopeText: sub.envelopeText }, { allowedFeatures: s.features, modules: true });
+      const h = parseHex((JSON.parse(sub.envelopeText) as { hex: string }).hex);
+      const failures = h.ok && c.report.ok ? test(h.bytes) : [{ name: "static check", detail: "the file did not pass the static check", holdout: false }];
+      if (!failures.length && h.ok) {
+        passed = h.bytes;
+        break;
+      }
+      last = reportForModel(failures);
+      feedback = { candidateSha256: c.report.sha256 ?? "", validation: c.report, tests: { taskId: null, passed: false, cases: [{ name: "tests", kind: "visible", passed: false, inputs: [], expected: null, actual: last.slice(0, 2000), diagnostic: null }], diagnostics: [], tier: "T0", contractOwner: null } };
+    }
+  } catch (e) {
+    last = (e as Error).message;
+  } finally {
+    clearTimeout(timer);
+  }
+  return { bytes: passed, sessionId: state.sessionId, submissions: state.counters.submissions, outputTokens: state.counters.outputTokens, hungCalls: client.hungCalls, last, audit: [...new Set(client.audit.flatMap((a) => a.toolItems))] };
+}
+
+export const DEVICES = IMPORTS_V2.filter((i) => i.id >= 7 && i.id !== 16).map((i) => `import ${i.id}: ${i.name}(${i.paramNames.join(", ")}), parameter types ${i.params.map((p) => TYPE[p]).join(", ") || "none"}, returns ${TYPE[i.result]}`).join("\n");
+
+export function promptFor(s: Slot): string {
+  const list = s.exports.map((e) => `function ${e.id}: ${e.symbol}${e.signature}\n  ${e.behaviour}`).join("\n");
+  const imports = importsOf(s).map((e, k) => `import ${k}: ${e.symbol}${e.signature}\n  ${e.behaviour}\n  IMPORT return type ${TYPE[e.ret]}, parameter types ${e.params.map((p) => TYPE[p]).join(", ") || "none"}`).join("\n");
+  const module = `This program is an ANMA-2 module: an ANMA-1 file with these differences.
+- Header word 1 (version) is 2. Header word 2 may also set bit 4 (0x10, text), bit 5 (0x20, block), bit 6 (0x40, tasks) and bit 8 (0x100, gen).
+- After the last END_FUNC it may list IMPORT declarations. Record 0x70 IMPORT has fields: function ID, parameter count, return type. Each IMPORT is immediately followed by its parameter count of PARAM records, where parameter k is PARAM with value ID k, its type tag, and parameter index k.
+- Imports take the function IDs right after your defined functions, and CALL reaches them like any function.
+- recordCount includes the IMPORT and PARAM records.
+- These extra HOST operations exist:
+${DEVICES}
+Read-only data is allowed only in the root module.`;
+  if (s.kind === "program") return `${s.brief}\nWrite a plain ANMA-1 program. Declare only the features you use.`;
+  if (s.kind === "root") return `${module}\n\nDeclare feature bits 0x${s.features.toString(16)}.\n\n${s.brief}\n\nDeclare every IMPORT below, in this order, whether or not you call it:\n${imports}`;
+  return `${module}\n\nWrite this library. It is linked with other modules later and has no read-only data.\nDeclare feature bits 0x${s.features.toString(16)}.\n${s.brief}\n\nFunction 0 must be a trivial entry: fn0() -> u64 returning 0. Nothing calls it.\nDefine exactly these functions with these function IDs:\n${list}\nAdd private helpers after them.${imports ? `\n\nDeclare every IMPORT below, in this order, whether or not you call it:\n${imports}` : ""}`;
 }
 
