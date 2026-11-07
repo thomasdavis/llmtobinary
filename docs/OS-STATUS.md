@@ -37,6 +37,22 @@ Progress log for `PRD-OS.md`. `node scripts/goal-check.mjs` is the measure of do
 
 All 4 failures in bucket 128 were calls that never returned, at turn 1, with 0 tokens. That bucket ran before the watchdog existed. The largest bucket at 16 of 20 or better sets the package size limit. These tasks were all in the model's reach, and none tested a limit, so the true ceiling is above this.
 
+**Gate C: reuse compounded here, on tokens.** 20 sessions per arm, matched budget.
+
+| Task | Library tokens | Alone tokens | Saving | Library records | Alone records |
+|---|---|---|---|---|---|
+| `sum`, depth 2 | 3,786 | 5,527 | 31% | 97 | 148 |
+| `filesum`, depth 3 | 5,018 | 14,320 | 65% | 136 | 415 |
+
+All 17 passing library sessions made real call edges, read from the bytes: a median of 4 for `sum` and 6 for `filesum`.
+
+**Limits of this result:**
+
+- Success was not higher with the library: 17 of 20 against 19 of 20. All 4 failures across both arms were lane hangs, so the claim rests on tokens alone.
+- The tasks were chosen by the same author as the library, and they fit it well. This is a favourable case, not a general result.
+- The pre-registered test used pooled medians, which mix two tasks. The per-task figures above are the fair reading, and both clear the 25% bar.
+- It covers depth 2 and 3 only.
+
 ## Bugs found on the way
 
 - **Checker rejected correct programs on 21 of 26 curated tasks.** `effects: ["terminal"]` means "the oracle compares the terminal", which for pure tasks means it must stay empty, but `check_candidate` read it as "must print". Those tasks could not be passed, so past failures on them may not reflect the model. Fixed in `778b110`, and not yet deployed to production.

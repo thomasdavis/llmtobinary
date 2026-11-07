@@ -1,0 +1,48 @@
+{
+  "library": {
+    "sessions": 20,
+    "passed": 17,
+    "medianTokens": 4655,
+    "medianRecords": 97,
+    "medianSubmissions": 1,
+    "withCallEdge": 17,
+    "sum": {
+      "passed": 9,
+      "sessions": 10,
+      "medianTokens": 3786,
+      "medianRecords": 97,
+      "medianEdges": 4
+    },
+    "filesum": {
+      "passed": 8,
+      "sessions": 10,
+      "medianTokens": 5017.5,
+      "medianRecords": 136.0,
+      "medianEdges": 6.0
+    }
+  },
+  "alone": {
+    "sessions": 20,
+    "passed": 19,
+    "medianTokens": 12817,
+    "medianRecords": 318,
+    "medianSubmissions": 1,
+    "withCallEdge": 0,
+    "sum": {
+      "passed": 9,
+      "sessions": 10,
+      "medianTokens": 5527,
+      "medianRecords": 148,
+      "medianEdges": 0
+    },
+    "filesum": {
+      "passed": 10,
+      "sessions": 10,
+      "medianTokens": 14319.5,
+      "medianRecords": 415.0,
+      "medianEdges": 0.0
+    }
+  },
+  "tokenReduction": 0.636810486073184,
+  "compounding": true
+}
