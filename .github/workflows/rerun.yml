@@ -4,9 +4,11 @@ name: rerun
 on:
   workflow_dispatch:
     inputs:
-      url:
+      target:
         description: Site to verify
-        default: https://llmtobinary.com
+        type: choice
+        options: [production, staging]
+        default: production
   schedule:
     - cron: "17 6 * * *"
 jobs:
@@ -21,8 +23,9 @@ jobs:
       - run: npm install -g pnpm@12.6.0
       - run: pnpm install --frozen-lockfile --store-dir ~/.pnpm-store
       - name: Rerun
+        # Each site trusts its own second key, so a staging run can never raise a production package.
         env:
-          VERIFIER_URL: ${{ inputs.url || 'https://llmtobinary.com' }}
-          VERIFIER2_KEY: ${{ secrets.VERIFIER2_KEY }}
-          VERIFIER2_KEY_ID: verifier-production-2
+          VERIFIER_URL: ${{ inputs.target == 'staging' && 'https://llmtobinary-staging.thomasalwyndavis.workers.dev' || 'https://llmtobinary.com' }}
+          VERIFIER2_KEY: ${{ inputs.target == 'staging' && secrets.VERIFIER2_STAGING_KEY || secrets.VERIFIER2_KEY }}
+          VERIFIER2_KEY_ID: ${{ inputs.target == 'staging' && 'verifier-staging-2' || 'verifier-production-2' }}
         run: node --experimental-transform-types --no-warnings tools/verifier/src/rerun.ts
