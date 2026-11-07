@@ -34,7 +34,7 @@ for (const [kind, params, description] of PROMPTS) {
     uses: linked?.uses ?? [],
     packages: linked?.packages.map((p) => `${p.slot} ${p.evidence}`) ?? [],
     submitted: !!sub,
-    version: hex ? parseInt(hex.slice(8, 10), 16) : null,
+    version: hex ? parseInt(hex.replace(/\s+/g, "").slice(8, 10), 16) : null,
     stopped: events.findLast((e) => e.type === "loop.stopped")?.detail ?? null,
     errors: events.filter((e) => e.type === "attempt.error").map((e) => e.message),
   };
