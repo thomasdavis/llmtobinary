@@ -359,6 +359,8 @@ export interface EngineOptions {
   limits?: Partial<import("@llmtobinary/spec").Limits>;
   /** Host policy: granted features; HOST calls outside it trap CAPABILITY_DENIED. */
   allowedFeatures?: number;
+  /** Test harness only: call this function directly, with arguments built on the run's heap. */
+  call?: { fn: number; args(heap: never): RuntimeValue[] };
   /** Pre-recorded tick events for deterministic replay (Section 13). */
   ticks?: TickEvent[];
   hooks?: EngineHooks;

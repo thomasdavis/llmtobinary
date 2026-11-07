@@ -40,6 +40,10 @@ export interface OsOptions {
   fuel?: number;
   gen?: GenProvider;
   onWrite?: (sector: number, disk: Uint8Array) => void;
+  /** Test harness only: call one function directly, with arguments built on the kernel's heap. */
+  call?: { fn: number; args(heap: Heap): RuntimeValue[] };
+  /** Test harness only: features granted to the entry module, instead of the kernel's. */
+  features?: number;
 }
 
 interface Task {
@@ -73,8 +77,8 @@ const asNumber = (v: RuntimeValue): number | null => (typeof v === "bigint" && v
 const ok = (value: bigint | null = null): HostOutcome => ({ kind: "ok", value });
 const bounds = (message: string): HostOutcome => ({ kind: "trap", trap: makeTrap("BOUNDS", message) });
 
-function newEngine(kind: EngineKind, module: Module, fuel: number, features: number, heapBytes?: number): Engine {
-  const opts = { allowedFeatures: features, limits: { executedInstructions: fuel, microsteps: Number.MAX_SAFE_INTEGER, ...(heapBytes ? { heapPayloadBytes: heapBytes } : {}) } };
+function newEngine(kind: EngineKind, module: Module, fuel: number, features: number, heapBytes?: number, call?: OsOptions["call"]): Engine {
+  const opts = { allowedFeatures: features, ...(call ? { call: call as never } : {}), limits: { executedInstructions: fuel, microsteps: Number.MAX_SAFE_INTEGER, ...(heapBytes ? { heapPayloadBytes: heapBytes } : {}) } };
   return kind === "finite" ? createFiniteMachine(module, [], opts) : new ReferenceEngine(module, [], opts);
 }
 
@@ -118,7 +122,7 @@ export class OsMachine implements HostExtension {
     this.kind = opts.engine ?? "reference";
     this.disk = opts.disk.slice();
     this.keys = [...(opts.keys ?? [])];
-    this.kernel = newEngine(this.kind, opts.kernel, opts.fuel ?? 50_000_000, KERNEL_FEATURES);
+    this.kernel = newEngine(this.kind, opts.kernel, opts.fuel ?? 50_000_000, opts.features ?? KERNEL_FEATURES, undefined, opts.call);
     this.kernel.devices.ext = this;
   }
 
@@ -133,6 +137,12 @@ export class OsMachine implements HostExtension {
 
   pushKeys(keys: readonly number[]): void {
     this.keys.push(...keys);
+  }
+
+  /** Test harness only: read back a buffer after a run. */
+  buffer(h: RuntimeValue, length: number): Uint8Array {
+    const r = readBuffer(this.kernel.devices.heap!, h, length);
+    return r instanceof Uint8Array ? r : new Uint8Array();
   }
 
   terminal(): string {

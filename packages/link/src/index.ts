@@ -37,6 +37,8 @@ export interface LinkSuccess {
   edges: LinkedEdge[];
   /** Host operations reachable from the entry function. */
   authority: string[];
+  /** Where each exported symbol landed in the image. */
+  exportMap: Record<string, number>;
   label: "linked";
 }
 
@@ -169,7 +171,9 @@ export function link(inputs: readonly LinkInput[], opts: { allowedFeatures?: num
 
   const v = validateBytes(out, { anma2: version === 2, ...(opts.allowedFeatures === undefined ? {} : { allowedFeatures: opts.allowedFeatures }) });
   if (!v.ok || !v.module) return { ok: false, errors: [{ rule: "LINK-INVALID", message: `The linked image failed validation: ${v.diagnostics.map((d) => d.rule).join(", ")}` }] };
-  return { ok: true, bytes: out, modules: order.map((l) => l.input.name), edges, authority: authorityOf(out), label: "linked" };
+  const exportMap: Record<string, number> = {};
+  for (const [symbol, t] of symbols) if (base.has(t.owner)) exportMap[symbol] = base.get(t.owner)! + t.id;
+  return { ok: true, bytes: out, modules: order.map((l) => l.input.name), edges, authority: authorityOf(out), exportMap, label: "linked" };
 }
 
 /** Host operations reachable from the entry function, by walking the call graph. */

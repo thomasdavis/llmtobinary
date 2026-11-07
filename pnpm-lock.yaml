@@ -609,9 +609,15 @@ importers:
       '@llmtobinary/decode':
         specifier: workspace:*
         version: link:../../packages/decode
+      '@llmtobinary/devices':
+        specifier: workspace:*
+        version: link:../../packages/devices
       '@llmtobinary/link':
         specifier: workspace:*
         version: link:../../packages/link
+      '@llmtobinary/os':
+        specifier: workspace:*
+        version: link:../../packages/os
       '@llmtobinary/protocol':
         specifier: workspace:*
         version: link:../../packages/protocol

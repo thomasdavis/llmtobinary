@@ -21,7 +21,9 @@
     "@llmtobinary/broker": "workspace:*",
     "@llmtobinary/link": "workspace:*",
     "@llmtobinary/reference": "workspace:*",
-    "@llmtobinary/decode": "workspace:*"
+    "@llmtobinary/decode": "workspace:*",
+    "@llmtobinary/os": "workspace:*",
+    "@llmtobinary/devices": "workspace:*"
   },
   "devDependencies": {}
 }
