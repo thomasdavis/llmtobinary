@@ -31,7 +31,7 @@ export interface CallResult {
   disk: Uint8Array;
 }
 
-export function invoke(img: Image, symbol: string, args: Arg[], opts: { disk?: Uint8Array; keys?: number[]; fuel?: number } = {}): CallResult {
+export function invoke(img: Image, symbol: string, args: Arg[], opts: { disk?: Uint8Array; keys?: number[]; fuel?: number; gen?: GenProvider } = {}): CallResult {
   const fn = img.exportMap[symbol];
   if (fn === undefined) throw new Error(`no export ${symbol}`);
   const handles = new Map<number, { h: RuntimeValue; length: number }>();
@@ -44,7 +44,7 @@ export function invoke(img: Image, symbol: string, args: Arg[], opts: { disk?: U
       handles.set(i, { h: r.value, length: a.length });
       return r.value;
     });
-  const m = new OsMachine({ kernel: img.module, disk: opts.disk ?? new Uint8Array(DISK_SECTORS * SECTOR_BYTES), keys: opts.keys ?? [], fuel: opts.fuel ?? 3_000_000, features: ALL, call: { fn, args: build } });
+  const m = new OsMachine({ kernel: img.module, disk: opts.disk ?? new Uint8Array(DISK_SECTORS * SECTOR_BYTES), keys: opts.keys ?? [], fuel: opts.fuel ?? 3_000_000, features: opts.gen ? ALL | Feature2.GEN : ALL, ...(opts.gen ? { gen: opts.gen } : {}), call: { fn, args: build } });
   const status = m.run();
   const r = m.result();
   const buffers = new Map<number, Uint8Array>();
@@ -221,7 +221,7 @@ export function runLibraryTests(slot: string, img: Image, seed: bigint | null): 
   for (const c of VISIBLE[slot] ?? []) checkCall(img, c, false, out);
   if (slot === "fs") fsScenario(img, 1n, false, out);
   if (seed === null || out.length) return out;
-  const hold = slot === "str" ? strHoldouts(seed) : slot === "fmt" ? fmtHoldouts(seed) : slot === "line" ? lineHoldouts(seed) : libraryCalls(slot, seed);
+  const hold = slot === "cmd" || slot === "live" ? [] : slot === "str" ? strHoldouts(seed) : slot === "fmt" ? fmtHoldouts(seed) : slot === "line" ? lineHoldouts(seed) : libraryCalls(slot, seed);
   for (const c of hold) checkCall(img, c, true, out);
   if (slot === "fs") fsScenario(img, seed, true, out);
   return out;
@@ -381,5 +381,59 @@ export function runLiveTests(kernel: Module, disk: Uint8Array, program: Uint8Arr
     ["gen b two", "busy\n"],
     ["exit", ""],
   ], fakeGen(program, 99));
+  return out;
+}
+
+/** cmd: each command against a real disk. */
+export function runCmdTests(img: Image, programs: Record<string, Uint8Array>): Failure[] {
+  const out: Failure[] = [];
+  const disk = buildDisk(img, programs);
+  const line = (t: string): [Uint8Array, bigint] => {
+    const b = new Uint8Array(t.length + 2);
+    b.set(enc.encode(t));
+    return [b, BigInt(t.length)];
+  };
+  for (const [t, want] of [["", 0n], ["   ", 0n], ["ls", 1n], ["cat x", 2n], ["write a b", 3n], ["run hello", 4n], ["format", 5n], ["exit", 6n], ["gen a b", 7n], ["nonsense", 8n], ["lsx", 8n], ["  ls", 1n]] as [string, bigint][]) checkCall(img, { symbol: "cmd.word", args: line(t), want }, false, out, disk);
+  checkCall(img, { symbol: "cmd.ls", args: [], terminal: `${Object.keys(programs).join("\n")}\n` }, false, out, disk);
+  checkCall(img, { symbol: "cmd.cat", args: line("cat missing"), want: 1n }, false, out, disk);
+  const w = checkCall(img, { symbol: "cmd.write", args: line("write note hi there"), want: 0n }, false, out, disk);
+  if (w) checkCall(img, { symbol: "cmd.cat", args: line("cat note"), want: 0n, terminal: "hi there\n" }, false, out, w.disk);
+  checkCall(img, { symbol: "cmd.run", args: line("run hello"), want: 0n, terminal: "hello from disk\n" }, false, out, disk);
+  checkCall(img, { symbol: "cmd.run", args: line("run nothing"), want: 1n }, false, out, disk);
+  checkCall(img, { symbol: "cmd.run", args: line("run crash"), want: 3n }, false, out, disk);
+  return out;
+}
+
+/** live: start and poll across calls, carrying the state buffer between them. */
+export function runLiveLibraryTests(img: Image, program: Uint8Array): Failure[] {
+  const out: Failure[] = [];
+  const fail = (name: string, detail: string) => out.push({ name, detail, holdout: false });
+  const disk = buildDisk(img, {});
+  const line = enc.encode("gen tool a program");
+  const gen = fakeGen(program, 1);
+  let state = new Uint8Array(64);
+  const r0 = invoke(img, "live.start", [state, line, BigInt(line.length)], { disk, gen });
+  if (r0.value !== 0n) fail("live.start", `returned ${r0.value}${r0.trap ? ` (${r0.trap})` : ""}, expected 0`);
+  if (gen.requests[0] !== "a program") fail("live.start", `requested ${JSON.stringify(gen.requests[0])}, expected "a program"`);
+  state = r0.buffers.get(0) as Uint8Array<ArrayBuffer>;
+  const busy = invoke(img, "live.start", [state, line, BigInt(line.length)], { disk, gen });
+  if (busy.value !== 1n) fail("live.start", `a second job returned ${busy.value}, expected 1`);
+  const p1 = invoke(img, "live.poll", [state], { disk, gen });
+  if (p1.value !== 0n) fail("live.poll", `a pending job returned ${p1.value}, expected 0`);
+  const p2 = invoke(img, "live.poll", [state], { disk, gen });
+  if (p2.value !== 1n) fail("live.poll", `a ready job returned ${p2.value}${p2.trap ? ` (${p2.trap})` : ""}, expected 1`);
+  const name = invoke(img, "live.print_name", [p2.buffers.get(0) ?? state], { disk, gen });
+  if (name.terminal !== "tool") fail("live.print_name", `printed ${JSON.stringify(name.terminal)}, expected "tool"`);
+  const n = enc.encode("tool");
+  const f = invoke(img, "fs.find", [n, 0n, 4n], { disk: p2.disk });
+  if (!f.value) fail("live.poll", "the program was not saved to disk");
+  else {
+    const rd = invoke(img, "fs.read", [f.value, new Uint8Array(4608)], { disk: p2.disk });
+    if (rd.value !== BigInt(program.length)) fail("live.poll", `saved ${rd.value} bytes, expected ${program.length}`);
+  }
+  const bad = fakeGen(null, 0);
+  const s0 = invoke(img, "live.start", [new Uint8Array(64), line, BigInt(line.length)], { disk, gen: bad });
+  const pf = invoke(img, "live.poll", [s0.buffers.get(0) as Uint8Array<ArrayBuffer>], { disk, gen: bad });
+  if (pf.value !== 2n) fail("live.poll", `a failed job returned ${pf.value}, expected 2`);
   return out;
 }

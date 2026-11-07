@@ -10,7 +10,7 @@ import { parseModule } from "@llmtobinary/module";
 import { Op } from "@llmtobinary/spec";
 import { validateBytes } from "@llmtobinary/validate";
 import { buildDisk, boot, DEMO_STEPS, keysFor, privateSeed, transcript } from "./os-tests.ts";
-import { built, bytesOf, bySlot, judge, linkFor, linkInput, programFiles, setBuildDir } from "./os-lib.ts";
+import { built, bytesOf, bySlot, closure, judge, linkFor, linkInput, programFiles, setBuildDir } from "./os-lib.ts";
 import { SLOTS } from "../../../os/slots.ts";
 
 const arg = (name: string, fallback?: string): string => {
@@ -57,9 +57,9 @@ for (const s of SLOTS) {
 }
 
 // 2. Assemble the image from the same modules.
-const kernelSlot = bySlot.get("kernel")!;
-const order = SLOTS.filter((s) => s.kind !== "program");
-const linked = link([linkInput(kernelSlot, bytesOf(built("kernel")!.hex)), ...order.filter((s) => s.id !== "kernel").map((s) => linkInput(s, bytesOf(built(s.id)!.hex)))]);
+const kernelSlot = bySlot.get(arg("image", "kernel-live"))!;
+const order = closure(kernelSlot).filter((s) => s !== kernelSlot);
+const linked = link([linkInput(kernelSlot, bytesOf(built(kernelSlot.id)!.hex)), ...order.map((s) => linkInput(s, bytesOf(built(s.id)!.hex)))]);
 if (!linked.ok) throw new Error(`the image does not link: ${JSON.stringify(linked.errors)}`);
 const v = validateBytes(linked.bytes, { anma2: true });
 if (!v.ok || !v.module) throw new Error("the image failed validation");
