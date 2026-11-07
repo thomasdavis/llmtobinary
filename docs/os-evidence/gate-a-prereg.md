@@ -4,7 +4,7 @@ Committed before any Gate A session ran. Do not edit after results exist; add a 
 
 **Lane:** `codex-sol`: `codex exec`, model `gpt-6.1-sol`, reasoning effort medium, flat ChatGPT subscription.
 
-**Lane qualification.** Trap test on 2026-11-07: with the execution host disabled, the model's `exec` call was refused (`code-mode host is disabled`) and no file appeared. A tools-on control logged `command_execution` and wrote its file, so the event log does record tool use. Some tools are still declared to the model, so the lane is qualified only under this audit: any session whose event log holds a tool item or a refused tool attempt counts as a failure, reported as `tool-audit-failed`.
+**Lane qualification.** Trap test on 2026-11-07: with the execution host disabled, the model's `exec` call was refused (`code-mode host is disabled`) and no file appeared. A tools-on control logged `command_execution` and wrote its file, so the event log does record tool use. Some tools are still declared to the model, so the lane is qualified only under this audit: any session with a tool item, any error item other than the exact fail-closed startup notice, or a `codex_core::tools::router` refusal on stderr counts as a failure, reported as `tool-audit-failed`.
 
 **Not available:** Hyades. `/etc/donto/hyades.key` is mode 600 root, not readable by this account.
 

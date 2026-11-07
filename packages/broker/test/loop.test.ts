@@ -377,3 +377,25 @@ describe("agentic loop", () => {
     expect(sub.candidate.sha256).toBe("d3f7f9e0446680bd1f5d20534d2a413df893e891f7e78f26f37cbe75b48405c1");
   });
 });
+
+describe("required effects", () => {
+  it("never demands terminal output from a task that forbids the terminal", async () => {
+    const { TASKS } = await import("@llmtobinary/tasks/registry");
+    const { requiredEffects } = await import("../src/loop.ts");
+    for (const t of TASKS) {
+      if (!(t.features & 2)) expect(requiredEffects(t)).not.toContain("terminal");
+      else if (t.effects.includes("terminal")) expect(requiredEffects(t)).toContain("terminal");
+    }
+    expect(requiredEffects(undefined)).toEqual([]);
+  });
+
+  it("accepts a correct pure program at the static check", async () => {
+    const { checkCandidate } = await import("@llmtobinary/check");
+    const { TASK_BY_ID } = await import("@llmtobinary/tasks/registry");
+    const { requiredEffects } = await import("../src/loop.ts");
+    const t = TASK_BY_ID.get("return-42")!;
+    const hex = "414e4d4101000000000000000500000000000000000000000000000000000000" + "01000000000000000000000001000000" + "02000000000000000000000001000000" + "10000000000000002a00000000000000" + "43000000000000000000000000000000" + "04000000000000000000000000000000";
+    const r = await checkCandidate({ hex }, { allowedFeatures: t.features, task: { params: t.params, returns: t.returns, effects: requiredEffects(t) } });
+    expect(r.report.errors.filter((e) => e.rule === "ANMA-K-002")).toEqual([]);
+  });
+});

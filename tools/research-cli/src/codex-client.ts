@@ -14,6 +14,10 @@ export const TOOL_AUDIT_FAILED = "tool_audit_failed";
 
 const DISABLED = ["shell_tool", "unified_exec", "code_mode_host", "code_mode_interrupt", "plugins", "apps", "multi_agent", "view_image", "image_generation", "skill_search", "tool_suggest", "browser_use", "computer_use", "sleep_tool", "incremental_tools"];
 const ALLOWED_ITEMS = new Set(["agent_message", "reasoning"]);
+/** The startup notice confirming the lockdown. Exact match only: any other error item fails the audit. */
+const FAIL_CLOSED_NOTICE = "Code Mode is unavailable because code-mode host is disabled. Code mode will fail closed; enable `features.code_mode_host` and install `codex-code-mode-host`.";
+/** Written to stderr when the model tries a tool and the router refuses it. */
+const REFUSED_ATTEMPT = /codex_core::tools::router/;
 
 const REPLY_SCHEMA = {
   type: "object",
@@ -55,7 +59,7 @@ export const runCodex: CodexRunner = (prompt, schemaPath, cwd, model, effort, si
     child.stdout.on("data", (d) => (out += d));
     child.stderr.on("data", (d) => (err += d));
     child.on("error", reject);
-    child.on("close", (code) => resolve({ code, lines: out.split("\n").filter(Boolean), stderr: err.slice(-2000) }));
+    child.on("close", (code) => resolve({ code, lines: out.split("\n").filter(Boolean), stderr: err }));
     child.stdin.end(prompt);
   });
 
@@ -66,7 +70,7 @@ export interface AuditedTurn {
 }
 
 /** Reads a turn's event log. Anything other than plain messages and reasoning is a tool item. */
-export function auditEvents(lines: string[]): AuditedTurn {
+export function auditEvents(lines: string[], stderr = ""): AuditedTurn {
   let text = "";
   const toolItems: string[] = [];
   let usage: AuditedTurn["usage"] = null;
@@ -78,10 +82,12 @@ export function auditEvents(lines: string[]): AuditedTurn {
       continue;
     }
     const item = e.item as Record<string, any> | undefined;
-    if (item?.type && !ALLOWED_ITEMS.has(item.type) && !toolItems.includes(item.type)) toolItems.push(item.type);
+    const notice = item?.type === "error" && item.message === FAIL_CLOSED_NOTICE;
+    if (item?.type && !notice && !ALLOWED_ITEMS.has(item.type) && !toolItems.includes(item.type)) toolItems.push(item.type);
     if (e.type === "item.completed" && item?.type === "agent_message") text = String(item.text ?? "");
     if (e.usage) usage = { inputTokens: e.usage.input_tokens ?? 0, outputTokens: e.usage.output_tokens ?? 0, reasoningTokens: e.usage.reasoning_output_tokens ?? 0 };
   }
+  if (REFUSED_ATTEMPT.test(stderr)) toolItems.push("refused-tool-attempt");
   return { text, toolItems, usage };
 }
 
@@ -100,7 +106,7 @@ export class CodexModelClient implements ModelClient {
       writeFileSync(schemaPath, JSON.stringify(REPLY_SCHEMA));
       const prompt = `${req.instructions}\n\n${PROTOCOL}\n\n${renderTranscript(req.input)}`;
       const r = await (this.opts.run ?? runCodex)(prompt, schemaPath, dir, this.opts.model, this.opts.effort, signal);
-      const t = auditEvents(r.lines);
+      const t = auditEvents(r.lines, r.stderr);
       this.audit.push({ turn: n, toolItems: t.toolItems });
       if (t.toolItems.length) {
         yield { type: "error", code: TOOL_AUDIT_FAILED, message: `the lane's event log holds ${t.toolItems.join(", ")}`, retryable: false, status: null };

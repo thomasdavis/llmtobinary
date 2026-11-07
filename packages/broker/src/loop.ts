@@ -6,6 +6,8 @@
 import { checkAnmrCandidate, checkCandidate, reportForModel } from "@llmtobinary/check";
 import { parseEnvelope, parseHex } from "@llmtobinary/decode";
 import { TASK_BY_ID, openTaskPromptText, taskPromptText } from "@llmtobinary/tasks/registry";
+import type { TaskSpec } from "@llmtobinary/tasks/registry";
+import { Feature } from "@llmtobinary/spec";
 import type { AttemptRequest, BrowserFeedback, Candidate, CheckReport, LoopBudget, LoopCounters, LoopEvent, OutputMode, Playtest, ReviewVerdict, StopOutcome, TaskRequest } from "@llmtobinary/protocol";
 import type { ModelClient, ModelEvent, ModelProfile, ModelUsage } from "./model.ts";
 import { CHECK_TOOL, SUBMIT_TOOL } from "./schema.ts";
@@ -271,6 +273,16 @@ export function recoverLostAttempt(state: SessionState, now: number): AttemptRec
   return a;
 }
 
+/**
+ * Effects a task requires the program to produce. A task's `effects` lists what its oracle compares,
+ * and a pure task compares the terminal to confirm it stays empty, so "terminal" only demands output
+ * when the task permits the terminal device.
+ */
+export function requiredEffects(task: Pick<TaskSpec, "effects" | "features"> | undefined): TaskSpec["effects"] {
+  if (!task) return [];
+  return task.effects.filter((e) => e !== "terminal" || (task.features & Feature.TERMINAL) !== 0);
+}
+
 export async function runAttempt(state: SessionState, req: AttemptRequest, deps: LoopDeps): Promise<AttemptRecord> {
   const existing = state.attempts.find((a) => a.idempotencyKey === req.idempotencyKey);
   if (existing) return existing; // idempotent: never purchases another turn
@@ -388,7 +400,7 @@ export async function runAttempt(state: SessionState, req: AttemptRequest, deps:
   // What the task's tests will compare, so check_candidate can flag a wrong signature or missing
   // output statically (curated tasks know their effects; open tasks only fix the signature).
   const curated = state.task.taskId ? TASK_BY_ID.get(state.task.taskId) : undefined;
-  const checkOpts = { allowedFeatures: deps.allowedFeatures, task: { params: state.task.params, returns: state.task.returns, effects: curated?.effects ?? [] } };
+  const checkOpts = { allowedFeatures: deps.allowedFeatures, task: { params: state.task.params, returns: state.task.returns, effects: requiredEffects(curated) } };
   const instructions = isAnmr ? anmrInstructions(state.task.registers ?? 8, ANMR_SPILL_SLOTS) : generationInstructions();
   let retriedThisAttempt = false;
 
