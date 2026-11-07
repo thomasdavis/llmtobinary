@@ -84,7 +84,7 @@ async function session(index: number): Promise<Record<string, unknown>> {
   return {
     kind: "gate-a-session/1", lane: CODEX_LANE, model, effort, bucket, taskId: task!.id, index, sessionId: state.sessionId,
     finalSuccess: finalSuccess && !auditFailed, rawSuccess: finalSuccess, auditFailed, auditItems: [...new Set(client.audit.flatMap((a) => a.toolItems))],
-    outcome: state.outcome, stopDetail: state.stopDetail, infra, counters: state.counters, candidateSha256, hex, ms: Date.now() - started, finishedAt: new Date().toISOString(),
+    hungCalls: client.hungCalls, outcome: state.outcome, stopDetail: state.stopDetail, infra, counters: state.counters, candidateSha256, hex, ms: Date.now() - started, finishedAt: new Date().toISOString(),
   };
 }
 

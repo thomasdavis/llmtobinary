@@ -33,6 +33,7 @@ export interface SideResult {
   outcome: string | null;
   detail: string | null;
   audit: string[];
+  hungCalls: number;
   turns: number;
   checks: number;
   outputTokens: number;
@@ -47,7 +48,7 @@ async function side(description: string, params: ("u64" | "bool")[], returns: "u
   const started = Date.now();
   const abort = new AbortController();
   const timer = setTimeout(() => abort.abort(), BUDGET.maxWallClockMs + 60_000);
-  const result: SideResult = { bytes: null, sha256: null, outcome: null, detail: null, audit: [], turns: 0, checks: 0, outputTokens: 0, ms: 0 };
+  const result: SideResult = { bytes: null, sha256: null, outcome: null, detail: null, audit: [], hungCalls: 0, turns: 0, checks: 0, outputTokens: 0, ms: 0 };
   try {
     await runAttempt(state, { idempotencyKey: randomUUID(), feedback: null }, { model: client, ledger: { reserve: async () => ({ ok: true }), reconcile: async () => {} }, emit: async (e) => void events.push(e), now: () => Date.now(), signal: abort.signal, newId: () => randomUUID(), allowedFeatures: features });
     const submitted = events.filter((e): e is Extract<LoopEvent, { type: "candidate.submitted" }> => e.type === "candidate.submitted").at(-1);
@@ -68,6 +69,7 @@ async function side(description: string, params: ("u64" | "bool")[], returns: "u
   result.outcome = state.outcome;
   result.detail ??= state.stopDetail;
   result.audit = [...new Set(client.audit.flatMap((a) => a.toolItems))];
+  result.hungCalls = client.hungCalls;
   result.turns = state.counters.turns;
   result.checks = state.counters.checks;
   result.outputTokens = state.counters.outputTokens;

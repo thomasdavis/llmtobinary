@@ -28,3 +28,7 @@ Task tests and holdouts already exist in `packages/tasks` and are unchanged.
 **Pass rule (PRD §7):** at least 16 of 20 in the 128 bucket. The largest bucket at 16 of 20 or better sets the package size limit.
 
 **Run order:** 128, 64, 256, 512. A bucket may be skipped only if the next smaller bucket scored below 16 of 20, and a skip is reported.
+
+## Note, 2026-11-07: lane fault
+
+Bucket 128 ran without a call watchdog and stands as run. Its failures so far are all calls that never returned, with 0 output tokens at turn 1. Buckets 64, 256 and 512 run with the 240-second watchdog described in `gate-b-prereg.md`. Nothing else changes.

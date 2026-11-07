@@ -23,3 +23,15 @@ Committed before any Gate B session ran. Do not edit after results exist; add a 
 - Pass: at least 16 of 20.
 - Partial, 8 to 15: improve diagnostics or interface cards and rerun, at most three rounds, reporting every round.
 - Fail, below 8 after those rounds: stop the OS work and write up the result.
+
+## Note, 2026-11-07: round 1 aborted for a lane fault
+
+Round 1 was stopped after 2 of 20 pairs. Both failed because the application session's `codex exec` call never returned.
+
+The Gate A data shows the cause is the lane, not the model. Every session that returned took 69 to 95 seconds, while about one call in six never returned at all. A pair needs at least four calls, so this fault would dominate the result and Gate B would measure Codex hangs rather than shared interfaces.
+
+**Change:** a 240-second watchdog per call with up to four attempts. A hung call produced no output, so a retry cannot select for good answers. Hung calls are counted per session in `hungCalls`.
+
+**Not changed:** the interfaces, prompts, inputs, session budget, scoring and pass rule.
+
+Round 1's two records stay in `gate-b/round-1.jsonl`, and the aborted round counts toward the three-round limit. The next run is round 2. A separate run was started by mistake on the unfixed code and stopped after 10 seconds with no records.

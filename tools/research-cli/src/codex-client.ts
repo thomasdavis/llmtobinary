@@ -10,6 +10,9 @@ import { candidateEnvelopeSchema } from "@llmtobinary/broker";
 import type { ModelClient, ModelEvent, ModelTurnRequest } from "@llmtobinary/broker";
 
 export const CODEX_LANE = "codex-sol";
+/** A healthy turn takes well under two minutes. About one call in six never returns at all. */
+export const TURN_TIMEOUT_MS = 240_000;
+export const TURN_ATTEMPTS = 4;
 export const TOOL_AUDIT_FAILED = "tool_audit_failed";
 
 const DISABLED = ["shell_tool", "unified_exec", "code_mode_host", "code_mode_interrupt", "plugins", "apps", "multi_agent", "view_image", "image_generation", "skill_search", "tool_suggest", "browser_use", "computer_use", "sleep_tool", "incremental_tools"];
@@ -95,8 +98,10 @@ export class CodexModelClient implements ModelClient {
   readonly kind = "research" as const;
   private n = 0;
   readonly audit: { turn: number; toolItems: string[] }[] = [];
+  /** Calls abandoned because they never returned. They produced no output, so a retry selects nothing. */
+  hungCalls = 0;
 
-  constructor(private readonly opts: { model: string; effort: string; run?: CodexRunner }) {}
+  constructor(private readonly opts: { model: string; effort: string; run?: CodexRunner; turnTimeoutMs?: number }) {}
 
   async *turn(req: ModelTurnRequest, signal: AbortSignal): AsyncIterable<ModelEvent> {
     const n = ++this.n;
@@ -105,7 +110,20 @@ export class CodexModelClient implements ModelClient {
       const schemaPath = join(dir, "reply.schema.json");
       writeFileSync(schemaPath, JSON.stringify(REPLY_SCHEMA));
       const prompt = `${req.instructions}\n\n${PROTOCOL}\n\n${renderTranscript(req.input)}`;
-      const r = await (this.opts.run ?? runCodex)(prompt, schemaPath, dir, this.opts.model, this.opts.effort, signal);
+      let r: CodexRunResult | null = null;
+      for (let attempt = 0; attempt < TURN_ATTEMPTS && !r; attempt++) {
+        const watchdog = AbortSignal.any([signal, AbortSignal.timeout(this.opts.turnTimeoutMs ?? TURN_TIMEOUT_MS)]);
+        try {
+          r = await (this.opts.run ?? runCodex)(prompt, schemaPath, dir, this.opts.model, this.opts.effort, watchdog);
+        } catch (e) {
+          if (signal.aborted) throw e;
+          this.hungCalls++;
+        }
+      }
+      if (!r) {
+        yield { type: "error", code: "lane_hung", message: `no reply after ${TURN_ATTEMPTS} calls`, retryable: false, status: null };
+        return;
+      }
       const t = auditEvents(r.lines, r.stderr);
       this.audit.push({ turn: n, toolItems: t.toolItems });
       if (t.toolItems.length) {
