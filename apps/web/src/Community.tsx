@@ -397,7 +397,7 @@ function Compose() {
 
 function PackagePage({ id }: { id: string }) {
   const { member, accounts } = useMember();
-  const [data, setData] = useState<{ package: PackageRow; attestations: Attestation[]; comments: Comment[] } | null | "missing">(null);
+  const [data, setData] = useState<{ package: PackageRow; attestations: Attestation[]; comments: Comment[]; slot: { id: string; kind: string; interface: string; depends: string } | null } | null | "missing">(null);
   const [draft, setDraft] = useState("");
   const [note, setNote] = useState<string | null>(null);
 
@@ -468,6 +468,19 @@ function PackagePage({ id }: { id: string }) {
         <button onClick={() => void report()}>Report</button>
       </div>
       {note ? <p role="status">{note}</p> : null}
+      {data.slot ? (
+        <>
+          <h2>Documentation</h2>
+          <p className="muted small">Rendered from the {data.slot.id} slot's interface, not written by the model. {["E3", "E4", "E5"].includes(p.evidence_class) ? "Each function below was checked by the verifier's tests." : "These are the requirements. This candidate has not been verified against them yet."}</p>
+          {(JSON.parse(data.slot.interface) as { symbol: string; signature: string; behaviour: string }[]).map((e) => (
+            <div key={e.symbol} className="package-doc">
+              <code>{e.symbol}{e.signature}</code>
+              <p>{e.behaviour}</p>
+            </div>
+          ))}
+          {(JSON.parse(data.slot.depends) as string[]).length ? <p className="muted small">Links with: {(JSON.parse(data.slot.depends) as string[]).join(", ")}</p> : null}
+        </>
+      ) : null}
       <h2>Evidence</h2>
       {data.attestations.length ? (
         <ul>

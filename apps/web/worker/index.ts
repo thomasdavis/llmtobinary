@@ -386,7 +386,8 @@ async function registryRoute(request: Request, env: Env, url: URL, path: string)
     const p = await getPackage(env, id);
     if (!p) return json({ error: "not found" }, 404);
     const attestations = (await loadAttestations(env, id)).map((a) => ({ predicateType: a.verified?.statement.predicateType ?? null, keyid: a.verified?.keyid ?? null, verified: !!a.verified }));
-    return json({ package: p, attestations, comments: await listComments(env, id) });
+    const slot = await env.COMMUNITY_DB!.prepare("SELECT s.id, s.kind, s.interface, s.depends FROM slot_candidates c JOIN slots s ON s.id = c.slot_id WHERE c.object_id = ?1").bind(id).first();
+    return json({ package: p, attestations, comments: await listComments(env, id), slot });
   }
   if (sub === "/bytes" && request.method === "GET") return getObject(env, id);
   if (sub === "/attestations" && request.method === "POST") {
