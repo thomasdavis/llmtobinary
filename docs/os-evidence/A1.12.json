@@ -1,8 +1,8 @@
 {
   "id": "A1.12",
-  "result": "blocked",
-  "command": "n/a",
-  "commit": "b1f06bb517e57874b1c96bf8310b7239d97f063c",
-  "note": "Needs GitHub OAuth Apps, which have no creation API and need a signed-in browser. The production release itself is done, with sign-in off.",
-  "recordedAt": "2026-11-07T02:14:38.548Z"
+  "result": "emulated",
+  "command": "GITHUB_EMULATOR_PASSCODE=... node tests/e2e/auth-e2e.mjs https://llmtobinary.com && node scripts/live-test.mjs https://llmtobinary.com && node tests/e2e/community-e2e.mjs https://llmtobinary.com && node tests/e2e/boot-e2e.mjs https://llmtobinary.com",
+  "commit": "0b1a2f8f36b924fafdcc2eb14ef7e3279ecfaee2",
+  "note": "EMULATED, not real GitHub. 18 browser checks passed on staging (version 6637a67d) and production (version 1e04a0e3, build 6f0aa2f14301), and the production smoke tests passed. Real GitHub sign-in is untested and the public cannot sign in yet.",
+  "recordedAt": "2026-11-07T07:53:13.759Z"
 }
