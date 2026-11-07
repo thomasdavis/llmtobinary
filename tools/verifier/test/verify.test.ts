@@ -27,6 +27,15 @@ describe("verifier", () => {
     const b = fixture("fizzbuzz.anma");
     expect((await verifyObject(await objectId(b), b, "made-up")).kind).toBe("skip");
   });
+  it("judges a slot candidate through the slot judge", async () => {
+    const b = fixture("fizzbuzz.anma");
+    const id = await objectId(b);
+    const pass = await verifyObject(id, b, "slot:str", "test", () => ({ failures: 0, cases: 3 }));
+    expect(pass.kind === "attest" && pass.statement.predicate).toMatchObject({ passed: true, taskOwned: true, holdouts: true });
+    const fail = await verifyObject(id, b, "slot:str", "test", () => ({ failures: 2, cases: 3 }));
+    expect(fail.kind === "attest" && fail.statement.predicate.passed).toBe(false);
+    expect((await verifyObject(id, b, "slot:str")).kind).toBe("skip");
+  });
   it("gives identical output hashes on a rerun", async () => {
     const b = fixture("fizzbuzz.anma");
     const id = await objectId(b);

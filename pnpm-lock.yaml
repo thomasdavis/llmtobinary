@@ -654,9 +654,27 @@ importers:
 
   tools/verifier:
     dependencies:
+      '@llmtobinary/devices':
+        specifier: workspace:*
+        version: link:../../packages/devices
+      '@llmtobinary/link':
+        specifier: workspace:*
+        version: link:../../packages/link
+      '@llmtobinary/module':
+        specifier: workspace:*
+        version: link:../../packages/module
+      '@llmtobinary/os':
+        specifier: workspace:*
+        version: link:../../packages/os
+      '@llmtobinary/protocol':
+        specifier: workspace:*
+        version: link:../../packages/protocol
       '@llmtobinary/registry':
         specifier: workspace:*
         version: link:../../packages/registry
+      '@llmtobinary/spec':
+        specifier: workspace:*
+        version: link:../../packages/spec
       '@llmtobinary/tasks':
         specifier: workspace:*
         version: link:../../packages/tasks

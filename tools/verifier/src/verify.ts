@@ -7,8 +7,17 @@ import { validateBytes } from "@llmtobinary/validate";
 
 export type VerifyOutcome = { kind: "attest"; statement: Statement } | { kind: "skip"; reason: string };
 
-export async function verifyObject(id: ObjectId, bytes: Uint8Array, taskId: string, predicate: "test" | "rerun" = "test"): Promise<VerifyOutcome> {
+/** Judges a candidate for an OS slot. Returns null when this verifier has no judge for slots. */
+export type SlotJudge = (slot: string, bytes: Uint8Array) => { failures: number; cases: number } | null;
+
+export async function verifyObject(id: ObjectId, bytes: Uint8Array, taskId: string, predicate: "test" | "rerun" = "test", slotJudge?: SlotJudge): Promise<VerifyOutcome> {
   if ((await objectId(bytes)) !== id) return { kind: "skip", reason: "the bytes do not match their object ID" };
+  if (taskId.startsWith("slot:")) {
+    const r = slotJudge?.(taskId.slice(5), bytes);
+    if (!r) return { kind: "skip", reason: `no judge for ${taskId}` };
+    const outputHash = (await objectId(new TextEncoder().encode(canonicalJson({ taskId, failures: r.failures })))).slice(7);
+    return { kind: "attest", statement: statement(id, predicate, { taskId, passed: r.failures === 0, taskOwned: true, holdouts: true, outputHash, cases: r.cases }) };
+  }
   const task = TASK_BY_ID.get(taskId);
   if (!task) return { kind: "skip", reason: `unknown task ${taskId}` };
   const v = validateBytes(bytes);
