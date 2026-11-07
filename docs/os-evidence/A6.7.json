@@ -1,0 +1,8 @@
+{
+  "id": "A6.7",
+  "result": "pass",
+  "command": "tests/e2e/os-flow-e2e.mjs with the verifier in the loop, against vite preview in test mode",
+  "commit": "ee9a4b4aee1cf1c47946a552d99212ec4f07bf40",
+  "note": "14 checks. A member's candidate is verified, becomes the default by rule, and is in the booted build. Uses the fake sign-in: real GitHub sign-in is blocked on the OAuth App, see A1.12.",
+  "recordedAt": "2026-11-07T05:35:51.791Z"
+}
