@@ -11,6 +11,8 @@ interface Env {
   /** Private debug archive of generation sessions (R2). */
   DEBUG_ARCHIVE?: R2Bucket;
   ADMISSION_LIMITER?: RateLimit;
+  /** Accounts and social data (D1). */
+  COMMUNITY_DB?: D1Database;
   CF_VERSION_METADATA?: { id: string; tag: string; timestamp: string };
   // vars
   ENVIRONMENT: string;
@@ -29,14 +31,24 @@ interface Env {
   MAX_CONTEXT_CHARS?: string;
   /** Production only: page loads on any other host redirect here (e.g. "llmtobinary.com"). */
   CANONICAL_HOST?: string;
+  /** "true" requires a GitHub sign-in to generate; ignored until sign-in is configured. */
+  GENERATION_REQUIRES_SIGN_IN?: string;
   // secrets (wrangler secret put / .dev.vars) — never in wrangler.jsonc
   OPENAI_API_KEY?: string;
   SESSION_SIGNING_KEY?: string;
   /** Operator key for /api/admin/* (program-list rebuild). */
   GALLERY_ADMIN_KEY?: string;
+  GITHUB_CLIENT_ID?: string;
+  GITHUB_CLIENT_SECRET?: string;
   // test-only (never set for deployed environments)
   TEST_FAKE_MODEL?: string;
   TEST_FAKE_SCRIPT?: string;
+  TEST_FAKE_OAUTH?: string;
 }
 
 declare const __BUILD_COMMIT__: string;
+
+declare module "*.sql?raw" {
+  const text: string;
+  export default text;
+}

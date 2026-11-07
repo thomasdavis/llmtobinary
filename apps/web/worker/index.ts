@@ -11,6 +11,7 @@ import { HttpError, checkOrigin, errorResponse, json, readJson, API_HEADERS } fr
 import type { CreatePayload } from "./session.ts";
 import { programPage, sitemap } from "./seo.ts";
 import { getGalleryEntry, hideGalleryEntry, isGalleryId, listGallery, rebuildFromArchives } from "./gallery.ts";
+import { accountsConfigured, avatar, beginSignIn, currentMember, deleteAccount, fakeOAuthEnabled, fakeSignIn, finishSignIn, quotaRemaining, requireMember, reserveMemberSpend, revokeAllSessions, signOut } from "./accounts.ts";
 
 export { GenerationSession } from "./session.ts";
 export { BudgetLedger } from "./ledger.ts";
@@ -18,6 +19,11 @@ export { BudgetLedger } from "./ledger.ts";
 const MAX_CREATE_BODY = 64 * 1024;
 const MAX_ATTEMPT_BODY = 1024 * 1024;
 const MAX_DESCRIPTION = 16_000;
+/** Charged against a member's daily quota per session. The BudgetLedger stays the hard site-wide cap. */
+const SESSION_ESTIMATE_MICRO_USD = 50_000;
+
+/** Sign-in is enforced only when switched on and working, so a missing OAuth App cannot stop generation. */
+const signInRequired = (env: Env): boolean => env.GENERATION_REQUIRES_SIGN_IN === "true" && accountsConfigured(env);
 
 function buildCommit(): string {
   return typeof __BUILD_COMMIT__ === "string" ? __BUILD_COMMIT__ : "unknown";
@@ -38,7 +44,7 @@ function allowedFeatures(env: Env): number {
   return Number.isInteger(n) ? n & KNOWN_FEATURES : 0;
 }
 
-function config(env: Env): ConfigResponse & { liveReason: string | null; pricePolicy: string; promptVersion: string } {
+function config(env: Env): ConfigResponse & { liveReason: string | null; pricePolicy: string; promptVersion: string; accounts: boolean; signInRequired: boolean } {
   const live = liveStatus(env);
   const p = profileFromEnv(env);
   return {
@@ -57,6 +63,8 @@ function config(env: Env): ConfigResponse & { liveReason: string | null; pricePo
     recoveryTtlSeconds: Number(env.RECOVERY_TTL_SECONDS ?? "3600"),
     pricePolicy: PRICE_POLICY_VERSION,
     promptVersion: PROMPT_VERSION,
+    accounts: accountsConfigured(env),
+    signInRequired: signInRequired(env),
   };
 }
 
@@ -139,6 +147,37 @@ async function route(request: Request, env: Env): Promise<Response> {
 
   if (path === "/api/config" && request.method === "GET") return json(config(env));
 
+  // GitHub sign-in. Navigation requests, so these answer with redirects rather than JSON.
+  if (path === "/api/auth/github" && request.method === "GET") return beginSignIn(env, siteOrigin);
+  if (path === "/api/auth/github/callback" && request.method === "GET") {
+    if (!accountsConfigured(env)) throw new HttpError(503, "sign-in is not configured");
+    return finishSignIn(request, env, siteOrigin);
+  }
+  if (path === "/api/auth/fake" && request.method === "GET") {
+    if (!fakeOAuthEnabled(env)) return json({ error: "not found" }, 404);
+    return fakeSignIn(request, env);
+  }
+  if (path === "/api/auth/logout" && request.method === "POST") {
+    checkOrigin(request);
+    return signOut(request, env);
+  }
+  if (path === "/api/me" && request.method === "GET") {
+    const m = await currentMember(request, env);
+    if (!m) return json({ member: null });
+    return json({ member: m, quotaMicroUsd: await quotaRemaining(env, m, Date.now()) });
+  }
+  if (path === "/api/me" && request.method === "DELETE") {
+    checkOrigin(request);
+    return deleteAccount(env, (await requireMember(request, env)).id);
+  }
+  if (path === "/api/me/sessions" && request.method === "DELETE") {
+    checkOrigin(request);
+    await revokeAllSessions(env, (await requireMember(request, env)).id);
+    return json({ revoked: true });
+  }
+  const av = /^\/api\/avatar\/(\d{1,20})$/.exec(path);
+  if (av && request.method === "GET") return avatar(env, Number(av[1]));
+
   // The exact system instructions and tool definitions every generation is given.
   if (path === "/api/system-prompt" && request.method === "GET") {
     return json({ promptVersion: PROMPT_VERSION, instructions: generationInstructions(), tools: TOOLS }, 200, { "cache-control": "public, max-age=300" });
@@ -180,9 +219,11 @@ async function route(request: Request, env: Env): Promise<Response> {
   if (path === "/api/generation-sessions" && request.method === "POST") {
     checkOrigin(request);
     await admit(request, env, "create");
+    const member = signInRequired(env) ? await requireMember(request, env) : await currentMember(request, env);
     const req = validateCreate(await readJson(request, MAX_CREATE_BODY), env);
     const live = liveStatus(env);
     if (!live.live) throw new HttpError(503, `live generation is unavailable: ${live.reason}`);
+    if (member && !(await reserveMemberSpend(env, member, SESSION_ESTIMATE_MICRO_USD, Date.now()))) throw new HttpError(429, "you have used today's generation quota; browsing and running still work");
     const profile = profileFromEnv(env);
     const prof = profile.ok ? profile.profile : { id: "default", label: "test", model: "test-model", reasoningEffort: null, carryReasoning: false, inputPerMTok: 1, outputPerMTok: 4, maxContextChars: 600_000 };
     // Visitor-written tasks get their own (usually higher) reasoning effort.
@@ -195,6 +236,7 @@ async function route(request: Request, env: Env): Promise<Response> {
     if (!res.ok) return withApiHeaders(res);
     const created = (await res.json()) as { programId: string; budget: CreateSessionResponse["budget"]; expiresAt: number };
     const token = await signToken({ sid: sessionId, exp: created.expiresAt }, env.SESSION_SIGNING_KEY!);
+    if (member) await env.COMMUNITY_DB!.prepare("INSERT INTO generations (session_id, user_id, created_at) VALUES (?1, ?2, ?3)").bind(sessionId, member.id, Date.now()).run();
     return json({ sessionId, programId: created.programId, token, budget: created.budget, expiresAt: created.expiresAt } satisfies CreateSessionResponse, 201);
   }
 
