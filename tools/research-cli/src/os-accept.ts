@@ -48,7 +48,8 @@ record("A4.2", ref.terminal === fin.terminal && Buffer.compare(ref.disk, fin.dis
 const afterReboot = boot(kernel, ref.disk, ["cat note", "exit"]);
 record("A5.1", afterReboot.terminal === transcript([["cat note", "hi there\n"], ["exit", ""]]), "a file survives a reboot from the saved disk");
 
-// A5.2: crash at every write of a replace. Old or new contents only, never a mix or a lost file.
+// A5.2: crash at every write of a replace. The file must stay findable and readable at a
+// consistent size. Contents may mix on a replace, as os/ARCHITECTURE.md says.
 {
   const name = new TextEncoder().encode("doc");
   const data = (fill: number, size: number) => {
