@@ -26,7 +26,16 @@ Progress log for `PRD-OS.md`. `node scripts/goal-check.mjs` is the measure of do
 - The interfaces were small and written by one author.
 - Models got only static checks, with no execution feedback.
 
-**Gate A, bucket 128: passed, exactly 16 of 20.** All 4 failures were calls that never returned, at turn 1, with 0 tokens. This bucket ran before the watchdog existed. Bucket 64 ran with it and scored 20 of 20.
+**Gate A: passed.** One lane qualified, `codex-sol`.
+
+| Bucket | Task | Passed |
+|---|---|---|
+| 64 | `checkerboard` | 20 of 20 |
+| 128 | `fizzbuzz` | 16 of 20 |
+| 256 | `ball-paddle` | 20 of 20 |
+| 512 | `capstone-k128` | see `gate-a-result.json` |
+
+All 4 failures in bucket 128 were calls that never returned, at turn 1, with 0 tokens. That bucket ran before the watchdog existed. The largest bucket at 16 of 20 or better sets the package size limit. These tasks were all in the model's reach, and none tested a limit, so the true ceiling is above this.
 
 ## Bugs found on the way
 

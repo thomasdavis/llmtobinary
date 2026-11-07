@@ -1,0 +1,58 @@
+{
+  "kind": "gate-a-result/1",
+  "buckets": {
+    "64": {
+      "task": "checkerboard",
+      "passed": 20,
+      "sessions": 20,
+      "hungCalls": 5,
+      "auditFailures": 0,
+      "medianTokens": 1984,
+      "failures": []
+    },
+    "128": {
+      "task": "fizzbuzz",
+      "passed": 16,
+      "sessions": 20,
+      "hungCalls": 0,
+      "auditFailures": 0,
+      "medianTokens": 3852,
+      "failures": [
+        [
+          "cancelled",
+          0
+        ],
+        [
+          "cancelled",
+          0
+        ],
+        [
+          "cancelled",
+          0
+        ],
+        [
+          "cancelled",
+          0
+        ]
+      ]
+    },
+    "256": {
+      "task": "ball-paddle",
+      "passed": 20,
+      "sessions": 20,
+      "hungCalls": 1,
+      "auditFailures": 0,
+      "medianTokens": 8612,
+      "failures": []
+    },
+    "512": {
+      "task": "capstone-k128",
+      "passed": 20,
+      "sessions": 20,
+      "hungCalls": 3,
+      "auditFailures": 0,
+      "medianTokens": 14798,
+      "failures": []
+    }
+  }
+}
