@@ -1,0 +1,41 @@
+// An anonymous visitor boots the OS on a deployed site: node tests/e2e/boot-e2e.mjs <url>
+import { chromium } from "playwright-core";
+import { existsSync, readdirSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
+const url = (process.argv[2] ?? "").replace(/\/$/, "");
+const cache = join(homedir(), ".cache/ms-playwright");
+const executablePath = process.env.CHROMIUM_PATH ?? readdirSync(cache).filter((d) => d.startsWith("chromium_headless_shell-")).sort().reverse().map((d) => join(cache, d, "chrome-linux/headless_shell")).find((p) => existsSync(p));
+const browser = await chromium.launch({ executablePath });
+let failed = 0;
+const check = (ok, name) => { console.log(`${ok ? "✓" : "✗"} ${name}`); if (!ok) failed++; };
+for (const [label, viewport] of [["desktop", { width: 1280, height: 800 }], ["phone", { width: 390, height: 844 }]]) {
+  const page = await (await browser.newContext({ viewport })).newPage();
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.goto(`${url}/boot`);
+  const term = page.getByRole("textbox", { name: "Terminal" });
+  await term.waitFor();
+  await page.getByText("anma os").waitFor({ timeout: 30000 });
+  await term.click();
+  const type = async (line, expect) => { await page.keyboard.type(`${line}\n`); await page.waitForFunction((t) => document.querySelector(".os-terminal")?.textContent?.includes(t), expect, { timeout: 20000 }); };
+  await type("ls", "spin");
+  await type("run hello", "hello from disk");
+  await type("run crash", "trapped");
+  await type("run spin", "out of fuel");
+  await type("write note kept by the browser", "ok");
+  await type("cat note", "kept by the browser");
+  check(true, `${label}: an anonymous visitor booted the OS and ran the demo`);
+  await page.reload();
+  await term.waitFor();
+  await page.getByText("anma os").waitFor({ timeout: 30000 });
+  await term.click();
+  await type("cat note", "kept by the browser");
+  check(true, `${label}: a file survives a page reload`);
+  check(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), `${label}: no horizontal scroll`);
+  check(errors.length === 0, `${label}: no page errors${errors.length ? `: ${errors[0]}` : ""}`);
+  await page.close();
+}
+await browser.close();
+console.log(failed ? `\n${failed} checks failed` : "\nall boot checks passed");
+process.exit(failed ? 1 : 0);
