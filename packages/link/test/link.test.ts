@@ -138,3 +138,16 @@ describe("the linker is not trusted", () => {
     );
   });
 });
+
+describe("ANMA-2 images", () => {
+  it("stays version 1 for plain programs and uses version 2 for ANMA-2 features", () => {
+    const plain = link([root(), lib()]);
+    expect(plain.ok && new DataView(plain.bytes.buffer).getUint32(4, true)).toBe(1);
+    const TEXT = 1 << 4;
+    const keyLib: Rec[] = [[Op.FUNC, 0, 1, 1], [Op.BLOCK, 0, 1, 2], [Op.PARAM, 0, 1, 0], [Op.HOST, 1, 7, 0], [Op.RETURN, 1, 0, 0], [Op.END_FUNC, 0, 0, 0]];
+    const r = link([root(), { name: "keys", bytes: file(2, 0, keyLib, TEXT), exports: { "math.inc": 0 }, imports: {} }]);
+    if (!r.ok) throw new Error(JSON.stringify(r.errors));
+    expect(new DataView(r.bytes.buffer).getUint32(4, true)).toBe(2);
+    expect(r.authority).toEqual(["input.next_key"]);
+  });
+});

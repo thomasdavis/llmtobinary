@@ -23,6 +23,8 @@ The research report suggested a limit near 33k output tokens. Production data ru
 
 ## Decision notes
 
+- **Module and task IDs are plain `u64`, not new handle types** (PRD-OS 6.10 said opaque handles). Only the kernel holds the tasks capability, so forging an ID reaches nothing it does not already own. This avoids new type tags and any change to validator typing.
+- **Mailboxes are copied, not shared,** as PRD-OS 6.9 planned for process boundaries.
 - **Linked images are plain ANMA-1.** Only `FUNC` field `a` and `CALL` field `b` are rewritten, so the unchanged validator judges the result.
 - **Read-only data is root-only in link version 0.** Data offsets are runtime values, so the linker cannot move them.
 - **Sign-in sits behind `GENERATION_REQUIRES_SIGN_IN`,** and is ignored until sign-in is configured, so a missing OAuth App cannot stop generation.

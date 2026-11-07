@@ -2,7 +2,7 @@
 // or more IMPORT declarations after its last function. This package only reads the format: it holds
 // no linker, so the model-facing checker can use it without reaching the link tool.
 
-import { Op } from "@llmtobinary/spec";
+import { KNOWN_FEATURES, Op } from "@llmtobinary/spec";
 
 export const MODULE_VERSION = 2;
 export const IMPORT_OP = 0x70;
@@ -144,7 +144,8 @@ export function standalone(m: ParsedModule): Uint8Array {
   const needsHeap = m.imports.some((i) => i.ret === 3 || i.ret === 4);
   const out = new Uint8Array(HEADER + m.body.length + tail.length + m.data.length);
   const head: number[] = [];
-  put(head, MAGIC, 1, m.features | (needsHeap ? 1 : 0), recordCount, m.dataBytes, m.entry, 0, 0);
+  const features = m.features | (needsHeap ? 1 : 0);
+  put(head, MAGIC, (features & ~KNOWN_FEATURES) !== 0 ? MODULE_VERSION : 1, features, recordCount, m.dataBytes, m.entry, 0, 0);
   out.set(head);
   out.set(m.body, HEADER);
   out.set(tail, HEADER + m.body.length);

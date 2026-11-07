@@ -2,7 +2,7 @@
 // IDs and joins records, then the ordinary validator judges the result. A linker bug can produce a
 // wrong program, never an unsafe one. It writes no instruction records of its own.
 
-import { IMPORTS, Op } from "@llmtobinary/spec";
+import { IMPORTS_V2, KNOWN_FEATURES, Op } from "@llmtobinary/spec";
 import { parseModule, type ModuleImport, type ParsedModule, type Signature } from "@llmtobinary/module";
 import { validateBytes } from "@llmtobinary/validate";
 
@@ -152,8 +152,11 @@ export function link(inputs: readonly LinkInput[], opts: { allowedFeatures?: num
   const data = root.module.data;
   const out = new Uint8Array(HEADER + bodyBytes + data.length);
   setWord(out, 0, MAGIC);
-  setWord(out, 4, 1);
-  setWord(out, 8, order.reduce((f, l) => f | l.module.features, 0));
+  const features = order.reduce((f, l) => f | l.module.features, 0);
+  // Version 2 only when the image uses ANMA-2 features, so ordinary programs stay plain ANMA-1.
+  const version = (features & ~KNOWN_FEATURES) !== 0 ? 2 : 1;
+  setWord(out, 4, version);
+  setWord(out, 8, features);
   setWord(out, 12, bodyBytes / RECORD);
   setWord(out, 16, data.length);
   setWord(out, 20, remap(root, root.module.entry));
@@ -164,7 +167,7 @@ export function link(inputs: readonly LinkInput[], opts: { allowedFeatures?: num
   }
   out.set(data, at);
 
-  const v = validateBytes(out, opts.allowedFeatures === undefined ? {} : { allowedFeatures: opts.allowedFeatures });
+  const v = validateBytes(out, { anma2: version === 2, ...(opts.allowedFeatures === undefined ? {} : { allowedFeatures: opts.allowedFeatures }) });
   if (!v.ok || !v.module) return { ok: false, errors: [{ rule: "LINK-INVALID", message: `The linked image failed validation: ${v.diagnostics.map((d) => d.rule).join(", ")}` }] };
   return { ok: true, bytes: out, modules: order.map((l) => l.input.name), edges, authority: authorityOf(out), label: "linked" };
 }
@@ -189,7 +192,7 @@ export function authorityOf(image: Uint8Array): string[] {
     for (const c of funcs[f]!.calls) walk(c);
   };
   walk(word(image, 20));
-  return [...hosts].sort((a, b) => a - b).map((h) => IMPORTS[h]?.name ?? `import-${h}`);
+  return [...hosts].sort((a, b) => a - b).map((h) => IMPORTS_V2[h]?.name ?? `import-${h}`);
 }
 
 export type { ModuleImport };

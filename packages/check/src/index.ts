@@ -184,7 +184,7 @@ export async function checkCandidate(input: CheckInput, opts: CheckOptions = {})
     }
     bytes = standalone(parsed.module);
   }
-  const v = validateBytes(bytes, { limits, ...(opts.allowedFeatures !== undefined ? { allowedFeatures: opts.allowedFeatures } : {}) });
+  const v = validateBytes(bytes, { limits, anma2: !!opts.modules, ...(opts.allowedFeatures !== undefined ? { allowedFeatures: opts.allowedFeatures } : {}) });
   const all: Diagnostic[] = [...v.diagnostics];
 
   // 3. annotations (T1 + static contract checks)
