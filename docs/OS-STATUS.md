@@ -29,3 +29,7 @@ The research report suggested a limit near 33k output tokens. Production data ru
 - **Read-only data is root-only in link version 0.** Data offsets are runtime values, so the linker cannot move them.
 - **Sign-in sits behind `GENERATION_REQUIRES_SIGN_IN`,** and is ignored until sign-in is configured, so a missing OAuth App cannot stop generation.
 - **The per-member quota charges a flat $0.05 per session.** It approximates actual spend. The BudgetLedger stays the hard site-wide cap.
+
+## Harness faults during the OS build
+
+- **`fmt` session 1 failed from a harness bug, not the model.** The holdout seed is 128 bits and the generator assumed 64, so test numbers overflowed the test buffer and threw a `RangeError`. Fixed, with a test. The attempt stays in `attempts.jsonl`.

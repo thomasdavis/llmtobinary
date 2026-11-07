@@ -23,7 +23,8 @@
     "@llmtobinary/reference": "workspace:*",
     "@llmtobinary/decode": "workspace:*",
     "@llmtobinary/os": "workspace:*",
-    "@llmtobinary/devices": "workspace:*"
+    "@llmtobinary/devices": "workspace:*",
+    "@llmtobinary/module": "workspace:*"
   },
   "devDependencies": {}
 }

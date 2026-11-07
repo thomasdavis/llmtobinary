@@ -25,3 +25,4 @@
 .community .mono { font-family: var(--mono); font-size: 12px; }
 .community .muted { color: var(--muted); }
 .community .small { font-size: 0.85em; }
+.os-terminal { background: #101418; color: #d7dee6; font: 14px/1.45 var(--mono); padding: 12px; min-height: 320px; max-height: 60vh; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; margin: 12px 0; outline-offset: 2px; }

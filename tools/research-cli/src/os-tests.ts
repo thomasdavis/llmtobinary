@@ -80,8 +80,8 @@ function checkCall(img: Image, c: OsCall, holdout: boolean, out: Failure[], disk
 
 /** Small deterministic generator, so a seed fixes every holdout. */
 export function rng(seed: bigint) {
-  let x = seed || 88172645463325252n;
   const M = (1n << 64n) - 1n;
+  let x = seed & M || 88172645463325252n;
   const next = (): bigint => {
     x ^= (x << 13n) & M;
     x ^= x >> 7n;

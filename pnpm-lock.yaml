@@ -205,6 +205,12 @@ importers:
       '@llmtobinary/diagnostics':
         specifier: workspace:*
         version: link:../../packages/diagnostics
+      '@llmtobinary/link':
+        specifier: workspace:*
+        version: link:../../packages/link
+      '@llmtobinary/os':
+        specifier: workspace:*
+        version: link:../../packages/os
       '@llmtobinary/protocol':
         specifier: workspace:*
         version: link:../../packages/protocol
@@ -615,6 +621,9 @@ importers:
       '@llmtobinary/link':
         specifier: workspace:*
         version: link:../../packages/link
+      '@llmtobinary/module':
+        specifier: workspace:*
+        version: link:../../packages/module
       '@llmtobinary/os':
         specifier: workspace:*
         version: link:../../packages/os

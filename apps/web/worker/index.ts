@@ -14,6 +14,7 @@ import { getGalleryEntry, hideGalleryEntry, isGalleryId, listGallery, rebuildFro
 import { addComment, addReport, listComments, setStar } from "./community/social.ts";
 import { getObject, getPackage, listPackages, loadAttestations, parseObjectId, pendingJobs, publishGeneration, registryConfigured, submitAttestation, takeDown } from "./community/registry.ts";
 import type { Envelope, EvidenceClass } from "@llmtobinary/registry";
+import { listBuilds, listSlots, proposeCounterexample, proposeTest, publishBuild, reviewTest, type BuildRequest } from "./community/board.ts";
 import { accountsConfigured, avatar, beginSignIn, currentMember, deleteAccount, fakeOAuthEnabled, fakeSignIn, finishSignIn, quotaRemaining, requireMember, reserveMemberSpend, revokeAllSessions, signOut } from "./accounts.ts";
 
 export { GenerationSession } from "./session.ts";
@@ -236,7 +237,7 @@ async function route(request: Request, env: Env): Promise<Response> {
     return new Response(body, { headers: { ...API_HEADERS, "content-type": "application/json", "cache-control": "public, max-age=3600" } });
   }
 
-  if (path.startsWith("/api/registry") || path.startsWith("/api/reports") || path.startsWith("/api/verifier")) {
+  if (path.startsWith("/api/registry") || path.startsWith("/api/reports") || path.startsWith("/api/verifier") || path.startsWith("/api/slots") || path.startsWith("/api/builds") || path.startsWith("/api/proposals")) {
     if (!registryConfigured(env)) return json({ error: "the registry is not configured" }, 503);
     return registryRoute(request, env, url, path);
   }
@@ -318,12 +319,33 @@ async function registryRoute(request: Request, env: Env, url: URL, path: string)
     await addReport(env, await currentMember(request, env), b.target, b.reason, now);
     return json({ reported: true }, 201);
   }
+  if (path === "/api/slots" && request.method === "GET") return json(await listSlots(env), 200, { "cache-control": "public, max-age=15" });
+  if (path === "/api/builds" && request.method === "GET") return json({ builds: await listBuilds(env) });
+  if (path === "/api/builds" && request.method === "POST") {
+    checkOrigin(request);
+    await admit(request, env, "build");
+    const member = await currentMember(request, env);
+    return json(await publishBuild(env, member, await readJson<BuildRequest>(request, 256 * 1024), now), 201);
+  }
+  const tests = /^\/api\/slots\/([a-z0-9-]{1,40})\/tests$/.exec(path);
+  if (tests && request.method === "POST") {
+    checkOrigin(request);
+    const member = await requireMember(request, env);
+    return json(await proposeTest(env, member, tests[1]!, (await readJson<{ body?: unknown }>(request, 16 * 1024)).body, now), 201);
+  }
+  const review = /^\/api\/proposals\/([0-9a-f-]{36})$/.exec(path);
+  if (review && request.method === "POST") {
+    checkOrigin(request);
+    const member = await requireMember(request, env);
+    await reviewTest(env, member, review[1]!, (await readJson<{ accept?: unknown }>(request, 1024)).accept === true);
+    return json({ reviewed: true });
+  }
   if (path === "/api/verifier/jobs" && request.method === "GET") {
     const auth = request.headers.get("authorization") ?? "";
     if (!env.VERIFIER_TOKEN || !(await sameSecret(auth, `Bearer ${env.VERIFIER_TOKEN}`))) return json({ error: "not found" }, 404);
     return json({ jobs: await pendingJobs(env, 20) });
   }
-  const m = /^\/api\/registry\/(sha256:[0-9a-f]{64}|sha256%3A[0-9a-f]{64})(\/bytes|\/attestations|\/comments|\/star)?$/.exec(path);
+  const m = /^\/api\/registry\/(sha256:[0-9a-f]{64}|sha256%3A[0-9a-f]{64})(\/bytes|\/attestations|\/comments|\/star|\/counterexamples)?$/.exec(path);
   if (!m) return json({ error: "not found" }, 404);
   const id = parseObjectId(m[1]!);
   const sub = m[2] ?? "";
@@ -344,6 +366,11 @@ async function registryRoute(request: Request, env: Env, url: URL, path: string)
     const member = await requireMember(request, env);
     const b = await readJson<{ body?: unknown }>(request, 8 * 1024);
     return json(await addComment(env, member, id, b.body, now), 201);
+  }
+  if (sub === "/counterexamples" && request.method === "POST") {
+    checkOrigin(request);
+    const member = await requireMember(request, env);
+    return json(await proposeCounterexample(env, member, id, (await readJson<{ input?: unknown }>(request, 16 * 1024)).input, now), 201);
   }
   if (sub === "/star" && (request.method === "PUT" || request.method === "DELETE")) {
     checkOrigin(request);
