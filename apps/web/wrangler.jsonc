@@ -39,6 +39,8 @@
   "limits": { "cpu_ms": 300000 },
   "vars": {
     "ENVIRONMENT": "production",
+    "TRUSTED_KEYS": "[{\"keyid\": \"broker-production-1\", \"publicKeyHex\": \"4efcbcfd0b3b91e9c0c6d2281bfa3d446b9e533cf76fca4b52c38054affa98b6\", \"role\": \"broker\"}, {\"keyid\": \"verifier-production-1\", \"publicKeyHex\": \"0f3fd5e59c53213aa22fe36a0531bdd41ae96e7ba07426c3d447c4fda7fc2bd3\", \"role\": \"verifier\"}, {\"keyid\": \"verifier-production-2\", \"publicKeyHex\": \"08c141bb0b00a1fe2f36b31d9a4d81ab5aeb82684352f8f09e530264a33b2808\", \"role\": \"verifier\"}]",
+    "BROKER_KEY_ID": "broker-production-1",
     "CANONICAL_HOST": "llmtobinary.com",
     "LIVE_GENERATION_ENABLED": "true",
     "OPENAI_MODEL": "gpt-6-luna",
@@ -70,6 +72,8 @@
       "version_metadata": { "binding": "CF_VERSION_METADATA" },
       "vars": {
         "ENVIRONMENT": "staging",
+        "TRUSTED_KEYS": "[{\"keyid\": \"broker-staging-1\", \"publicKeyHex\": \"282a01ba7a348534aaae3f8dbcd4ed3eb33fc7f547076851de9e4c7ab9c97e8d\", \"role\": \"broker\"}, {\"keyid\": \"verifier-staging-1\", \"publicKeyHex\": \"80835db202cc9114e30ae9de44aed97d18de7ab98c92c2b4e76f47d7fdb27658\", \"role\": \"verifier\"}, {\"keyid\": \"verifier-staging-2\", \"publicKeyHex\": \"56dcf2a4e3b927fce24caf75144b35bf8bcd6565824536a1128cdef381acf312\", \"role\": \"verifier\"}]",
+        "BROKER_KEY_ID": "broker-staging-1",
         "LIVE_GENERATION_ENABLED": "true",
         "OPENAI_MODEL": "gpt-6-luna",
         "OPENAI_PROFILE_LABEL": "GPT-6 Luna, medium reasoning",
