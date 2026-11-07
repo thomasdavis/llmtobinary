@@ -9,6 +9,7 @@ import slotEvidence from "../../migrations/0004_slot_evidence.sql?raw";
 import packageLinksSql from "../../migrations/0005_package_links.sql?raw";
 import worker from "../index.ts";
 import { listPackages, publishGeneration, submitAttestation } from "./registry.ts";
+import { libraryAccess, libraryCatalog, libraryGenerationEnabled } from "./library.ts";
 
 const base = rawEnv as unknown as Env;
 const ORIGIN = "https://example.com";
@@ -32,7 +33,7 @@ beforeAll(async () => {
   id = await objectId(bytesOf(HEX));
 });
 beforeEach(async () => {
-  for (const t of ["slot_candidates", "verify_jobs", "packages", "generations", "member_spend", "login_sessions", "stars", "comments", "reports", "users"]) await base.COMMUNITY_DB!.prepare(`DELETE FROM ${t}`).run();
+  for (const t of ["package_links", "slot_candidates", "slots", "verify_jobs", "packages", "generations", "member_spend", "login_sessions", "stars", "comments", "reports", "users"]) await base.COMMUNITY_DB!.prepare(`DELETE FROM ${t}`).run();
   const listed = await base.REGISTRY!.list();
   for (const o of listed.objects) await base.REGISTRY!.delete(o.key);
 });
@@ -211,5 +212,78 @@ describe("verifier queue", () => {
     const e = { ...env, VERIFIER_TOKEN: "t" };
     const r = (await (await call("/api/verifier/jobs", { headers: { authorization: "Bearer t" } }, e)).json()) as { jobs: { objectId: string }[] };
     expect(r.jobs[0]!.objectId).toBe(id);
+  });
+});
+
+describe("the library", () => {
+  const fnCard = [{ symbol: "id.same", signature: "() -> u64", behaviour: "Returns 42.", id: 0, params: [], ret: 1 }];
+  let distinct = 0;
+  async function slot(name: string, evidence: string, o: { features?: number; verified?: number; kind?: string; depends?: string[] } = {}): Promise<ObjectId> {
+    const db = base.COMMUNITY_DB!;
+    // Each slot gets its own object: return-42 with a different constant.
+    const hex = HEX.replace("2a00000000000000", `${(++distinct).toString(16).padStart(2, "0")}00000000000000`);
+    const own = (await publishGeneration(env, entry({ hex, id: `slot-${name}` }), { backfilled: false, authorId: null, now: 1 }))!;
+    await db.prepare("UPDATE packages SET evidence_class = ?2 WHERE object_id = ?1").bind(own, evidence).run();
+    await db.prepare("INSERT INTO slots (id, title, kind, features, depends, interface, prompt, position) VALUES (?1, ?1, ?2, ?3, ?4, ?5, 'p', 0)").bind(name, o.kind ?? "library", o.features ?? 1, JSON.stringify(o.depends ?? []), JSON.stringify(fnCard)).run();
+    await db.prepare("INSERT INTO slot_candidates (slot_id, object_id, verified, created_at) VALUES (?1, ?2, ?3, 1)").bind(name, own, o.verified ?? 1).run();
+    return own;
+  }
+  const on = (): Env => ({ ...env, LIBRARY_GENERATION: "true" });
+  const create = (task: Record<string, unknown>, e: Env) => call("/api/generation-sessions", { method: "POST", body: JSON.stringify({ task: { taskId: null, description: "fake:default", params: [], returns: "u64", allowedFeatures: 3, requireClaims: false, ...task }, mode: "tools", profile: "default" }), headers: { origin: "https://example.com", "content-type": "application/json" } }, e);
+
+  it("is off unless switched on", () => {
+    expect(libraryGenerationEnabled(env)).toBe(false);
+    expect(libraryGenerationEnabled(on())).toBe(true);
+  });
+  it("offers only verified E4 library slots within the features", async () => {
+    await slot("good", "E4");
+    await slot("low", "E3");
+    await slot("unverified", "E4", { verified: 0 });
+    await slot("needs-disk", "E4", { features: 33 });
+    await slot("kernel", "E4", { kind: "root" });
+    expect((await libraryCatalog(env, 3)).map((e) => e.slot)).toEqual(["good"]);
+  });
+  it("links real bytes, and refuses bytes that do not match their ID", async () => {
+    const own = await slot("good", "E4");
+    const records = [[1, 0, 0, 1], [2, 0, 0, 1], [0x42, 0, 1, 0], [0x43, 0, 0, 0], [4, 0, 0, 0], [0x70, 1, 0, 1]];
+    const words = [0x414d4e41, 2, 0, records.length, 0, 0, 0, 0, ...records.flat()];
+    const module = new Uint8Array(new Uint32Array(words).buffer);
+    const a = await libraryAccess(env, 3);
+    const good = await a.link(module, ["id.same"]);
+    expect(good).toMatchObject({ ok: true, uses: ["id.same"], packages: [{ slot: "good" }] });
+    await base.REGISTRY!.put(`objects/sha256/${own.slice(7)}`, new Uint8Array([1, 2, 3]));
+    const bad = await a.link(module, ["id.same"]);
+    expect(bad).toMatchObject({ ok: false, errors: [{ rule: "LINK-FETCH" }] });
+  });
+  it("records what a program reused, and shows a package withdrawn later", async () => {
+    const dep = await slot("good", "E4");
+    const program = "414e4d4101000000000000000000000000000000000000000000000000000000";
+    const pid = await objectId(bytesOf(program));
+    await publishGeneration(env, entry({ hex: program, sessionId: "22222222-2222-4222-8222-222222222222", id: "y", links: [{ slot: "good", objectId: dep, evidence: "E4", symbols: ["id.same"] }], uses: ["id.same"] }), { backfilled: false, authorId: null, now: 2 });
+    const read = async (x: string) => ((await (await call(`/api/registry/${x}`, {}, env)).json()) as { links: { uses: { slot: string; symbols: string[]; withdrawn: boolean }[]; usedBy: number } }).links;
+    expect((await read(pid)).uses).toEqual([expect.objectContaining({ slot: "good", symbols: ["id.same"], withdrawn: false })]);
+    expect((await read(dep)).usedBy).toBe(1);
+    await base.COMMUNITY_DB!.prepare("UPDATE slot_candidates SET verified = 0 WHERE slot_id = 'good'").run();
+    expect((await read(pid)).uses[0]!.withdrawn).toBe(true);
+  });
+  it("cannot be switched on by a client", async () => {
+    expect((await create({ library: true }, on())).status).toBe(400);
+  });
+  it("gives an open generation the library, and a curated task none", async () => {
+    await slot("good", "E4");
+    const state = async (r: Response) => {
+      const { sessionId } = (await r.json()) as { sessionId: string };
+      return (await (await base.GENERATION_SESSION.get(base.GENERATION_SESSION.idFromName(sessionId)).fetch("https://session/summary")).json()) as { promptVersion: string };
+    };
+    expect((await state(await create({}, on()))).promptVersion).toContain("llmtobinary-library");
+    expect((await state(await create({}, env))).promptVersion).not.toContain("library");
+    expect((await state(await create({ taskId: "square-plus-two", description: null, params: ["u64"] }, on()))).promptVersion).not.toContain("library");
+  });
+  it("falls back to an ordinary session when nothing is importable", async () => {
+    const r = await create({}, on());
+    expect(r.status).toBe(201);
+    const { sessionId } = (await r.json()) as { sessionId: string };
+    const s = (await (await base.GENERATION_SESSION.get(base.GENERATION_SESSION.idFromName(sessionId)).fetch("https://session/summary")).json()) as { promptVersion: string };
+    expect(s.promptVersion).not.toContain("library");
   });
 });
