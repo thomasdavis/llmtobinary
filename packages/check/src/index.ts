@@ -10,6 +10,7 @@ import { CATALOG_VERSION, Stage, assemble, diag, jsonBytes, renderContext, type 
 import { canonicalJson, checkContracts, crossCheckClaims, parseAnnotations, type ParsedAnnotations } from "@llmtobinary/annotations";
 import type { AnnotationSummary, CheckReport } from "@llmtobinary/protocol";
 import { validateAnmr, type AnmrProgram } from "@llmtobinary/anmr";
+import { MODULE_VERSION, headerVersion, parseModule, standalone } from "@llmtobinary/module";
 
 export interface CheckInput {
   /** JSON text of a check/submit call (or a response.json fixture). */
@@ -28,6 +29,8 @@ export interface CheckOptions {
   allowedFeatures?: number;
   /** Size cap for transported candidates (defaults to the live-generation cap). */
   maxCandidateBytes?: number;
+  /** Accept ANMA-2 modules: imports become stand-ins and the ordinary validator runs. Off by default. */
+  modules?: boolean;
   /**
    * What the task's tests will require (known to the generation loop). Lets the static check catch
    * a wrong entry signature, or a program that can never produce the output the tests compare,
@@ -173,6 +176,14 @@ export async function checkCandidate(input: CheckInput, opts: CheckOptions = {})
   report.sha256 = await sha256Hex(bytes);
 
   // 2. decode + validate
+  if (opts.modules && headerVersion(bytes) === MODULE_VERSION) {
+    const parsed = parseModule(bytes);
+    if (!parsed.ok) {
+      finish([diag("ANMA-K-010", { message: parsed.error.message, stage: Stage.TASK })]);
+      return { report, bytes, module: null, annotations: null, annotationsRaw };
+    }
+    bytes = standalone(parsed.module);
+  }
   const v = validateBytes(bytes, { limits, ...(opts.allowedFeatures !== undefined ? { allowedFeatures: opts.allowedFeatures } : {}) });
   const all: Diagnostic[] = [...v.diagnostics];
 

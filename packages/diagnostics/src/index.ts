@@ -24,6 +24,7 @@ export type ErrorClass =
   | "INVALID_HANDLE"
   | "INVALID_UTF8"
   | "CAPABILITY_DENIED"
+  | "MODULE_MALFORMED"
   | "RESOURCE_EXHAUSTED"
   | "FUEL_EXHAUSTED"
   // task
@@ -186,6 +187,7 @@ export const RULES: readonly RuleInfo[] = [
   r("ANMA-K-007", "CONTRACT_REFUTED", "the verifier found a counterexample to a contract", "§15.5"),
   r("ANMA-K-008", "CONTRACT_UNPROVEN", "the verifier could not decide a contract", "§15.5", "warning"),
   r("ANMA-K-009", "RESOURCE_EXHAUSTED", "a test run stopped on a resource or fuel limit", "§14.1"),
+  r("ANMA-K-010", "MODULE_MALFORMED", "an ANMA-2 module's header or IMPORT declarations are malformed", "ANMA-2 §2"),
   // ANMR-1 matched register control (research, Section 18.5)
   r("ANMR-V-001", "BAD_HEADER", "ANMR header is invalid (magic ANMR, version 1, features/data/entry 0, R >= 1)", "§18.5"),
   r("ANMR-V-002", "LENGTH_MISMATCH", "ANMR file length does not equal 32 + 16*recordCount", "§18.5"),

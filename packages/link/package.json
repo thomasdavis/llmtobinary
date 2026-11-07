@@ -1,0 +1,13 @@
+{
+  "name": "@llmtobinary/link",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "typecheck": "tsc --noEmit -p ." },
+  "dependencies": {
+    "@llmtobinary/spec": "workspace:*",
+    "@llmtobinary/module": "workspace:*",
+    "@llmtobinary/validate": "workspace:*"
+  }
+}

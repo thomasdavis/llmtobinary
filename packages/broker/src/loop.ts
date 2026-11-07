@@ -400,7 +400,7 @@ export async function runAttempt(state: SessionState, req: AttemptRequest, deps:
   // What the task's tests will compare, so check_candidate can flag a wrong signature or missing
   // output statically (curated tasks know their effects; open tasks only fix the signature).
   const curated = state.task.taskId ? TASK_BY_ID.get(state.task.taskId) : undefined;
-  const checkOpts = { allowedFeatures: deps.allowedFeatures, task: { params: state.task.params, returns: state.task.returns, effects: requiredEffects(curated) } };
+  const checkOpts = { allowedFeatures: deps.allowedFeatures, modules: !!state.task.module, task: { params: state.task.params, returns: state.task.returns, effects: requiredEffects(curated) } };
   const instructions = isAnmr ? anmrInstructions(state.task.registers ?? 8, ANMR_SPILL_SLOTS) : generationInstructions();
   let retriedThisAttempt = false;
 

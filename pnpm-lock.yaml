@@ -356,6 +356,9 @@ importers:
       '@llmtobinary/diagnostics':
         specifier: workspace:*
         version: link:../diagnostics
+      '@llmtobinary/module':
+        specifier: workspace:*
+        version: link:../module
       '@llmtobinary/protocol':
         specifier: workspace:*
         version: link:../protocol
@@ -396,6 +399,24 @@ importers:
         specifier: workspace:*
         version: link:../spec
 
+  packages/link:
+    dependencies:
+      '@llmtobinary/module':
+        specifier: workspace:*
+        version: link:../module
+      '@llmtobinary/spec':
+        specifier: workspace:*
+        version: link:../spec
+      '@llmtobinary/validate':
+        specifier: workspace:*
+        version: link:../validate
+
+  packages/module:
+    dependencies:
+      '@llmtobinary/spec':
+        specifier: workspace:*
+        version: link:../spec
+
   packages/protocol:
     dependencies:
       '@llmtobinary/diagnostics':
@@ -425,6 +446,8 @@ importers:
       '@llmtobinary/validate':
         specifier: workspace:*
         version: link:../validate
+
+  packages/registry: {}
 
   packages/research:
     dependencies:

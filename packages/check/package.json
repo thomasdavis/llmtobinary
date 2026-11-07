@@ -16,6 +16,7 @@
     "@llmtobinary/validate": "workspace:*",
     "@llmtobinary/annotations": "workspace:*",
     "@llmtobinary/protocol": "workspace:*",
-    "@llmtobinary/anmr": "workspace:*"
+    "@llmtobinary/anmr": "workspace:*",
+    "@llmtobinary/module": "workspace:*"
   }
 }

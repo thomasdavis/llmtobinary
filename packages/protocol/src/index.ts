@@ -192,6 +192,8 @@ export interface TaskRequest {
   isa?: "ANMA-1" | "ANMR-1";
   /** ANMR-1 architectural register count R (4..32). */
   registers?: number;
+  /** The candidate is an ANMA-2 module, whose imports the checker stands in for. */
+  module?: boolean;
 }
 
 export interface CreateSessionRequest {
