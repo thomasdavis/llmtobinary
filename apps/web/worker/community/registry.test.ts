@@ -168,6 +168,28 @@ describe("log", () => {
   });
 });
 
+describe("verifier down", () => {
+  it("leaves the site working, with the job pending", async () => {
+    await publishGeneration(env, entry(), { backfilled: false, authorId: null, now: 1 });
+    expect((await call("/api/registry", {}, env)).status).toBe(200);
+    expect((await call(`/api/registry/${id}`, {}, env)).status).toBe(200);
+    expect((await call(`/api/registry/${id}/bytes`, {}, env)).status).toBe(200);
+    const job = await base.COMMUNITY_DB!.prepare("SELECT status FROM verify_jobs WHERE object_id = ?1").bind(id).first<{ status: string }>();
+    expect(job!.status).toBe("pending");
+  });
+});
+
+describe("takedown and lock files", () => {
+  it("a lock pinning a taken-down object fails closed", async () => {
+    const { checkLock, classify } = await import("@llmtobinary/registry");
+    await publishGeneration(env, entry(), { backfilled: false, authorId: null, now: 1 });
+    await call(`/api/admin/registry/${id}`, { method: "DELETE", headers: { authorization: "Bearer test-admin-key-not-a-secret" } }, env);
+    const p = ((await (await call(`/api/registry/${id}`, {}, env)).json()) as { package: { taken_down: number } }).package;
+    const problems = checkLock({ kind: "llmtobinary-lock/1", root: id, specDigest: "s", engineDigest: "e", policy: { minimumClass: "E1" }, slots: { a: id } }, () => ({ evidence: classify(id, { valid: true, selfConsistent: false }, []), takenDown: !!p.taken_down }));
+    expect(problems).toEqual([{ slot: "a", problem: "taken-down" }]);
+  });
+});
+
 describe("verifier queue", () => {
   it("is private, and lists a task-linked package", async () => {
     await publishGeneration(env, entry(), { backfilled: false, authorId: null, now: 1 });

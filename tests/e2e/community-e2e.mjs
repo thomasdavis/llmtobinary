@@ -22,7 +22,8 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 800 }], ["ph
   const page = await browser.newPage({ viewport });
   page.on("pageerror", (e) => errors.push(`${label}: ${e.message}`));
   page.on("console", (m) => {
-    if (m.type() === "error" && !/analytics|googletagmanager|cloudflareinsights/.test(m.text())) errors.push(`${label}: ${m.text()}`);
+    // COEP blocks the analytics beacon on production. Scoped by URL so a real failure still counts.
+    if (m.type() === "error" && !/google-analytics|googletagmanager|cloudflareinsights/.test(m.location().url ?? "")) errors.push(`${label}: ${m.text()} ${m.location().url}`);
   });
   await page.goto(`${url}/registry`);
   await page.getByRole("heading", { name: "Registry" }).waitFor();
