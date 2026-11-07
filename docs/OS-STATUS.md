@@ -8,6 +8,14 @@ Progress log for `PRD-OS.md`. `node scripts/goal-check.mjs` is the measure of do
 - **Hyades.** `/etc/donto/hyades.key` is mode 600 root. The ops notes say it is readable by the `ajax` group. Not bypassed, so only one lane qualifies, which weakens Gate B's independence.
 - **GitHub Actions.** `pnpm/action-setup` fails at its own install step, before any repo step runs, so `ci` and `deploy` cannot pass on GitHub. Staging is deployed from the box with the README's commands.
 
+## The OS
+
+A model-written OS boots and passes its acceptance tests. The first image is 6 packages: `kernel`, `cmd`, `str`, `fs`, `proc` and `line`. It holds about 1,640 records in 24.8 KB, for about 77,000 output tokens.
+
+**Estimates that turned out wrong.** PRD-OS and the research report estimated 25,000 to 50,000 records and said direct generation stopped near 250 operations. The smallest honest system took about 1,640 records, 15 to 30 times less. Packages of 533 records passed first time, and Gate A's 512 bucket scored 20 of 20, so the ceiling is well above what the report suggested.
+
+**This is a small OS.** It has cooperative tasks, a flat 16-file directory and five shell commands. It has no scheduler, no isolation between files, and no way to pass arguments to programs. It runs as a guest on a trusted TypeScript VM, and the interfaces, tests and decomposition were written by people and agents.
+
 ## Gate results
 
 **Gate B: passed, 18 of 20 in round 2** (threshold 16). Every pair where both sessions got a reply linked and matched the oracle on every hidden input, so there were 0 link failures and 0 wrong results. The two failures were lane faults: one `codex` exit, and one call that never returned after four attempts. 26 hung calls were retried in total, with 0 tool-audit failures.
