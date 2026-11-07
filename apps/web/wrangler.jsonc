@@ -39,6 +39,7 @@
   "limits": { "cpu_ms": 300000 },
   "vars": {
     "ENVIRONMENT": "production",
+    "LIBRARY_GENERATION": "true",
     "TRUSTED_KEYS": "[{\"keyid\": \"broker-production-1\", \"publicKeyHex\": \"4efcbcfd0b3b91e9c0c6d2281bfa3d446b9e533cf76fca4b52c38054affa98b6\", \"role\": \"broker\"}, {\"keyid\": \"verifier-production-1\", \"publicKeyHex\": \"0f3fd5e59c53213aa22fe36a0531bdd41ae96e7ba07426c3d447c4fda7fc2bd3\", \"role\": \"verifier\"}, {\"keyid\": \"verifier-production-2\", \"publicKeyHex\": \"08c141bb0b00a1fe2f36b31d9a4d81ab5aeb82684352f8f09e530264a33b2808\", \"role\": \"verifier\"}]",
     "BROKER_KEY_ID": "broker-production-1",
     "CANONICAL_HOST": "llmtobinary.com",
