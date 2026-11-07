@@ -140,7 +140,13 @@ export class GenerationSession extends DurableObject<Env> {
     const now = Date.now();
     // With nothing importable, the session is an ordinary one.
     const allowed = p.request.task.allowedFeatures & Number(this.env.ALLOWED_FEATURES ?? "15");
-    const catalog = p.request.task.library ? await libraryCatalog(this.env, allowed) : [];
+    // A library that cannot be read must never stop generation: the session is then an ordinary one.
+    const catalog = p.request.task.library
+      ? await libraryCatalog(this.env, allowed).catch((e: unknown) => {
+          log({ event: "library-unavailable", sessionId: p.sessionId, name: (e as Error)?.name });
+          return [];
+        })
+      : [];
     const task = catalog.length ? p.request.task : { ...p.request.task, library: false, module: !!p.request.task.slot };
     this.state = createSession({ sessionId: p.sessionId, task, mode: p.request.mode, profile: p.profile, budget: p.budget, now, ttlMs: p.ttlMs, ...(catalog.length ? { libraryIndex: renderIndex(catalog) } : {}) });
     await this.save();
@@ -165,7 +171,12 @@ export class GenerationSession extends DurableObject<Env> {
     if (this.running) throw new LoopError("an attempt is already running", 409);
     if (s.status !== "active") throw new LoopError(`session is stopped (${s.outcome})`, 409);
     const model = this.model(s);
-    const library = s.task.library ? await libraryAccess(this.env, s.task.allowedFeatures & Number(this.env.ALLOWED_FEATURES ?? "15")) : undefined;
+    // Without the library this session cannot link what the model writes, so it waits rather than sending unlinked bytes.
+    const library = s.task.library
+      ? await libraryAccess(this.env, s.task.allowedFeatures & Number(this.env.ALLOWED_FEATURES ?? "15")).catch(() => {
+          throw new LoopError("the library is unavailable; try again shortly", 503);
+        })
+      : undefined;
     const ac = new AbortController();
     this.running = ac;
     const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>();

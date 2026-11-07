@@ -228,11 +228,13 @@ describe("the library", () => {
     await db.prepare("INSERT INTO slot_candidates (slot_id, object_id, verified, created_at) VALUES (?1, ?2, ?3, 1)").bind(name, own, o.verified ?? 1).run();
     return own;
   }
+  // Tests read the production vars, so "off" must be explicit.
   const on = (): Env => ({ ...env, LIBRARY_GENERATION: "true" });
+  const off = (): Env => ({ ...env, LIBRARY_GENERATION: undefined });
   const create = (task: Record<string, unknown>, e: Env) => call("/api/generation-sessions", { method: "POST", body: JSON.stringify({ task: { taskId: null, description: "fake:default", params: [], returns: "u64", allowedFeatures: 3, requireClaims: false, ...task }, mode: "tools", profile: "default" }), headers: { origin: "https://example.com", "content-type": "application/json" } }, e);
 
   it("is off unless switched on", () => {
-    expect(libraryGenerationEnabled(env)).toBe(false);
+    expect(libraryGenerationEnabled(off())).toBe(false);
     expect(libraryGenerationEnabled(on())).toBe(true);
   });
   it("offers only verified E4 library slots within the features", async () => {
@@ -276,7 +278,7 @@ describe("the library", () => {
       return (await (await base.GENERATION_SESSION.get(base.GENERATION_SESSION.idFromName(sessionId)).fetch("https://session/summary")).json()) as { promptVersion: string };
     };
     expect((await state(await create({}, on()))).promptVersion).toContain("llmtobinary-library");
-    expect((await state(await create({}, env))).promptVersion).not.toContain("library");
+    expect((await state(await create({}, off()))).promptVersion).not.toContain("library");
     expect((await state(await create({ taskId: "square-plus-two", description: null, params: ["u64"] }, on()))).promptVersion).not.toContain("library");
   });
   it("falls back to an ordinary session when nothing is importable", async () => {
@@ -285,5 +287,21 @@ describe("the library", () => {
     const { sessionId } = (await r.json()) as { sessionId: string };
     const s = (await (await base.GENERATION_SESSION.get(base.GENERATION_SESSION.idFromName(sessionId)).fetch("https://session/summary")).json()) as { promptVersion: string };
     expect(s.promptVersion).not.toContain("library");
+  });
+});
+
+describe("a broken library", () => {
+  it("never stops generation: the session falls back to an ordinary one", async () => {
+    const db = base.COMMUNITY_DB!;
+    await db.prepare("ALTER TABLE slots RENAME TO slots_away").run();
+    try {
+      const r = await call("/api/generation-sessions", { method: "POST", body: JSON.stringify({ task: { taskId: null, description: "fake:default", params: [], returns: "u64", allowedFeatures: 3, requireClaims: false }, mode: "tools", profile: "default" }), headers: { origin: "https://example.com", "content-type": "application/json" } }, { ...env, LIBRARY_GENERATION: "true" });
+      expect(r.status).toBe(201);
+      const { sessionId } = (await r.json()) as { sessionId: string };
+      const s = (await (await base.GENERATION_SESSION.get(base.GENERATION_SESSION.idFromName(sessionId)).fetch("https://session/summary")).json()) as { promptVersion: string };
+      expect(s.promptVersion).not.toContain("library");
+    } finally {
+      await db.prepare("ALTER TABLE slots_away RENAME TO slots").run();
+    }
   });
 });

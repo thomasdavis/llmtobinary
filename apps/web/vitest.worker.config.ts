@@ -38,6 +38,8 @@ export default defineConfig({
           ENVIRONMENT: "test",
           TEST_FAKE_MODEL: "1",
           TEST_FAKE_OAUTH: "1",
+          // Off unless a test switches it on: the top-level vars are production's.
+          LIBRARY_GENERATION: "false",
           TEST_FAKE_SCRIPT: JSON.stringify(scripts),
           SESSION_SIGNING_KEY: "test-signing-key-not-a-secret",
           GALLERY_ADMIN_KEY: "test-admin-key-not-a-secret",
