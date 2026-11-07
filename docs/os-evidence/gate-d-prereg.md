@@ -32,3 +32,5 @@ Gate C could not answer this, because a person chose the imports and the prompt 
 If any of these fails, the feature stays on staging and production keeps generating standalone programs.
 
 **Known limits, stated in advance.** The lane is `gpt-6.1-sol`, not the site's `gpt-6-luna`, so a passing result does not prove the same for the production model. Staging runs on the site's own model will be reported separately. These tasks are small, and the library is small.
+
+**Note, 2026-11-07, before any counted session.** One pilot session per task per arm is being run to find harness bugs. Pilot rows are kept in a separate file and are excluded from the result. Any change made because of the pilot is listed in the Gate D report.
