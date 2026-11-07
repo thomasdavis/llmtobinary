@@ -87,6 +87,8 @@ function Bar() {
     <nav className="community-bar" aria-label="Community">
       <a className="community-brand" href="/">llmtobinary</a>
       <a href="/registry">Registry</a>
+      <a href="/os">OS board</a>
+      <a href="/boot">Boot</a>
       <span className="community-spacer" />
       {ready && member ? (
         <>
@@ -170,6 +172,111 @@ function PackageList({ author }: { author?: string }) {
   );
 }
 
+interface SlotView {
+  id: string;
+  title: string;
+  kind: string;
+  depends: string;
+  candidates: number;
+  open: boolean;
+  winner: { object_id: string; evidence_class: string; records: number } | null;
+}
+
+function generateMessage(status: number, error: string): string {
+  if (status === 401) return "Sign in with GitHub to generate.";
+  if (status === 429) return error;
+  return error || "The generation could not start.";
+}
+
+/** Runs one generation for a slot, and follows it until the model submits. */
+function SlotGenerate({ slot, onDone }: { slot: SlotView; onDone: () => void }) {
+  const [note, setNote] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const start = async () => {
+    setBusy(true);
+    setNote("Starting…");
+    try {
+      const res = await send("/api/generation-sessions", { method: "POST", body: JSON.stringify({ slot: slot.id }) });
+      const created = (await res.json()) as { sessionId?: string; token?: string; error?: string };
+      if (!res.ok || !created.sessionId || !created.token) {
+        setNote(generateMessage(res.status, created.error ?? ""));
+        return;
+      }
+      setNote("A model is writing the bytes…");
+      const run = await send(`/api/generation-sessions/${created.sessionId}/attempts`, { method: "POST", headers: { authorization: `Bearer ${created.token}` }, body: JSON.stringify({ idempotencyKey: crypto.randomUUID(), feedback: null }) });
+      const reader = run.body?.getReader();
+      const decoder = new TextDecoder();
+      let text = "";
+      let submitted = false;
+      let stopped: string | null = null;
+      while (reader) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        text += decoder.decode(value, { stream: true });
+        const lines = text.split("\n");
+        text = lines.pop() ?? "";
+        for (const l of lines) {
+          if (!l.trim()) continue;
+          const e = JSON.parse(l) as { type?: string; turn?: number; detail?: string };
+          if (e.type === "turn.started") setNote(`A model is writing the bytes (turn ${e.turn})…`);
+          if (e.type === "candidate.submitted") submitted = true;
+          if (e.type === "loop.stopped") stopped = e.detail ?? "It stopped.";
+        }
+      }
+      setNote(submitted ? "Submitted. The verifier will test it, and its evidence will appear here." : (stopped ?? "The model did not submit a program."));
+      onDone();
+    } catch {
+      setNote("The connection was lost. Closing this tab also ends a generation.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <button disabled={busy} onClick={() => void start()}>Generate</button>
+      {note ? <span className="muted small" role="status"> {note}</span> : null}
+    </>
+  );
+}
+
+function Board() {
+  const [slots, setSlots] = useState<SlotView[] | null>(null);
+  const [error, setError] = useState(false);
+  const load = async () => {
+    const res = await fetch("/api/slots");
+    if (!res.ok) {
+      setError(true);
+      return;
+    }
+    setSlots(((await res.json()) as { slots: SlotView[] }).slots);
+  };
+  useEffect(() => void load(), []);
+  if (error) return <p role="alert">The OS board is not available yet.</p>;
+  if (!slots) return <p className="muted">Loading…</p>;
+  const done = slots.filter((s) => !s.open).length;
+  return (
+    <>
+      <p className="muted">The operating system is split into small packages. Anyone can pick a slot and have a model write it. A slot is filled once a candidate passes independently held tests, and the default candidate is chosen by evidence, then size, then age, never by popularity.</p>
+      <p>{done} of {slots.length} slots filled. <a href="/boot">Boot the OS</a></p>
+      <ul className="package-list">
+        {slots.map((s) => (
+          <li key={s.id}>
+            <strong>{s.title}</strong> {s.winner ? <Evidence value={s.winner.evidence_class} /> : <span className="evidence">open</span>}
+            <p className="muted small">
+              {s.kind} · {s.candidates} candidate{s.candidates === 1 ? "" : "s"}
+              {JSON.parse(s.depends).length ? ` · needs ${(JSON.parse(s.depends) as string[]).join(", ")}` : ""}
+              {s.winner ? <> · <a href={`/package/${s.winner.object_id}`}>{s.winner.records} records</a></> : null}
+            </p>
+            <SlotGenerate slot={s} onDone={() => void load()} />
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
 function PackagePage({ id }: { id: string }) {
   const { member, accounts } = useMember();
   const [data, setData] = useState<{ package: PackageRow; attestations: Attestation[]; comments: Comment[] } | null | "missing">(null);
@@ -197,6 +304,12 @@ function PackagePage({ id }: { id: string }) {
       setDraft("");
       await load();
     } else setNote(((await res.json()) as { error?: string }).error ?? "The comment could not be posted.");
+  };
+  const breakIt = async () => {
+    const input = prompt("What input makes this package break its contract? The verifier will rerun it.");
+    if (!input?.trim()) return;
+    const res = await send(`/api/registry/${id}/counterexamples`, { method: "POST", body: JSON.stringify({ input }) });
+    setNote(res.ok ? "Submitted. The verifier will check it against the oracle." : "It could not be submitted.");
   };
   const report = async () => {
     const reason = prompt("What is wrong with this program?");
@@ -233,6 +346,7 @@ function PackagePage({ id }: { id: string }) {
         {p.gallery_id ? <a className="action" href={`/?program=${encodeURIComponent(p.gallery_id)}`}>Open and run</a> : null}
         <a className="action" href={`/api/registry/${id}/bytes`} download>Download bytes</a>
         {member ? <button onClick={() => void star()}>Star ({p.stars ?? 0})</button> : <span className="muted">{p.stars ?? 0} stars</span>}
+        {member ? <button onClick={() => void breakIt()}>Break this package</button> : null}
         <button onClick={() => void report()}>Report</button>
       </div>
       {note ? <p role="status">{note}</p> : null}
@@ -278,6 +392,11 @@ export function Community() {
       <main className="community-main">
         {pkg ? (
           <PackagePage id={pkg[1]!} />
+        ) : path === "/os" ? (
+          <>
+            <h1>OS board</h1>
+            <Board />
+          </>
         ) : user ? (
           <>
             <h1>{decodeURIComponent(user[1]!)}</h1>

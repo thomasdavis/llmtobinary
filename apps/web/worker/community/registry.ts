@@ -4,6 +4,7 @@
 
 import { classify, importSigningKey, isObjectId, objectId, signStatement, statement, verifyEnvelope, type Envelope, type EvidenceClass, type LogEntry, type ObjectId, type TrustedKey, type VerifiedAttestation } from "@llmtobinary/registry";
 import { validateBytes } from "@llmtobinary/validate";
+import { headerVersion, parseModule, standalone } from "@llmtobinary/module";
 import type { GalleryEntry } from "@llmtobinary/protocol";
 import { HttpError } from "../http.ts";
 
@@ -15,6 +16,13 @@ const ATTESTATION_PREFIX = "attestations/";
 const objectKey = (id: ObjectId): string => `${OBJECT_PREFIX}${id.slice(7)}`;
 const attestationPrefix = (id: ObjectId): string => `${ATTESTATION_PREFIX}${id.slice(7)}/`;
 const hexToBytes = (hex: string): Uint8Array => Uint8Array.from(hex.match(/../g) ?? [], (x) => parseInt(x, 16));
+
+/** An ANMA-2 module is judged as the checker judges it: imports stood in for, ordinary validator. */
+export function isValidObject(bytes: Uint8Array): boolean {
+  if (headerVersion(bytes) !== 2) return validateBytes(bytes).ok;
+  const p = parseModule(bytes);
+  return p.ok && validateBytes(standalone(p.module), { anma2: true }).ok;
+}
 
 export const registryConfigured = (env: Env): boolean => !!env.REGISTRY && !!env.COMMUNITY_DB;
 
@@ -60,14 +68,14 @@ export interface PackageRow {
  * Publishes a generation's bytes. Idempotent: the same bytes are one object however often they
  * arrive. `outcome` is kept as written, so passed and passed-unverified never merge.
  */
-export async function publishGeneration(env: Env, e: GalleryEntry, opts: { backfilled: boolean; authorId: number | null; now: number }): Promise<ObjectId | null> {
+export async function publishGeneration(env: Env, e: GalleryEntry, opts: { backfilled: boolean; authorId: number | null; now: number; slot?: string }): Promise<ObjectId | null> {
   if (!registryConfigured(env) || !e.hex) return null;
   const bytes = hexToBytes(e.hex);
   const id = await objectId(bytes);
   const key = objectKey(id);
   const fresh = !(await env.REGISTRY!.head(key));
   if (fresh) await env.REGISTRY!.put(key, bytes, { httpMetadata: { contentType: "application/octet-stream" } });
-  const valid = validateBytes(bytes).ok;
+  const valid = isValidObject(bytes);
   const selfConsistent = valid && (e.outcome === "passed" || e.outcome === "passed-unverified");
   const evidence = classify(id, { valid, selfConsistent }, []);
   await env.COMMUNITY_DB!.prepare(
@@ -77,9 +85,11 @@ export async function publishGeneration(env: Env, e: GalleryEntry, opts: { backf
   )
     .bind(id, e.label, e.prompt, e.taskId, e.outcome, e.model, e.instructions, bytes.length, e.sessionId, e.id, opts.authorId, opts.backfilled ? LICENCE_NONE : LICENCE_CC0, opts.backfilled ? 1 : 0, valid ? 1 : 0, selfConsistent ? 1 : 0, evidence.class, e.createdAt)
     .run();
+  if (opts.slot) await env.COMMUNITY_DB!.prepare("INSERT OR IGNORE INTO slot_candidates (slot_id, object_id, created_at) VALUES (?1, ?2, ?3)").bind(opts.slot, id, opts.now).run();
   if (fresh) {
     await logEvent(env, { at: opts.now, kind: "publish", subject: id, detail: { sessionId: e.sessionId, backfilled: opts.backfilled } });
-    if (valid && e.taskId) await env.COMMUNITY_DB!.prepare("INSERT OR IGNORE INTO verify_jobs (object_id, task_id, created_at) VALUES (?1, ?2, ?3)").bind(id, e.taskId, opts.now).run();
+    const job = e.taskId ?? (opts.slot ? `slot:${opts.slot}` : null);
+    if (valid && job) await env.COMMUNITY_DB!.prepare("INSERT OR IGNORE INTO verify_jobs (object_id, task_id, created_at) VALUES (?1, ?2, ?3)").bind(id, job, opts.now).run();
     // Signed only at generation time: a backfilled entry can never claim this attestation.
     if (!opts.backfilled && env.BROKER_SIGNING_KEY) {
       const key2 = await importSigningKey(env.BROKER_KEY_ID ?? "broker-1", env.BROKER_SIGNING_KEY);

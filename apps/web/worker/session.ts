@@ -185,7 +185,8 @@ export class GenerationSession extends DurableObject<Env> {
           now: () => Date.now(),
           signal: ac.signal,
           newId: () => crypto.randomUUID(),
-          allowedFeatures: Number(this.env.ALLOWED_FEATURES ?? "15"),
+          // An OS slot's features come from the slot, which only the server sets.
+          allowedFeatures: s.task.slot ? s.task.allowedFeatures : Number(this.env.ALLOWED_FEATURES ?? "15"),
           emit: async (ev) => {
             await this.ctx.storage.put(`e:${pad(ev.seq)}`, ev);
             if (ev.type === "check.result" || ev.type === "candidate.submitted" || ev.type === "loop.stopped") await this.save();
@@ -269,7 +270,7 @@ export class GenerationSession extends DurableObject<Env> {
         // Best-effort: the registry can be rebuilt from the archive, so a failure here must not lose the archive.
         try {
           const author = await this.env.COMMUNITY_DB?.prepare("SELECT user_id FROM generations WHERE session_id = ?1").bind(s.sessionId).first<{ user_id: number | null }>();
-          await publishGeneration(this.env, entry, { backfilled: false, authorId: author?.user_id ?? null, now: Date.now() });
+          await publishGeneration(this.env, entry, { backfilled: false, authorId: author?.user_id ?? null, now: Date.now(), ...(s.task.slot ? { slot: s.task.slot } : {}) });
         } catch (e) {
           log({ event: "registry-publish-failed", sessionId: s.sessionId, name: (e as Error)?.name });
         }

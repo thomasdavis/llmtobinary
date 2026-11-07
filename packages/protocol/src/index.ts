@@ -194,6 +194,8 @@ export interface TaskRequest {
   registers?: number;
   /** The candidate is an ANMA-2 module, whose imports the checker stands in for. */
   module?: boolean;
+  /** The OS slot this generation is for. Set by the server from the slot, never by a client. */
+  slot?: string;
 }
 
 export interface CreateSessionRequest {

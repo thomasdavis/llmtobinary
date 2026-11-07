@@ -5,7 +5,7 @@ import { CATALOG_VERSION } from "@llmtobinary/diagnostics";
 import { SPEC_ID, SPEC_SHA256, KNOWN_FEATURES } from "@llmtobinary/spec";
 import { DEFAULT_BUDGET, MAX_DEBUG_BROWSER_BYTES, PRICE_POLICY_VERSION, PROMPT_VERSION, TOOLS, generationInstructions, profileFromEnv } from "@llmtobinary/broker";
 import { TASK_BY_ID } from "@llmtobinary/tasks/registry";
-import { PROTOCOL_VERSION, type ConfigResponse, type CreateSessionRequest, type CreateSessionResponse, type AttemptRequest } from "@llmtobinary/protocol";
+import { PROTOCOL_VERSION, type ConfigResponse, type CreateSessionRequest, type CreateSessionResponse, type AttemptRequest, type GalleryEntry } from "@llmtobinary/protocol";
 import { signToken, verifyToken } from "./auth.ts";
 import { HttpError, checkOrigin, errorResponse, json, readJson, API_HEADERS } from "./http.ts";
 import type { CreatePayload } from "./session.ts";
@@ -14,7 +14,7 @@ import { getGalleryEntry, hideGalleryEntry, isGalleryId, listGallery, rebuildFro
 import { addComment, addReport, listComments, setStar } from "./community/social.ts";
 import { getObject, getPackage, listPackages, loadAttestations, parseObjectId, pendingJobs, publishGeneration, registryConfigured, submitAttestation, takeDown } from "./community/registry.ts";
 import type { Envelope, EvidenceClass } from "@llmtobinary/registry";
-import { listBuilds, listSlots, proposeCounterexample, proposeTest, publishBuild, reviewTest, type BuildRequest } from "./community/board.ts";
+import { getSlot, listBuilds, listSlots, proposeCounterexample, proposeTest, publishBuild, reviewTest, type BuildRequest } from "./community/board.ts";
 import { accountsConfigured, avatar, beginSignIn, currentMember, deleteAccount, fakeOAuthEnabled, fakeSignIn, finishSignIn, quotaRemaining, requireMember, reserveMemberSpend, revokeAllSessions, signOut } from "./accounts.ts";
 
 export { GenerationSession } from "./session.ts";
@@ -73,6 +73,14 @@ function config(env: Env): ConfigResponse & { liveReason: string | null; pricePo
   };
 }
 
+/** A generation for an OS slot. Everything comes from the slot, so a client cannot widen it. */
+async function slotRequest(env: Env, id: string): Promise<CreateSessionRequest> {
+  if (!env.COMMUNITY_DB) throw new HttpError(503, "the OS board is not configured");
+  const slot = await getSlot(env, id);
+  if (!slot) throw new HttpError(404, "no such slot");
+  return { task: { taskId: null, description: slot.prompt, params: [], returns: "u64", allowedFeatures: slot.features, requireClaims: false, module: true, slot: slot.id }, mode: "tools", profile: "default" };
+}
+
 function validateCreate(body: unknown, env: Env): CreateSessionRequest {
   const b = body as Partial<CreateSessionRequest> | null;
   if (!b || typeof b !== "object") throw new HttpError(400, "body must be an object");
@@ -89,6 +97,8 @@ function validateCreate(body: unknown, env: Env): CreateSessionRequest {
   if (!Number.isInteger(t.allowedFeatures) || (t.allowedFeatures & ~allowedFeatures(env)) !== 0) throw new HttpError(400, "allowedFeatures exceeds the host policy");
   if (typeof t.requireClaims !== "boolean") throw new HttpError(400, "requireClaims must be a boolean");
   if (t.isa !== undefined && t.isa !== "ANMA-1" && t.isa !== "ANMR-1") throw new HttpError(400, "isa must be ANMA-1 or ANMR-1");
+  // Set by the server for OS slots only.
+  if (t.module !== undefined || t.slot !== undefined) throw new HttpError(400, "module and slot cannot be set by a client");
   if (t.isa === "ANMR-1") {
     const spec = t.taskId ? TASK_BY_ID.get(t.taskId) : null;
     if (!spec?.pressure || b.mode !== "tools" || !Number.isInteger(t.registers) || t.registers! < 4 || t.registers! > 32) {
@@ -197,6 +207,22 @@ async function route(request: Request, env: Env): Promise<Response> {
       const cursor = url.searchParams.get("cursor");
       return json(await rebuildFromArchives(env.DEBUG_ARCHIVE, cursor || null, 100));
     }
+    if (path === "/api/admin/slots" && request.method === "POST") {
+      const slots = await readJson<{ id: string; title: string; kind: string; features: number; depends: string[]; interface: unknown; prompt: string }[]>(request, 256 * 1024);
+      const db = env.COMMUNITY_DB!;
+      await db.batch(slots.map((s, i) => db.prepare("INSERT INTO slots (id, title, kind, features, depends, interface, prompt, position) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8) ON CONFLICT (id) DO UPDATE SET title = ?2, kind = ?3, features = ?4, depends = ?5, interface = ?6, prompt = ?7, position = ?8").bind(s.id, s.title, s.kind, s.features, JSON.stringify(s.depends), JSON.stringify(s.interface), s.prompt, i)));
+      return json({ slots: slots.length });
+    }
+    if (path === "/api/admin/registry/publish" && request.method === "POST") {
+      if (!registryConfigured(env)) throw new HttpError(503, "the registry is not configured");
+      const b = await readJson<{ entry: GalleryEntry; slot?: string; attestations?: Envelope[] }>(request, 1024 * 1024);
+      const now = Date.now();
+      const id = await publishGeneration(env, b.entry, { backfilled: false, authorId: null, now, ...(b.slot ? { slot: b.slot } : {}) });
+      if (!id) throw new HttpError(400, "nothing to publish");
+      const results = [];
+      for (const a of b.attestations ?? []) results.push((await submitAttestation(env, id, a, now)).accepted);
+      return json({ id, results });
+    }
     if (path === "/api/admin/registry/backfill" && request.method === "POST") {
       if (!registryConfigured(env)) throw new HttpError(503, "the registry is not configured");
       const page = await listGallery(env.DEBUG_ARCHIVE, url.searchParams.get("cursor"), 50);
@@ -246,7 +272,8 @@ async function route(request: Request, env: Env): Promise<Response> {
     checkOrigin(request);
     await admit(request, env, "create");
     const member = signInRequired(env) ? await requireMember(request, env) : await currentMember(request, env);
-    const req = validateCreate(await readJson(request, MAX_CREATE_BODY), env);
+    const body = await readJson<{ slot?: unknown }>(request, MAX_CREATE_BODY);
+    const req = typeof body.slot === "string" ? await slotRequest(env, body.slot) : validateCreate({ ...body, slot: undefined }, env);
     const live = liveStatus(env);
     if (!live.live) throw new HttpError(503, `live generation is unavailable: ${live.reason}`);
     if (member && !(await reserveMemberSpend(env, member, SESSION_ESTIMATE_MICRO_USD, Date.now()))) throw new HttpError(429, "you have used today's generation quota; browsing and running still work");
