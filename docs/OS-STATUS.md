@@ -86,6 +86,7 @@ The research report suggested a limit near 33k output tokens. Production data ru
 
 ## Harness faults during the OS build
 
+- **The first publisher fabricated E4.** It signed a `rerun` attestation with the second key without rerunning anything, on the same machine, with a constant hash. This reached only a throwaway local server. It was caught before staging or production, and removed. Packages now stop at E3 until a separate machine really reruns them.
 - **The 240-second call watchdog killed healthy kernel generations.** Throughput is about 50 tokens a second, so the limit caps a turn near 12,000 tokens, and the kernel needs more. Kernel session 1 shows 4 "hung" calls and 0 tokens for this reason. Root slots now get 25 minutes per call. The watchdog therefore cannot always tell a hung call from a long one, and it favours shorter replies. This does not touch the Gate A or Gate B results below 12,000 tokens per turn, but `hungCalls` overstates true hangs for large packages.
 - **`proc` session 1 failed from a VM bug, not the model.** A task has its own devices, so its `print_utf8` output never reached the console and `proc`'s tests could not be passed. The model spent 7 submissions and 39,486 tokens on an impossible task. Fixed, with a failing test first. The attempt stays in `attempts.jsonl`.
 - **`fmt` session 1 failed from a harness bug, not the model.** The holdout seed is 128 bits and the generator assumed 64, so test numbers overflowed the test buffer and threw a `RangeError`. Fixed, with a test. The attempt stays in `attempts.jsonl`.

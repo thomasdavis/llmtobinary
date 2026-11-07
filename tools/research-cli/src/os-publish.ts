@@ -4,13 +4,13 @@
 
 import { readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { canonicalJson, importSigningKey, objectId, signStatement, statement, type Envelope, type LockFile, type ObjectId } from "@llmtobinary/registry";
+import { importSigningKey, objectId, signStatement, statement, type Envelope, type LockFile, type ObjectId } from "@llmtobinary/registry";
 import { link } from "@llmtobinary/link";
 import { parseModule } from "@llmtobinary/module";
 import { Op } from "@llmtobinary/spec";
 import { validateBytes } from "@llmtobinary/validate";
 import { buildDisk, boot, DEMO_STEPS, keysFor, privateSeed, transcript } from "./os-tests.ts";
-import { LIBRARY_SLOTS, built, bytesOf, bySlot, closure, judge, linkFor, linkInput, programFiles, setBuildDir } from "./os-lib.ts";
+import { LIBRARY_SLOTS, built, bytesOf, bySlot, closure, judge, linkFor, linkInput, outputHashOf, programFiles, setBuildDir } from "./os-lib.ts";
 import { SLOTS } from "../../../os/slots.ts";
 
 const arg = (name: string, fallback?: string): string => {
@@ -25,11 +25,10 @@ const url = arg("url", "").replace(/\/$/, "");
 const dry = process.argv.includes("--dry");
 setBuildDir(dir);
 
-const keys = JSON.parse(readFileSync(`${homedir()}/.config/llmtobinary/keys-${environment}.json`, "utf8")) as { broker: { privateKeyPkcs8Hex: string }; verifier: { privateKeyPkcs8Hex: string }; verifier2: { privateKeyPkcs8Hex: string } };
+const keys = JSON.parse(readFileSync(`${homedir()}/.config/llmtobinary/keys-${environment}.json`, "utf8")) as { broker: { privateKeyPkcs8Hex: string }; verifier: { privateKeyPkcs8Hex: string } };
 const adminKey = readFileSync(`${homedir()}/.config/llmtobinary/gallery-admin-key`, "utf8").trim();
 const brokerKey = await importSigningKey(`broker-${environment}-1`, keys.broker.privateKeyPkcs8Hex);
 const verifierKey = await importSigningKey(`verifier-${environment}-1`, keys.verifier.privateKeyPkcs8Hex);
-const verifier2Key = await importSigningKey(`verifier-${environment}-2`, keys.verifier2.privateKeyPkcs8Hex);
 const seed = privateSeed();
 const log = (s: unknown) => console.log(s);
 
@@ -48,12 +47,12 @@ for (const s of wanted) {
   if (failures.length) throw new Error(`${s.id} no longer passes: ${failures[0]!.detail}`);
   const id = await objectId(bytes);
   ids.set(s.id, id);
-  const outputHash = (await objectId(new TextEncoder().encode(canonicalJson({ slot: s.id, passed: true })))).slice(7);
+  const { hash: outputHash } = await outputHashOf(s, bytes);
   const task = { taskId: `slot:${s.id}`, taskOwned: true, holdouts: true, passed: true, outputHash };
+  // Sign only what happened here. E4 needs a real rerun elsewhere, by tools/verifier/src/rerun.ts.
   envelopes.set(s.id, [
     await signStatement(statement(id, "provenance", { sessionId: b.sessionId, model: b.model, lane: b.lane, builtAt: b.builtAt, submissions: b.submissions }), brokerKey),
     await signStatement(statement(id, "test", task), verifierKey),
-    await signStatement(statement(id, "rerun", task), verifier2Key),
   ]);
   log(`judged ${s.id}: ${b.records} records`);
 }

@@ -13,7 +13,7 @@ import { link, type LinkInput } from "@llmtobinary/link";
 import { parseModule } from "@llmtobinary/module";
 import { validateBytes } from "@llmtobinary/validate";
 import { OsMachine } from "@llmtobinary/os";
-import { ALL, buildDisk, reportForModel, runCmdTests, runKernelTests, runLibraryTests, runLiveLibraryTests, runLiveTests, runProcTests, type Failure, type Image } from "./os-tests.ts";
+import { ALL, buildDisk, recordOutputs, reportForModel, runCmdTests, runKernelTests, runLibraryTests, runLiveLibraryTests, runLiveTests, runProcTests, type Failure, type Image } from "./os-tests.ts";
 import { SLOTS, type ExportSpec, type Slot } from "../../../os/slots.ts";
 import { LIBRARY, librarySlot } from "../../../os/library.ts";
 
@@ -173,3 +173,14 @@ Read-only data is allowed only in the root module.`;
   return `${module}\n\nWrite this library. It is linked with other modules later and has no read-only data.\nDeclare feature bits 0x${s.features.toString(16)}.\n${s.brief}\n\nFunction 0 must be a trivial entry: fn0() -> u64 returning 0. Nothing calls it.\nDefine exactly these functions with these function IDs:\n${list}\nAdd private helpers after them.${imports ? `\n\nDeclare every IMPORT below, in this order, whether or not you call it:\n${imports}` : ""}`;
 }
 
+
+/**
+ * A hash of everything the visible tests observed. Holdouts stay out of it, so a verifier without
+ * the private seed can reproduce it. Two honest verifiers must get the same value.
+ */
+export async function outputHashOf(s: Slot, bytes: Uint8Array): Promise<{ hash: string; failures: number }> {
+  const { result, outputs } = recordOutputs(() => judge(s, bytes, null));
+  const body = new TextEncoder().encode(JSON.stringify([s.id, result.map((f) => f.name), outputs]));
+  const digest = await crypto.subtle.digest("SHA-256", body);
+  return { hash: [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join(""), failures: result.length };
+}

@@ -58,6 +58,18 @@ export interface Failure {
   holdout: boolean;
 }
 
+/** When set, every observable output is captured, so two verifiers can compare runs bit for bit. */
+let recording: unknown[] | null = null;
+export function recordOutputs<T>(fn: () => T): { result: T; outputs: unknown[] } {
+  recording = [];
+  try {
+    const result = fn();
+    return { result, outputs: recording };
+  } finally {
+    recording = null;
+  }
+}
+
 function checkCall(img: Image, c: OsCall, holdout: boolean, out: Failure[], disk?: Uint8Array): CallResult | null {
   const name = `${c.symbol}(${c.args.map((a) => (typeof a === "bigint" ? a.toString() : `<${a.length} bytes>`)).join(", ")})`;
   let r: CallResult;
@@ -67,6 +79,7 @@ function checkCall(img: Image, c: OsCall, holdout: boolean, out: Failure[], disk
     out.push({ name, detail: (e as Error).message, holdout });
     return null;
   }
+  recording?.push([name, r.status, r.trap, r.value?.toString() ?? null, r.terminal, [...r.buffers.entries()].map(([i, b]) => [i, hexOf(b)])]);
   if (r.status !== "halted") out.push({ name, detail: `did not finish: ${r.status}${r.trap ? ` (${r.trap})` : ""}`, holdout });
   else {
     if (c.want !== undefined && r.value !== c.want) out.push({ name, detail: `returned ${r.value}, expected ${c.want}`, holdout });
@@ -305,6 +318,7 @@ export function runKernelTests(kernel: Module, disk: Uint8Array, seed: bigint | 
   const out: Failure[] = [];
   const session = (name: string, startDisk: Uint8Array, steps: [string, string][], holdout: boolean): Session => {
     const s = boot(kernel, startDisk, steps.map(([l]) => l));
+    recording?.push([name, s.status, s.trap, s.terminal, hexOf(s.disk)]);
     const want = transcript(steps);
     if (s.terminal !== want) {
       let at = 0;

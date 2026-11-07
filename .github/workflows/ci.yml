@@ -8,10 +8,11 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      # pnpm/action-setup fails at its own install step, so install pnpm directly.
+      - run: npm install -g pnpm@12.6.0
       # The repo .npmrc pins a store path for the development box; CI uses its own.
       - run: pnpm install --frozen-lockfile --store-dir ~/.pnpm-store
       - name: Normative spec is in sync with PRD Sections 10–13

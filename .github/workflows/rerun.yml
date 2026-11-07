@@ -1,0 +1,28 @@
+name: rerun
+# The second verifier: a different machine and key from the first. It reruns the published packages
+# and attests only what it observes (PRD-OS 6.5).
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: Site to verify
+        default: https://llmtobinary.com
+  schedule:
+    - cron: "17 6 * * *"
+jobs:
+  rerun:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install -g pnpm@12.6.0
+      - run: pnpm install --frozen-lockfile --store-dir ~/.pnpm-store
+      - name: Rerun
+        env:
+          VERIFIER_URL: ${{ inputs.url || 'https://llmtobinary.com' }}
+          VERIFIER2_KEY: ${{ secrets.VERIFIER2_KEY }}
+          VERIFIER2_KEY_ID: verifier-production-2
+        run: node --experimental-transform-types --no-warnings tools/verifier/src/rerun.ts

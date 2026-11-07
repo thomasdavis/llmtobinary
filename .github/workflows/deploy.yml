@@ -13,10 +13,11 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      # pnpm/action-setup fails at its own install step, so install pnpm directly.
+      - run: npm install -g pnpm@12.6.0
       - run: pnpm install --frozen-lockfile --store-dir ~/.pnpm-store
       # main -> llmtobinary-staging; tags v* -> llmtobinary (production).
       # Secrets (OPENAI_API_KEY, SESSION_SIGNING_KEY) are set out-of-band with `wrangler secret put`.
