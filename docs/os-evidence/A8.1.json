@@ -1,0 +1,8 @@
+{
+  "id": "A8.1",
+  "result": "pass",
+  "command": "npx vitest run packages/link packages/broker && pnpm --filter @llmtobinary/web test:worker",
+  "commit": "d1ba0230a5c189dee4a424747be24e5ce0bd8a88",
+  "note": "Library and loop tests: search, select, link, one plain ANMA-1 file to the browser, plain programs unchanged, link failures go back to the model.",
+  "recordedAt": "2026-11-07T10:19:54.639Z"
+}

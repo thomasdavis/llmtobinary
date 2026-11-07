@@ -1,0 +1,8 @@
+{
+  "id": "A8.3",
+  "result": "pass",
+  "command": "node tests/e2e/community-e2e.mjs https://llmtobinary-staging.thomasalwyndavis.workers.dev && pnpm --filter @llmtobinary/web test:worker",
+  "commit": "d1ba0230a5c189dee4a424747be24e5ce0bd8a88",
+  "note": "Built from lists each package and its class; a package withdrawn later is marked. Checked in a real browser on staging.",
+  "recordedAt": "2026-11-07T10:19:54.813Z"
+}

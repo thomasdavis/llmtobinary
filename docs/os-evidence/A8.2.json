@@ -1,0 +1,8 @@
+{
+  "id": "A8.2",
+  "result": "pass",
+  "command": "pnpm --filter @llmtobinary/web test:worker",
+  "commit": "d1ba0230a5c189dee4a424747be24e5ce0bd8a88",
+  "note": "Only verified E4 library slots within the features; dependency and cycle rules; bytes refused when their hash differs; a client setting library gets 400.",
+  "recordedAt": "2026-11-07T10:19:54.716Z"
+}

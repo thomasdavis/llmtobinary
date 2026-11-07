@@ -1,0 +1,8 @@
+{
+  "id": "A8.4",
+  "result": "pass",
+  "command": "node --experimental-transform-types --no-warnings tools/research-cli/src/gate-d.ts --out docs/os-evidence/gate-d/results.jsonl --report",
+  "commit": "d1ba0230a5c189dee4a424747be24e5ce0bd8a88",
+  "note": "Rule says release. P1 at the threshold (10/20); P2 passes on success rate only because of a lane hang, tokens fell 17% (bar 25%); P3 30 vs 28. Reuse cut tokens 36% and 63% where the model chose it. See gate-d-results.md.",
+  "recordedAt": "2026-11-07T10:19:54.938Z"
+}
