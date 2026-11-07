@@ -52,6 +52,23 @@ for (const [label, viewport] of [["desktop", { width: 1280, height: 800 }], ["ph
   await page.close();
 }
 
+// A program built from library packages says so, and links to each one.
+{
+  const items = (await (await fetch(`${url}/api/registry?limit=50`)).json()).items;
+  let linked = null;
+  for (const p of items) {
+    const d = await (await fetch(`${url}/api/registry/${p.object_id}`)).json();
+    if (d.links?.uses.length) { linked = { id: p.object_id, slot: d.links.uses[0].slot }; break; }
+  }
+  if (linked) {
+    const page = await browser.newPage();
+    await page.goto(`${url}/package/${linked.id}`);
+    await page.getByRole("heading", { name: "Built from" }).waitFor({ timeout: 15000 });
+    check((await page.getByRole("link", { name: linked.slot, exact: true }).count()) >= 1, "a program built from the library links to the packages it reused");
+    await page.close();
+  } else console.log("- no linked program in the latest 50, so the Built from check was skipped");
+}
+
 const missing = await browser.newPage();
 await missing.goto(`${url}/package/sha256:${"0".repeat(64)}`);
 await missing.getByText("This object is not in the registry.").waitFor();

@@ -25,7 +25,12 @@ await term.click();
 await page.keyboard.type("ls\n");
 await page.waitForFunction(() => document.querySelector(".os-terminal")?.textContent?.includes("spin"), null, { timeout: 15000 });
 console.log("shell answered while generating:", (await screen()).includes("spin"));
+// The page reports library reuse while the program is being written.
+let reused = null;
+const watch = setInterval(() => void page.evaluate(() => /Reusing [^.]+/.exec(document.body.innerText)?.[0] ?? null).then((r) => (reused ??= r)).catch(() => {}), 250);
 await page.getByText(/Done\. Press Enter|It failed/).waitFor({ timeout: 240000 });
+clearInterval(watch);
+console.log("library:", reused ?? "nothing reused");
 console.log("generation seconds:", Math.round((Date.now() - started) / 1000));
 await term.click();
 await page.keyboard.type("\n");
