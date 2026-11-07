@@ -2,11 +2,18 @@
 
 Progress log for `PRD-OS.md`. `node scripts/goal-check.mjs` is the measure of done; this file explains it. Legend as in `docs/STATUS.md`: **verified** means automated tests pass, **live** means exercised on deployed Cloudflare, **not yet** means not done.
 
+## Verification
+
+The first verifier runs on this box as the user service `llmtobinary-verifier`. The second is the `rerun` workflow on GitHub's machines, with its own key. It downloads the published bytes, reruns the visible tests and attests what it observed. All 23 packages are E4 on production: the hashes matched bit for bit, including `kernel-live`'s session transcript and final disk.
+
+The two verifiers run the same code from the same repository, so they are independent machines, not independent implementations. The rerun covers visible tests only, because holdouts stay private to the first verifier.
+
 ## Blockers the agent cannot clear
 
 - **GitHub OAuth Apps.** GitHub has no API for creating them, and creating one needs a signed-in browser. Everything else about sign-in is built and tested against a fake provider. Real sign-in cannot be switched on without them.
 - **Hyades.** `/etc/donto/hyades.key` is mode 600 root. The ops notes say it is readable by the `ajax` group. Not bypassed, so only one lane qualifies, which weakens Gate B's independence.
-- **GitHub Actions.** `pnpm/action-setup` fails at its own install step, before any repo step runs, so `ci` and `deploy` cannot pass on GitHub. Staging is deployed from the box with the README's commands.
+- **The `deploy` workflow.** The repo has no `CLOUDFLARE_API_TOKEN` secret, so it has never worked, and a personal token was not copied into GitHub. Staging and production are deployed from the box with the README's commands. The `pnpm/action-setup` failure that also blocked it is fixed.
+- **One CI flake.** `ci` failed once on a z3 timing check (`unknown` instead of `proved`) in an existing test. Other runs on the same code passed.
 
 ## The OS
 
@@ -91,6 +98,10 @@ The research report suggested a limit near 33k output tokens. Production data ru
 - **Read-only data is root-only in link version 0.** Data offsets are runtime values, so the linker cannot move them.
 - **Sign-in sits behind `GENERATION_REQUIRES_SIGN_IN`,** and is ignored until sign-in is configured, so a missing OAuth App cannot stop generation.
 - **The per-member quota charges a flat $0.05 per session.** It approximates actual spend. The BudgetLedger stays the hard site-wide cap.
+
+## Side effects
+
+- A failed Firefox install ran Playwright's cleanup, which deleted `chromium_headless_shell-1187` from the shared `~/.cache/ms-playwright`. Playwright only removes builds no registered project references. Revision 1248 survived, and the tests now use it.
 
 ## Harness faults during the OS build
 
