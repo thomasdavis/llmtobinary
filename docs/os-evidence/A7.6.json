@@ -1,0 +1,8 @@
+{
+  "id": "A7.6",
+  "result": "pass",
+  "command": "tests/e2e/live-real-e2e.mjs on production; tools/research-cli/src/live-latency.ts on staging; docs/os-evidence/live-generation.json",
+  "commit": "73b966c9f8b1e6a35a1406f5b46cf1ab4d1aa115",
+  "note": "Real prompt on production ran in the same session in 16 s. 20 of 20 staging sessions ran: median 27 s, range 11 to 43, 17 of 20 strictly correct. Latency sessions ran on staging to stay inside its spending caps.",
+  "recordedAt": "2026-11-07T05:53:39.196Z"
+}

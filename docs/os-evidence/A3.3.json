@@ -1,0 +1,8 @@
+{
+  "id": "A3.3",
+  "result": "pass",
+  "command": "npx vitest run tools/research-cli; pnpm test:worker",
+  "commit": "73b966c9f8b1e6a35a1406f5b46cf1ab4d1aa115",
+  "note": "The oracle decides; a confirmed break demotes the package and its dependents and credits the contributor; a rejected claim changes nothing. Not yet exercised against a real package bug on production.",
+  "recordedAt": "2026-11-07T05:53:39.271Z"
+}
