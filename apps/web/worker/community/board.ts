@@ -70,6 +70,39 @@ export async function proposeCounterexample(env: Env, m: Member, id: ObjectId, i
   return { id: cid };
 }
 
+export async function pendingCounterexamples(env: Env, limit: number): Promise<{ id: string; objectId: string; input: string; slot: string | null }[]> {
+  const r = await env.COMMUNITY_DB!.prepare("SELECT x.id, x.object_id AS objectId, x.input, (SELECT slot_id FROM slot_candidates c WHERE c.object_id = x.object_id LIMIT 1) AS slot FROM counterexamples x WHERE x.status = 'pending' ORDER BY x.created_at LIMIT ?1").bind(limit).all<{ id: string; objectId: string; input: string; slot: string | null }>();
+  return r.results;
+}
+
+/** A confirmed break withdraws the package from its slot, and from every slot that depends on it. */
+export async function settleCounterexample(env: Env, id: string, confirmed: boolean): Promise<void> {
+  const db = env.COMMUNITY_DB!;
+  const x = await db.prepare("SELECT object_id FROM counterexamples WHERE id = ?1").bind(id).first<{ object_id: string }>();
+  if (!x) throw new HttpError(404, "no such counterexample");
+  await db.prepare("UPDATE counterexamples SET status = ?2 WHERE id = ?1").bind(id, confirmed ? "confirmed" : "rejected").run();
+  if (!confirmed) return;
+  const owners = (await db.prepare("SELECT slot_id FROM slot_candidates WHERE object_id = ?1").bind(x.object_id).all<{ slot_id: string }>()).results.map((r) => r.slot_id);
+  await db.prepare("UPDATE slot_candidates SET verified = 0 WHERE object_id = ?1").bind(x.object_id).run();
+  const slots = (await db.prepare("SELECT id, depends FROM slots").all<{ id: string; depends: string }>()).results;
+  const dependents = new Set<string>();
+  const walk = (slot: string): void => {
+    for (const s of slots) if ((JSON.parse(s.depends) as string[]).includes(slot) && !dependents.has(s.id)) {
+      dependents.add(s.id);
+      walk(s.id);
+    }
+  };
+  owners.forEach(walk);
+  for (const s of dependents) await db.prepare("UPDATE slot_candidates SET verified = 0 WHERE slot_id = ?1").bind(s).run();
+}
+
+export async function contributions(env: Env, login: string): Promise<{ counterexamples: number; tests: number }> {
+  const db = env.COMMUNITY_DB!;
+  const c = await db.prepare("SELECT COUNT(*) AS n FROM counterexamples x JOIN users u ON u.id = x.user_id WHERE u.login = ?1 AND x.status = 'confirmed'").bind(login).first<{ n: number }>();
+  const t = await db.prepare("SELECT COUNT(*) AS n FROM test_proposals p JOIN users u ON u.id = p.user_id WHERE u.login = ?1 AND p.status = 'accepted'").bind(login).first<{ n: number }>();
+  return { counterexamples: c?.n ?? 0, tests: t?.n ?? 0 };
+}
+
 export async function proposeTest(env: Env, m: Member, slotId: string, body: unknown, now: number): Promise<{ id: string }> {
   if (typeof body !== "string" || !body.trim() || body.length > MAX_PROPOSAL) throw new HttpError(400, `a proposal is 1 to ${MAX_PROPOSAL} characters`);
   if (!(await getSlot(env, slotId))) throw new HttpError(404, "no such slot");

@@ -34,3 +34,36 @@ describe("library oracles", () => {
     expect(fnv.examples[1]!.want).toBe(0xaf63dc4c8601ec8cn);
   });
 });
+
+describe("Break this package", () => {
+  const Op = { FUNC: 1, BLOCK: 2, PARAM: 3, END_FUNC: 4, CONST_U64: 0x10, ADD_U64: 0x20, RETURN: 0x43 };
+  type Rec = [number, number, number, number];
+  const file = (recs: Rec[]): Uint8Array => {
+    const words = [0x414d4e41, 1, 0, recs.length, 0, 0, 0, 0, ...recs.flat()];
+    const out = new Uint8Array(words.length * 4);
+    words.forEach((w, i) => new DataView(out.buffer).setUint32(i * 4, w >>> 0, true));
+    return out;
+  };
+  // math.gcd that always returns a + b: wrong for most inputs, right when one side is zero.
+  const fake = file([[Op.FUNC, 0, 2, 1], [Op.BLOCK, 0, 2, 3], [Op.PARAM, 0, 1, 0], [Op.PARAM, 1, 1, 1], [Op.ADD_U64, 2, 0, 1], [Op.RETURN, 2, 0, 0], [Op.END_FUNC, 0, 0, 0]]);
+  const image = async () => {
+    const { validateBytes } = await import("@llmtobinary/validate");
+    return { module: validateBytes(fake).module!, exportMap: { "math.gcd": 0 } };
+  };
+  it("confirms a real break, judged by the oracle", async () => {
+    const { judgeClaim } = await import("../src/os-tests.ts");
+    expect(judgeClaim(await image(), JSON.stringify({ symbol: "math.gcd", args: ["12", "18"] }))).toEqual({ status: "confirmed", got: "30", want: "6" });
+  });
+  it("rejects a claim where the package is right", async () => {
+    const { judgeClaim } = await import("../src/os-tests.ts");
+    expect(judgeClaim(await image(), JSON.stringify({ symbol: "math.gcd", args: ["7", "0"] })).status).toBe("rejected");
+  });
+  it("ignores any answer the claimant supplies", async () => {
+    const { judgeClaim } = await import("../src/os-tests.ts");
+    expect(judgeClaim(await image(), JSON.stringify({ symbol: "math.gcd", args: ["7", "0"], want: "99" })).status).toBe("rejected");
+  });
+  it("rejects malformed claims", async () => {
+    const { judgeClaim } = await import("../src/os-tests.ts");
+    for (const raw of ["not json", "{}", JSON.stringify({ symbol: "math.gcd", args: [{}] }), JSON.stringify({ symbol: "no.such", args: [] })]) expect(judgeClaim(await image(), raw).status).toBe("rejected");
+  });
+});

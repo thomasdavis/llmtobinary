@@ -9,7 +9,7 @@ import type { Heap } from "@llmtobinary/devices";
 import type { RuntimeValue } from "@llmtobinary/protocol";
 import type { Module } from "@llmtobinary/validate";
 import { VISIBLE, type Arg, type OsCall } from "../../../os/slots.ts";
-import { LIBRARY } from "../../../os/library.ts";
+import { LIBRARY, ORACLES } from "../../../os/library.ts";
 
 export const DISK_SECTORS = 129;
 export const ALL = Feature.HEAP | Feature.TERMINAL | Feature2.TEXT | Feature2.BLOCK | Feature2.TASKS;
@@ -450,4 +450,43 @@ export function runLiveLibraryTests(img: Image, program: Uint8Array): Failure[] 
   const pf = invoke(img, "live.poll", [s0.buffers.get(0) as Uint8Array<ArrayBuffer>], { disk, gen: bad });
   if (pf.value !== 2n) fail("live.poll", `a failed job returned ${pf.value}, expected 2`);
   return out;
+}
+
+export interface Claim {
+  symbol: string;
+  args: (string | number[])[];
+}
+
+export type ClaimVerdict = { status: "confirmed"; got: string; want: string } | { status: "rejected"; reason: string };
+
+const badInput = (reason: string): ClaimVerdict => ({ status: "rejected", reason });
+
+/**
+ * Judges a "Break this package" claim. The claimant never states the answer: the oracle does, so a
+ * claim is confirmed only if the package disagrees with the oracle on that input.
+ */
+export function judgeClaim(img: Image, raw: string): ClaimVerdict {
+  let c: Claim;
+  try {
+    c = JSON.parse(raw) as Claim;
+  } catch {
+    return badInput("the input is not JSON");
+  }
+  if (typeof c?.symbol !== "string" || !Array.isArray(c.args) || c.args.length > 8) return badInput("the input needs a symbol and args");
+  const oracle = ORACLES[c.symbol];
+  if (!oracle || img.exportMap[c.symbol] === undefined) return badInput("this function has no oracle");
+  let args: Arg[];
+  try {
+    args = c.args.map((a) => {
+      if (typeof a === "string") return BigInt(a);
+      if (Array.isArray(a) && a.length <= 4096 && a.every((x) => Number.isInteger(x) && x >= 0 && x < 256)) return Uint8Array.from(a);
+      throw new Error("bad argument");
+    });
+  } catch {
+    return badInput("an argument is not a u64 string or a byte list");
+  }
+  const want = oracle(args);
+  const r = invoke(img, c.symbol, args, { fuel: 2_000_000 });
+  const got = r.status === "halted" ? (r.value?.toString() ?? "unit") : `trap ${r.trap ?? r.status}`;
+  return got === String(want) ? { status: "rejected", reason: "the package agrees with the oracle" } : { status: "confirmed", got, want: String(want) };
 }

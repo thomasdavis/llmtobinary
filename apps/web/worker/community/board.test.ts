@@ -4,7 +4,7 @@ import community from "../../migrations/0001_community.sql?raw";
 import registry from "../../migrations/0002_registry.sql?raw";
 import board from "../../migrations/0003_os.sql?raw";
 import slotEvidence from "../../migrations/0004_slot_evidence.sql?raw";
-import { classForSlot, defaultCandidate, proposeTest, reviewTest } from "./board.ts";
+import { classForSlot, contributions, defaultCandidate, proposeCounterexample, proposeTest, reviewTest, settleCounterexample } from "./board.ts";
 import type { Member } from "../accounts.ts";
 
 const env = rawEnv as unknown as Env;
@@ -15,7 +15,7 @@ beforeAll(async () => {
   for (const sql of [community, registry, board, slotEvidence]) for (const s of sql.replace(/--.*$/gm, "").split(";").map((x: string) => x.trim()).filter(Boolean)) await env.COMMUNITY_DB!.prepare(s).run().catch((e: Error) => { if (!/already exists|duplicate column/.test(e.message)) throw e; });
 });
 beforeEach(async () => {
-  for (const t of ["test_proposals", "slot_candidates", "packages", "slots", "users"]) await env.COMMUNITY_DB!.prepare(`DELETE FROM ${t}`).run();
+  for (const t of ["counterexamples", "test_proposals", "slot_candidates", "packages", "slots", "users"]) await env.COMMUNITY_DB!.prepare(`DELETE FROM ${t}`).run();
   for (const id of [1, 2, 3]) await env.COMMUNITY_DB!.prepare("INSERT INTO users (id, login, github_created_at, created_at, updated_at) VALUES (?1, ?2, 0, 0, 0)").bind(id, `u${id}`).run();
   await env.COMMUNITY_DB!.prepare("INSERT INTO slots (id, title, kind, features, depends, interface, prompt, position) VALUES ('fs', 'fs', 'library', 0, '[]', '[]', 'p', 0)").run();
 });
@@ -45,6 +45,30 @@ describe("evidence is per slot", () => {
     expect(classForSlot({ evidence_class: "E4", verified: 0 })).toBe("E2");
     expect(classForSlot({ evidence_class: "E3", verified: 1 })).toBe("E3");
     expect(classForSlot({ evidence_class: "E1", verified: 0 })).toBe("E1");
+  });
+});
+
+describe("Break this package", () => {
+  const seed = async () => {
+    const db = env.COMMUNITY_DB!;
+    await db.prepare("DELETE FROM counterexamples").run();
+    for (const [id, deps] of [["str", "[]"], ["fs", '["str"]'], ["kernel", '["fs"]'], ["other", "[]"]] as const) await db.prepare("INSERT OR REPLACE INTO slots (id, title, kind, features, depends, interface, prompt, position) VALUES (?1, ?1, 'library', 0, ?2, '[]', 'p', 0)").bind(id, deps).run();
+    for (const s of ["str", "fs", "kernel", "other"]) await db.prepare("INSERT INTO slot_candidates (slot_id, object_id, created_at, verified) VALUES (?1, ?2, 1, 1)").bind(s, `sha256:${s}`).run();
+  };
+  const verified = async () => Object.fromEntries((await env.COMMUNITY_DB!.prepare("SELECT slot_id, verified FROM slot_candidates").all<{ slot_id: string; verified: number }>()).results.map((r) => [r.slot_id, r.verified]));
+  it("a confirmed break demotes the package and everything depending on it, and credits the contributor", async () => {
+    await seed();
+    const { id } = await proposeCounterexample(env, member(1), "sha256:str" as never, "{}", 1);
+    await settleCounterexample(env, id, true);
+    expect(await verified()).toEqual({ str: 0, fs: 0, kernel: 0, other: 1 });
+    expect((await contributions(env, "u1")).counterexamples).toBe(1);
+  });
+  it("a rejected claim changes nothing and credits nobody", async () => {
+    await seed();
+    const { id } = await proposeCounterexample(env, member(2), "sha256:str" as never, "{}", 1);
+    await settleCounterexample(env, id, false);
+    expect(await verified()).toEqual({ str: 1, fs: 1, kernel: 1, other: 1 });
+    expect((await contributions(env, "u2")).counterexamples).toBe(0);
   });
 });
 

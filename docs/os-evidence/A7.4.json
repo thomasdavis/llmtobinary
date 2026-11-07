@@ -1,0 +1,8 @@
+{
+  "id": "A7.4",
+  "result": "pass",
+  "command": "tests/e2e/os-flow-e2e.mjs",
+  "commit": "99e568c73632125bc9d19fac87c0b03211c94757",
+  "note": "Nothing is spent until the page confirms, the exact prompt is shown, and refusal spends nothing. The confirmation sits in the page, outside the guest.",
+  "recordedAt": "2026-11-07T05:44:43.125Z"
+}

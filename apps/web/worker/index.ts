@@ -14,7 +14,7 @@ import { getGalleryEntry, hideGalleryEntry, isGalleryId, listGallery, rebuildFro
 import { addComment, addReport, listComments, setStar } from "./community/social.ts";
 import { getObject, getPackage, listPackages, loadAttestations, parseObjectId, pendingJobs, publishGeneration, registryConfigured, submitAttestation, takeDown } from "./community/registry.ts";
 import type { Envelope, EvidenceClass } from "@llmtobinary/registry";
-import { getSlot, listBuilds, listSlots, slotCandidates, proposeCounterexample, proposeTest, publishBuild, reviewTest, type BuildRequest } from "./community/board.ts";
+import { contributions, getSlot, listBuilds, listSlots, pendingCounterexamples, settleCounterexample, slotCandidates, proposeCounterexample, proposeTest, publishBuild, reviewTest, type BuildRequest } from "./community/board.ts";
 import { accountsConfigured, avatar, beginSignIn, currentMember, deleteAccount, fakeOAuthEnabled, fakeSignIn, finishSignIn, quotaRemaining, requireMember, reserveMemberSpend, revokeAllSessions, signOut } from "./accounts.ts";
 
 export { GenerationSession } from "./session.ts";
@@ -263,7 +263,7 @@ async function route(request: Request, env: Env): Promise<Response> {
     return new Response(body, { headers: { ...API_HEADERS, "content-type": "application/json", "cache-control": "public, max-age=3600" } });
   }
 
-  if (path.startsWith("/api/registry") || path.startsWith("/api/reports") || path.startsWith("/api/verifier") || path.startsWith("/api/slots") || path.startsWith("/api/builds") || path.startsWith("/api/proposals")) {
+  if (path.startsWith("/api/registry") || path.startsWith("/api/reports") || path.startsWith("/api/verifier") || path.startsWith("/api/slots") || path.startsWith("/api/builds") || path.startsWith("/api/proposals") || path.startsWith("/api/profiles")) {
     if (!registryConfigured(env)) return json({ error: "the registry is not configured" }, 503);
     return registryRoute(request, env, url, path);
   }
@@ -373,11 +373,19 @@ async function registryRoute(request: Request, env: Env, url: URL, path: string)
     await reviewTest(env, member, review[1]!, (await readJson<{ accept?: unknown }>(request, 1024)).accept === true);
     return json({ reviewed: true });
   }
-  if (path === "/api/verifier/jobs" && request.method === "GET") {
+  if (path.startsWith("/api/verifier/")) {
     const auth = request.headers.get("authorization") ?? "";
     if (!env.VERIFIER_TOKEN || !(await sameSecret(auth, `Bearer ${env.VERIFIER_TOKEN}`))) return json({ error: "not found" }, 404);
-    return json({ jobs: await pendingJobs(env, 20) });
+    if (path === "/api/verifier/jobs" && request.method === "GET") return json({ jobs: await pendingJobs(env, 20), counterexamples: await pendingCounterexamples(env, 20) });
+    const settle = /^\/api\/verifier\/counterexamples\/([0-9a-f-]{36})$/.exec(path);
+    if (settle && request.method === "POST") {
+      await settleCounterexample(env, settle[1]!, (await readJson<{ confirmed?: unknown }>(request, 1024)).confirmed === true);
+      return json({ settled: true });
+    }
+    return json({ error: "not found" }, 404);
   }
+  const profile = /^\/api\/profiles\/([^/]{1,60})$/.exec(path);
+  if (profile && request.method === "GET") return json(await contributions(env, decodeURIComponent(profile[1]!)));
   const m = /^\/api\/registry\/(sha256:[0-9a-f]{64}|sha256%3A[0-9a-f]{64})(\/bytes|\/attestations|\/comments|\/star|\/counterexamples)?$/.exec(path);
   if (!m) return json({ error: "not found" }, 404);
   const id = parseObjectId(m[1]!);

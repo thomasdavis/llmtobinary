@@ -427,7 +427,7 @@ function PackagePage({ id }: { id: string }) {
     } else setNote(((await res.json()) as { error?: string }).error ?? "The comment could not be posted.");
   };
   const breakIt = async () => {
-    const input = prompt("What input makes this package break its contract? The verifier will rerun it.");
+    const input = prompt('Give an input the package gets wrong, as JSON, for example {"symbol":"math.gcd","args":["12","18"]}. The verifier compares the package with the oracle.');
     if (!input?.trim()) return;
     const res = await send(`/api/registry/${id}/counterexamples`, { method: "POST", body: JSON.stringify({ input }) });
     setNote(res.ok ? "Submitted. The verifier will check it against the oracle." : "It could not be submitted.");
@@ -515,6 +515,14 @@ function PackagePage({ id }: { id: string }) {
   );
 }
 
+function Credits({ login }: { login: string }) {
+  const [c, setC] = useState<{ counterexamples: number; tests: number } | null>(null);
+  useEffect(() => {
+    void fetch(`/api/profiles/${encodeURIComponent(login)}`).then(async (r) => (r.ok ? setC((await r.json()) as { counterexamples: number; tests: number }) : null));
+  }, [login]);
+  return c ? <p className="muted">{c.counterexamples} confirmed breaks · {c.tests} accepted tests</p> : null;
+}
+
 export function Community() {
   // The asset server redirects /package/sha256:… to its percent-encoded form.
   const path = decodeURIComponent(location.pathname);
@@ -539,6 +547,7 @@ export function Community() {
         ) : user ? (
           <>
             <h1>{decodeURIComponent(user[1]!)}</h1>
+            <Credits login={decodeURIComponent(user[1]!)} />
             <PackageList author={decodeURIComponent(user[1]!)} />
           </>
         ) : (
