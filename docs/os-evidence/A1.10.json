@@ -1,0 +1,8 @@
+{
+  "id": "A1.10",
+  "result": "pass",
+  "command": "pnpm test:worker",
+  "commit": "b1f06bb517e57874b1c96bf8310b7239d97f063c",
+  "note": "Bytes return 451, text cleared, tombstone and log entry kept, lock pins fail closed.",
+  "recordedAt": "2026-11-07T02:14:38.474Z"
+}

@@ -1,0 +1,8 @@
+{
+  "id": "A1.12",
+  "result": "blocked",
+  "command": "n/a",
+  "commit": "b1f06bb517e57874b1c96bf8310b7239d97f063c",
+  "note": "Needs GitHub OAuth Apps, which have no creation API and need a signed-in browser. The production release itself is done, with sign-in off.",
+  "recordedAt": "2026-11-07T02:14:38.548Z"
+}

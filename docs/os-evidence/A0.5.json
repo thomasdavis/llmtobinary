@@ -1,0 +1,8 @@
+{
+  "id": "A0.5",
+  "result": "pass",
+  "command": "npx vitest run packages/registry; pnpm test:worker",
+  "commit": "b1f06bb517e57874b1c96bf8310b7239d97f063c",
+  "note": "classify() reaches E3 only from a verifier-signed test attestation.",
+  "recordedAt": "2026-11-07T02:14:37.874Z"
+}

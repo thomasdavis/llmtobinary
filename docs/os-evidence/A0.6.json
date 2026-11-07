@@ -1,0 +1,8 @@
+{
+  "id": "A0.6",
+  "result": "pass",
+  "command": "curl /api/gallery; debug-sessions/*/server.json; apps/web/worker/session.ts",
+  "commit": "71050557d796bef7f5f6b4e29ca5fb43e70d97e0",
+  "note": "Not a token or time limit (passes at 76,665 tokens, 918 s). Inferred cause: client disconnect aborts the attempt. Not confirmed per session.",
+  "recordedAt": "2026-11-07T02:07:29.894Z"
+}
