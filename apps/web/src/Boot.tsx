@@ -107,7 +107,7 @@ export function Boot() {
 
   useEffect(() => {
     void (async () => {
-      const r = await fetch("/os/default-build.json").catch(() => null);
+      const r = await fetch("/default-build.json").catch(() => null);
       if (!r?.ok || !(r.headers.get("content-type") ?? "").includes("json")) return setBuild("missing");
       const base = (await r.json()) as Build;
       // A community build swaps the image and keeps the starter disk.

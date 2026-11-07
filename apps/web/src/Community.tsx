@@ -318,12 +318,15 @@ function Compose() {
   const plan = async () => {
     const { parseModule } = await import("@llmtobinary/module");
     const { link } = await import("@llmtobinary/link");
-    const libs = picks!.filter((p) => p.slot.kind !== "program");
+    // The linker treats its first input as the root. With several kernels, the newest slot wins.
+    const root = picks!.filter((p) => p.slot.kind === "root" && p.chosen).at(-1);
+    if (!root) throw new Error("No kernel has a candidate yet.");
+    const libs = [root, ...picks!.filter((p) => p.slot.kind === "library" && p.chosen)];
     const exportsOf = (s: SlotDetail): ExportCard[] => JSON.parse(s.interface) as ExportCard[];
     const bySlot = new Map(picks!.map((p) => [p.slot.id, p]));
     const modules: { slot: string; exports: Record<string, number>; imports: Record<string, string> }[] = [];
     const inputs = [];
-    for (const p of [...libs].sort((a) => (a.slot.kind === "root" ? -1 : 1))) {
+    for (const p of libs) {
       const res = await fetch(`/api/registry/${p.chosen}/bytes`);
       if (!res.ok) throw new Error(`${p.slot.id} has no bytes`);
       const bytes = new Uint8Array(await res.arrayBuffer());
@@ -354,8 +357,8 @@ function Compose() {
     try {
       const { modules, linked } = await plan();
       if (!linked.ok) return setNote(linked.errors.map((e) => e.message).join(" "));
-      const slots = Object.fromEntries(picks!.map((p) => [p.slot.id, p.chosen]));
-      const root = picks!.find((p) => p.slot.kind === "root")!.chosen;
+      const slots = Object.fromEntries(picks!.filter((p) => modules.some((m) => m.slot === p.slot.id)).map((p) => [p.slot.id, p.chosen]));
+      const root = picks!.filter((p) => p.slot.kind === "root" && p.chosen).at(-1)!.chosen;
       const res = await send("/api/builds", { method: "POST", body: JSON.stringify({ name, modules, lock: { kind: "llmtobinary-lock/1", root, specDigest: "anma-2", engineDigest: "reference", policy: { minimumClass: "E3" }, slots } }) });
       const b = (await res.json()) as { image?: string; error?: string };
       if (!res.ok || !b.image) return setNote(b.error ?? "The build was refused.");

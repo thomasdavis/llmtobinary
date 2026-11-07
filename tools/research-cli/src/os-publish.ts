@@ -105,7 +105,7 @@ const diskId = await objectId(disk);
 const hex = (b: Uint8Array): string => Buffer.from(b).toString("hex");
 const lock: LockFile = { kind: "llmtobinary-lock/1", root: ids.get("kernel")!, specDigest: "anma-2", engineDigest: "reference", policy: { minimumClass: "E3" }, slots: Object.fromEntries(wanted.map((s) => [s.id, ids.get(s.id)!])) };
 const build = { name: "Community OS 0", imageHex: hex(linked.bytes), imageSha256: imageId.slice(7), diskHex: hex(disk), diskSha256: diskId.slice(7), lock, authority: linked.authority, packages: linked.modules.map((m) => ({ slot: m, sha256: ids.get(m)!.slice(7), records: built(m)!.records, model: built(m)!.model })) };
-writeFileSync(arg("build-out", "apps/web/public/os/default-build.json"), JSON.stringify(build));
+writeFileSync(arg("build-out", "apps/web/public/default-build.json"), JSON.stringify(build));
 log(`image ${imageId.slice(0, 19)}, authority: ${linked.authority.join(", ")}`);
 if (dry || !url) process.exit(0);
 

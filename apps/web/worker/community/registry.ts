@@ -140,6 +140,11 @@ export async function submitAttestation(env: Env, id: ObjectId, envelope: Envelo
   await logEvent(env, { at: now, kind: "attest", subject: id, detail: { predicateType: v.statement.predicateType, keyid: v.keyid } });
   await recompute(env, id);
   await env.COMMUNITY_DB!.prepare("UPDATE verify_jobs SET status = 'done' WHERE object_id = ?1").bind(id).run();
+  // A pass counts for the slot it was tested against, and no other.
+  const p = v.statement.predicate as { taskId?: unknown; passed?: unknown; taskOwned?: unknown; holdouts?: unknown };
+  if (v.role === "verifier" && v.statement.predicateType === "llmtobinary/test/1" && p.passed === true && p.taskOwned === true && p.holdouts === true && typeof p.taskId === "string" && p.taskId.startsWith("slot:")) {
+    await env.COMMUNITY_DB!.prepare("UPDATE slot_candidates SET verified = 1 WHERE object_id = ?1 AND slot_id = ?2").bind(id, p.taskId.slice(5)).run();
+  }
   return { accepted: true };
 }
 

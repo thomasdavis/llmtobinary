@@ -79,7 +79,7 @@ await page.getByText("kept").waitFor({ timeout: 15000 });
 check(true, "a file survives a page reload");
 
 // Live generation needs the page's permission, outside the guest.
-const hasGen = await page.evaluate(async () => (await (await fetch("/os/default-build.json")).json()).authority.includes("gen.request"));
+const hasGen = await page.evaluate(async () => (await (await fetch("/default-build.json")).json()).authority.includes("gen.request"));
 if (hasGen) {
   await page.goto(`${url}/boot`);
   await term.waitFor();

@@ -4,6 +4,8 @@ import { generateKeyPair, importSigningKey, objectId, signStatement, statement, 
 import type { GalleryEntry } from "@llmtobinary/protocol";
 import community from "../../migrations/0001_community.sql?raw";
 import registry from "../../migrations/0002_registry.sql?raw";
+import os from "../../migrations/0003_os.sql?raw";
+import slotEvidence from "../../migrations/0004_slot_evidence.sql?raw";
 import worker from "../index.ts";
 import { listPackages, publishGeneration, submitAttestation } from "./registry.ts";
 
@@ -22,14 +24,14 @@ let id: ObjectId;
 const passing = { passed: true, taskOwned: true, holdouts: true, outputHash: "abc" };
 
 beforeAll(async () => {
-  for (const sql of [community, registry]) for (const s of sql.replace(/--.*$/gm, "").split(";").map((x: string) => x.trim()).filter(Boolean)) await base.COMMUNITY_DB!.prepare(s).run();
+  for (const sql of [community, registry, os, slotEvidence]) for (const s of sql.replace(/--.*$/gm, "").split(";").map((x: string) => x.trim()).filter(Boolean)) await base.COMMUNITY_DB!.prepare(s).run().catch((e: Error) => { if (!/already exists|duplicate column/.test(e.message)) throw e; });
   pair = await generateKeyPair();
   const trust: TrustedKey[] = [{ keyid: "verifier-1", publicKeyHex: pair.publicKeyHex, role: "verifier" }];
   env = { ...base, TRUSTED_KEYS: JSON.stringify(trust) };
   id = await objectId(bytesOf(HEX));
 });
 beforeEach(async () => {
-  for (const t of ["verify_jobs", "packages", "generations", "member_spend", "login_sessions", "stars", "comments", "reports", "users"]) await base.COMMUNITY_DB!.prepare(`DELETE FROM ${t}`).run();
+  for (const t of ["slot_candidates", "verify_jobs", "packages", "generations", "member_spend", "login_sessions", "stars", "comments", "reports", "users"]) await base.COMMUNITY_DB!.prepare(`DELETE FROM ${t}`).run();
   const listed = await base.REGISTRY!.list();
   for (const o of listed.objects) await base.REGISTRY!.delete(o.key);
 });
@@ -96,6 +98,17 @@ describe("evidence comes only from signatures", () => {
     const other = await objectId(new TextEncoder().encode("other"));
     const env2 = await signStatement(statement(other, "test", passing), await importSigningKey("verifier-1", pair.privateKeyPkcs8Hex));
     expect((await submitAttestation(env, id, env2, 1)).accepted).toBe(false);
+  });
+  it("a pass counts for its own slot only", async () => {
+    const db = base.COMMUNITY_DB!;
+    await db.prepare("DELETE FROM slot_candidates").run();
+    await db.prepare("DELETE FROM slots").run();
+    for (const s of ["a", "b"]) await db.prepare("INSERT INTO slots (id, title, kind, features, depends, interface, prompt, position) VALUES (?1, ?1, 'library', 0, '[]', '[]', 'p', 0)").bind(s).run();
+    await publishGeneration(env, entry(), { backfilled: false, authorId: null, now: 1, slot: "a" });
+    await db.prepare("INSERT INTO slot_candidates (slot_id, object_id, created_at) VALUES ('b', ?1, 1)").bind(id).run();
+    await submitAttestation(env, id, await signStatement(statement(id, "test", { ...passing, taskId: "slot:a" }), await importSigningKey("verifier-1", pair.privateKeyPkcs8Hex)), 2);
+    const rows = (await db.prepare("SELECT slot_id, verified FROM slot_candidates ORDER BY slot_id").all<{ slot_id: string; verified: number }>()).results;
+    expect(rows).toEqual([{ slot_id: "a", verified: 1 }, { slot_id: "b", verified: 0 }]);
   });
   it("a confirmed counterexample demotes the package", async () => {
     await publishGeneration(env, entry(), { backfilled: false, authorId: null, now: 1 });

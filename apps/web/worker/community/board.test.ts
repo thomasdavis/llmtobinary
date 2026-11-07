@@ -3,15 +3,16 @@ import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import community from "../../migrations/0001_community.sql?raw";
 import registry from "../../migrations/0002_registry.sql?raw";
 import board from "../../migrations/0003_os.sql?raw";
-import { defaultCandidate, proposeTest, reviewTest } from "./board.ts";
+import slotEvidence from "../../migrations/0004_slot_evidence.sql?raw";
+import { classForSlot, defaultCandidate, proposeTest, reviewTest } from "./board.ts";
 import type { Member } from "../accounts.ts";
 
 const env = rawEnv as unknown as Env;
 const member = (id: number, role: Member["role"] = "member"): Member => ({ id, login: `u${id}`, name: null, avatarUrl: null, role, githubCreatedAt: 0 });
-const cand = (object_id: string, evidence_class: "E2" | "E3" | "E4", records: number, created_at: number, stars = 0) => ({ object_id, evidence_class, records, created_at, retracted: 0, taken_down: 0, stars });
+const cand = (object_id: string, evidence_class: "E2" | "E3" | "E4", records: number, created_at: number, stars = 0) => ({ object_id, evidence_class, records, created_at, retracted: 0, taken_down: 0, stars, verified: 1 });
 
 beforeAll(async () => {
-  for (const sql of [community, registry, board]) for (const s of sql.replace(/--.*$/gm, "").split(";").map((x: string) => x.trim()).filter(Boolean)) await env.COMMUNITY_DB!.prepare(s).run().catch((e: Error) => { if (!/already exists/.test(e.message)) throw e; });
+  for (const sql of [community, registry, board, slotEvidence]) for (const s of sql.replace(/--.*$/gm, "").split(";").map((x: string) => x.trim()).filter(Boolean)) await env.COMMUNITY_DB!.prepare(s).run().catch((e: Error) => { if (!/already exists|duplicate column/.test(e.message)) throw e; });
 });
 beforeEach(async () => {
   for (const t of ["test_proposals", "slot_candidates", "packages", "slots", "users"]) await env.COMMUNITY_DB!.prepare(`DELETE FROM ${t}`).run();
@@ -31,6 +32,19 @@ describe("default candidate", () => {
   it("skips retracted and taken-down candidates", () => {
     expect(defaultCandidate([{ ...cand("bad", "E4", 1, 1), retracted: 1 }, cand("ok", "E2", 9, 2)])!.object_id).toBe("ok");
     expect(defaultCandidate([{ ...cand("gone", "E4", 1, 1), taken_down: 1 }])).toBeNull();
+  });
+});
+
+describe("evidence is per slot", () => {
+  it("does not let a package verified elsewhere win this slot", () => {
+    const real = { ...cand("real", "E3", 182, 1), verified: 1 };
+    const elsewhere = { ...cand("elsewhere", "E3", 49, 2), verified: 0 };
+    expect(defaultCandidate([real, elsewhere])!.object_id).toBe("real");
+  });
+  it("caps an unverified candidate at E2 for this slot", () => {
+    expect(classForSlot({ evidence_class: "E4", verified: 0 })).toBe("E2");
+    expect(classForSlot({ evidence_class: "E3", verified: 1 })).toBe("E3");
+    expect(classForSlot({ evidence_class: "E1", verified: 0 })).toBe("E1");
   });
 });
 

@@ -23,30 +23,36 @@ export interface SlotRow {
   position: number;
 }
 
-type Candidate = Pick<PackageRow, "object_id" | "evidence_class" | "records" | "created_at" | "retracted" | "taken_down"> & { stars?: number };
+type Candidate = Pick<PackageRow, "object_id" | "evidence_class" | "records" | "created_at" | "retracted" | "taken_down"> & { stars?: number; verified?: number };
+
+/**
+ * A candidate's class for this slot. Evidence is per slot: passing the tests of another slot proves
+ * nothing here, so without a verifier's pass for this slot a candidate cannot count above E2.
+ */
+export const classForSlot = (c: Pick<Candidate, "evidence_class" | "verified">): EvidenceClass => (c.verified || RANK[c.evidence_class]! < RANK.E3! ? c.evidence_class : "E2");
 
 /** The default candidate. Stars are deliberately not an input. */
 export function defaultCandidate(candidates: readonly Candidate[]): Candidate | null {
   const usable = candidates.filter((c) => !c.retracted && !c.taken_down);
-  return [...usable].sort((a, b) => RANK[b.evidence_class]! - RANK[a.evidence_class]! || a.records - b.records || a.created_at - b.created_at)[0] ?? null;
+  return [...usable].sort((a, b) => RANK[classForSlot(b)]! - RANK[classForSlot(a)]! || a.records - b.records || a.created_at - b.created_at)[0] ?? null;
 }
 
 export async function listSlots(env: Env): Promise<{ slots: (Omit<SlotRow, "prompt"> & { candidates: number; winner: Candidate | null; open: boolean })[] }> {
   const db = env.COMMUNITY_DB!;
   const slots = (await db.prepare("SELECT * FROM slots ORDER BY position").all<SlotRow>()).results;
-  const rows = (await db.prepare("SELECT c.slot_id, p.object_id, p.evidence_class, p.records, p.created_at, p.retracted, p.taken_down FROM slot_candidates c JOIN packages p ON p.object_id = c.object_id").all<Candidate & { slot_id: string }>()).results;
+  const rows = (await db.prepare("SELECT c.slot_id, c.verified, p.object_id, p.evidence_class, p.records, p.created_at, p.retracted, p.taken_down FROM slot_candidates c JOIN packages p ON p.object_id = c.object_id").all<Candidate & { slot_id: string }>()).results;
   return {
     slots: slots.map(({ prompt: _prompt, ...s }) => {
       const mine = rows.filter((r) => r.slot_id === s.id);
       const winner = defaultCandidate(mine);
-      return { ...s, candidates: mine.length, winner, open: !winner || !atLeast(winner.evidence_class, BUILD_POLICY) };
+      return { ...s, candidates: mine.length, winner: winner ? { ...winner, evidence_class: classForSlot(winner) } : null, open: !winner || !atLeast(classForSlot(winner), BUILD_POLICY) };
     }),
   };
 }
 
 export async function slotCandidates(env: Env, slotId: string): Promise<Candidate[]> {
-  const r = await env.COMMUNITY_DB!.prepare("SELECT p.object_id, p.evidence_class, p.records, p.created_at, p.retracted, p.taken_down FROM slot_candidates c JOIN packages p ON p.object_id = c.object_id WHERE c.slot_id = ?1 AND p.taken_down = 0 ORDER BY p.created_at DESC LIMIT 50").bind(slotId).all<Candidate>();
-  return r.results;
+  const r = await env.COMMUNITY_DB!.prepare("SELECT c.verified, p.object_id, p.evidence_class, p.records, p.created_at, p.retracted, p.taken_down FROM slot_candidates c JOIN packages p ON p.object_id = c.object_id WHERE c.slot_id = ?1 AND p.taken_down = 0 ORDER BY p.created_at DESC LIMIT 50").bind(slotId).all<Candidate>();
+  return r.results.map((c) => ({ ...c, evidence_class: classForSlot(c) }));
 }
 
 export async function getSlot(env: Env, id: string): Promise<SlotRow | null> {
@@ -100,16 +106,18 @@ export async function publishBuild(env: Env, m: Member | null, b: BuildRequest, 
   if (b.lock?.kind !== "llmtobinary-lock/1" || !b.lock.slots || !Array.isArray(b.modules) || !b.modules.length) throw new HttpError(400, "a build needs a lock file and its modules");
   const db = env.COMMUNITY_DB!;
   const rows = new Map<string, { valid: number; self_consistent: number; evidence_class: EvidenceClass; retracted: number; taken_down: number }>();
-  for (const id of Object.values(b.lock.slots)) {
+  for (const [slot, id] of Object.entries(b.lock.slots)) {
     if (!isObjectId(id)) continue;
-    const r = await db.prepare("SELECT valid, self_consistent, evidence_class, retracted, taken_down FROM packages WHERE object_id = ?1").bind(id).first<{ valid: number; self_consistent: number; evidence_class: EvidenceClass; retracted: number; taken_down: number }>();
-    if (r) rows.set(id, r);
+    const r = await db.prepare("SELECT p.valid, p.self_consistent, p.evidence_class, p.retracted, p.taken_down, c.verified FROM packages p LEFT JOIN slot_candidates c ON c.object_id = p.object_id AND c.slot_id = ?2 WHERE p.object_id = ?1").bind(id, slot).first<{ valid: number; self_consistent: number; evidence_class: EvidenceClass; retracted: number; taken_down: number; verified: number | null }>();
+    if (r) rows.set(`${slot}:${id}`, { ...r, evidence_class: classForSlot({ evidence_class: r.evidence_class, verified: r.verified ?? 0 }) });
   }
   const lock: LockFile = { ...b.lock, policy: { minimumClass: BUILD_POLICY } };
-  const problems = checkLock(lock, (id) => {
-    const r = rows.get(id);
-    return r ? { evidence: { class: r.evidence_class, retracted: !!r.retracted, basis: [] }, takenDown: !!r.taken_down } : null;
-  });
+  const problems = Object.entries(lock.slots).flatMap(([slot, id]) =>
+    checkLock({ ...lock, slots: { [slot]: id } }, () => {
+      const r = rows.get(`${slot}:${id}`);
+      return r ? { evidence: { class: r.evidence_class, retracted: !!r.retracted, basis: [] }, takenDown: !!r.taken_down } : null;
+    }),
+  );
   if (problems.length) throw new HttpError(422, `the build was refused: ${problems.map((p) => `${p.slot} is ${p.problem}`).join(", ")}`);
   const inputs: LinkInput[] = [];
   for (const mod of b.modules) {
