@@ -172,6 +172,7 @@ export class FiniteMachine implements Engine {
       limits: this.limits,
       ...(opts.ticks ? { ticks: opts.ticks } : {}),
     });
+    this.devices.heap = this.heap;
     const args = bindInputs(module, inputs);
     const entry = module.functions[module.entry]!;
     // Entry arguments arrive through staging like any call.
@@ -499,7 +500,7 @@ export class FiniteMachine implements Engine {
         if (this.tracing) this.micro = [];
         {
           const cur = f.pc < f.block.instrs.length ? f.block.instrs[f.pc]! : null;
-          const waits = cur !== null && cur.k === "host" && cur.imp === 6 && this.devices.pendingTicks() === 0;
+          const waits = cur !== null && cur.k === "host" && (cur.imp === 6 || cur.imp === 7) && this.devices.pendingTicks() === 0;
           if (!waits) {
             const rec = cur ? cur.rec : f.block.term.rec;
             const at = this.tk(LATENCY.fetch);
@@ -630,7 +631,7 @@ export class FiniteMachine implements Engine {
         break;
       }
       case "host": {
-        if (ins.args.length === 0 && ins.imp === 6 && this.devices.pendingTicks() === 0) {
+        if (ins.args.length === 0 && (ins.imp === 6 || ins.imp === 7) && this.devices.pendingTicks() === 0) {
           this._status = "waiting-input";
           return false;
         }

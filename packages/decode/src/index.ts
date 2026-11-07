@@ -8,6 +8,7 @@ import {
   IMPORTS,
   ISA_TAG,
   KNOWN_FEATURES,
+  KNOWN_FEATURES_V2,
   MAGIC,
   OP_BY_CODE,
   Op,
@@ -242,7 +243,7 @@ function plural(n: number, w: string): string {
   return `${n} ${w}${n === 1 ? "" : "s"}`;
 }
 
-export function decodeFile(bytes: Uint8Array, limits: Pick<Limits, "importedExecutableBytes"> = DEFAULT_LIMITS): DecodeResult {
+export function decodeFile(bytes: Uint8Array, limits: Pick<Limits, "importedExecutableBytes"> = DEFAULT_LIMITS, opts: { anma2?: boolean } = {}): DecodeResult {
   const diagnostics: Diagnostic[] = [];
   const len = bytes.length;
   if (len > limits.importedExecutableBytes) {
@@ -291,7 +292,8 @@ export function decodeFile(bytes: Uint8Array, limits: Pick<Limits, "importedExec
       }),
     );
   }
-  if (header.version !== VERSION) {
+  const v2 = !!opts.anma2 && header.version === 2;
+  if (header.version !== VERSION && !v2) {
     ok = false;
     diagnostics.push(
       diag("ANMA-V-HDR-003", {
@@ -304,7 +306,7 @@ export function decodeFile(bytes: Uint8Array, limits: Pick<Limits, "importedExec
       }),
     );
   }
-  if ((header.features & ~KNOWN_FEATURES) !== 0) {
+  if ((header.features & ~(v2 ? KNOWN_FEATURES_V2 : KNOWN_FEATURES)) !== 0) {
     ok = false;
     diagnostics.push(
       diag("ANMA-V-HDR-005", {

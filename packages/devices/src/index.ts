@@ -2,10 +2,12 @@
 // Host calls are small device operations; algorithms, animation state, and pixel decisions stay
 // in guest code. Nothing here can reach the DOM, the network, or JavaScript evaluation.
 
-import { DEFAULT_LIMITS, FRAMEBUFFER_HEIGHT, FRAMEBUFFER_WIDTH, IMPORTS, KEYS, U64_MASK, parseU64Decimal, type Limits } from "@llmtobinary/spec";
+import { DEFAULT_LIMITS, FRAMEBUFFER_HEIGHT, FRAMEBUFFER_WIDTH, IMPORTS, IMPORTS_V2, KEYS, U64_MASK, parseU64Decimal, type Limits } from "@llmtobinary/spec";
 import { ruleInfo } from "@llmtobinary/diagnostics";
 import type { Effect, TickEvent, Trap, TrapCode } from "@llmtobinary/protocol";
 import { Sha256, sha256HexSync } from "./sha256.ts";
+import type { RuntimeValue } from "@llmtobinary/protocol";
+import type { Heap } from "./engine-support.ts";
 
 export { Sha256, sha256HexSync };
 
@@ -49,6 +51,12 @@ interface QueuedTick {
   keys: number;
 }
 
+export interface HostExtension {
+  call(importId: number, args: readonly RuntimeValue[], heap: Heap): HostOutcome;
+  /** Inputs ready for a waiting guest, so a waiting engine knows it can resume. */
+  pending(): number;
+}
+
 export class Devices {
   private readonly data: Uint8Array;
   private readonly allowed: number;
@@ -70,6 +78,10 @@ export class Devices {
   private pendingWork = 0;
   hostCalls = 0;
   private readonly utf8 = new TextDecoder("utf-8", { fatal: true });
+  /** ANMA-2 host operations (IDs from 7). Absent for ANMA-1, where those IDs do not exist. */
+  ext: HostExtension | null = null;
+  /** The engine's heap, so an extension can read and write guest buffers. */
+  heap: Heap | null = null;
 
   constructor(opts: DevicesOptions) {
     this.data = opts.data;
@@ -94,7 +106,12 @@ export class Devices {
   }
 
   pendingTicks(): number {
-    return this.queue.length;
+    return this.queue.length + (this.ext?.pending() ?? 0);
+  }
+
+  /** Terminal output on behalf of an extension. */
+  writeBytes(bytes: Uint8Array): HostOutcome | null {
+    return this.writeTerminal(bytes);
   }
 
   /** Modeled work units produced since the last call (charged to microsteps by engines). */
@@ -123,6 +140,13 @@ export class Devices {
    * returned as booleans). Traps carry no position; engines fill it in.
    */
   call(importId: number, args: readonly bigint[]): HostOutcome {
+    if (importId >= IMPORTS.length) {
+      const info = IMPORTS_V2[importId];
+      if (!this.ext || !this.heap || !info) return { kind: "trap", trap: makeTrap("BOUNDS", `unknown import ${importId}`) };
+      if ((this.allowed & info.feature) === 0) return { kind: "trap", trap: makeTrap("CAPABILITY_DENIED", `${info.name} is not permitted by the host capability policy`) };
+      this.hostCalls++;
+      return this.ext.call(importId, args as unknown as readonly RuntimeValue[], this.heap);
+    }
     const imp = IMPORTS[importId];
     if (!imp) return { kind: "trap", trap: makeTrap("BOUNDS", `unknown import ${importId}`) };
     if ((this.allowed & imp.feature) === 0) {

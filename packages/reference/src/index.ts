@@ -46,6 +46,7 @@ export class ReferenceEngine implements Engine {
       limits: this.limits,
       ...(opts.ticks ? { ticks: opts.ticks } : {}),
     });
+    this.devices.heap = this.heap;
     const args = bindInputs(module, inputs);
     const entry = module.functions[module.entry]!;
     this.enterFunction(entry, args);

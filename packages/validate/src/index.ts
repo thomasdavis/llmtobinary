@@ -20,6 +20,7 @@ import {
   type FeatureBit,
   type Limits,
   type OpInfo,
+  importsFor,
 } from "@llmtobinary/spec";
 import { decodeFile, disassemble, type DecodedFile, type Header, type RawRecord } from "@llmtobinary/decode";
 import { Stage, diag, type Diagnostic, type DiagnosticInit } from "@llmtobinary/diagnostics";
@@ -82,6 +83,8 @@ export interface Module {
 
 export interface ValidateOptions {
   limits?: Partial<Limits>;
+  /** Accept header version 2 and its host operations. Off by default, so ANMA-1 stays exactly as it was. */
+  anma2?: boolean;
   /** Host policy: features the host grants. Declared features outside this mask yield CAPABILITY_DENIED. */
   allowedFeatures?: number;
 }
@@ -117,7 +120,7 @@ const FIELD_NAMES = ["record.a", "record.b", "record.c"] as const;
 export function validateBytes(bytes: Uint8Array, opts: ValidateOptions = {}): ValidationResult {
   const limits: Limits = { ...DEFAULT_LIMITS, ...opts.limits };
   const owned = bytes.slice(); // private copy: later caller mutation cannot affect the module
-  const decoded = decodeFile(owned, limits);
+  const decoded = decodeFile(owned, limits, { anma2: !!opts.anma2 });
   if (!decoded.file) return { ok: false, module: null, diagnostics: decoded.diagnostics, decoded: null };
   const v = new Validator(decoded.file, limits, opts.allowedFeatures);
   v.run();
@@ -637,7 +640,7 @@ class Validator {
         return next;
       }
       case "host": {
-        const imp = IMPORTS[rec.b];
+        const imp = importsFor(this.file.header.version)[rec.b];
         if (!imp) {
           this.err("ANMA-V-ID-005", { message: `HOST import ${rec.b} does not exist.`, location: recLoc(rec, "record.b", block.fn, block.id), found: disassemble(rec), expected: `an import ID in 0..${IMPORTS.length - 1} (${IMPORTS.map((i) => `${i.id} ${i.name}`).join(", ")})` });
         } else this.requireFeature(imp.feature, rec, block, `HOST ${imp.name}`);

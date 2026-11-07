@@ -59,6 +59,12 @@ export class Heap {
     return { ok: true, value: Number(i) };
   }
 
+  /** A buffer's element count, for host operations. Guests have no way to read this. */
+  lengthOf(h: RuntimeValue): number | null {
+    const a = this.get(h, "u8");
+    return a.ok ? a.value.u8!.length : null;
+  }
+
   load(elem: "u8" | "u64", h: RuntimeValue, i: bigint): HeapResult<bigint> {
     const a = this.get(h, elem);
     if (!a.ok) return a;

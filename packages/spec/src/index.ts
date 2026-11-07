@@ -249,6 +249,35 @@ export const IMPORTS: readonly ImportInfo[] = [
 ];
 export const IMPORT_BY_NAME: ReadonlyMap<string, ImportInfo> = new Map(IMPORTS.map((i) => [i.name, i]));
 
+// ANMA-2 (spec/anma-2.md). Separate from the frozen ANMA-1 tables above, so the manual generated from
+// them and every version 1 file stay exactly as they were.
+export const Feature2 = {
+  TEXT: 1 << 4,
+  BLOCK: 1 << 5,
+  TASKS: 1 << 6,
+  SYSCALL: 1 << 7,
+  GEN: 1 << 8,
+} as const;
+export const KNOWN_FEATURES_V2 = KNOWN_FEATURES | Feature2.TEXT | Feature2.BLOCK | Feature2.TASKS | Feature2.SYSCALL | Feature2.GEN;
+const HU8 = TypeTag.HANDLE_U8;
+export const IMPORTS_V2: readonly ImportInfo[] = [
+  ...IMPORTS,
+  { id: 7, name: "input.next_key", params: [], paramNames: [], result: U, feature: Feature2.TEXT as never },
+  { id: 8, name: "terminal.print_bytes", params: [HU8, U, U], paramNames: ["buffer", "offset", "length"], result: TypeTag.UNIT, feature: Feature2.TEXT as never },
+  { id: 9, name: "block.count", params: [], paramNames: [], result: U, feature: Feature2.BLOCK as never },
+  { id: 10, name: "block.read", params: [U, HU8], paramNames: ["sector", "buffer"], result: TypeTag.UNIT, feature: Feature2.BLOCK as never },
+  { id: 11, name: "block.write", params: [U, HU8], paramNames: ["sector", "buffer"], result: TypeTag.UNIT, feature: Feature2.BLOCK as never },
+  { id: 12, name: "block.flush", params: [], paramNames: [], result: TypeTag.UNIT, feature: Feature2.BLOCK as never },
+  { id: 13, name: "module.load", params: [HU8, U], paramNames: ["buffer", "length"], result: U, feature: Feature2.TASKS as never },
+  { id: 14, name: "task.spawn", params: [U, U, U], paramNames: ["module", "fuel", "heapBytes"], result: U, feature: Feature2.TASKS as never },
+  { id: 15, name: "task.resume", params: [U, HU8], paramNames: ["task", "mailbox"], result: U, feature: Feature2.TASKS as never },
+  { id: 16, name: "task.yield", params: [HU8, U], paramNames: ["mailbox", "code"], result: TypeTag.UNIT, feature: Feature2.SYSCALL as never },
+  { id: 17, name: "gen.request", params: [HU8, U], paramNames: ["prompt", "length"], result: U, feature: Feature2.GEN as never },
+  { id: 18, name: "gen.poll", params: [U], paramNames: ["job"], result: U, feature: Feature2.GEN as never },
+  { id: 19, name: "gen.read", params: [U, HU8], paramNames: ["job", "buffer"], result: U, feature: Feature2.GEN as never },
+];
+export const importsFor = (version: number): readonly ImportInfo[] => (version === 2 ? IMPORTS_V2 : IMPORTS);
+
 export const FRAMEBUFFER_WIDTH = 256;
 export const FRAMEBUFFER_HEIGHT = 144;
 

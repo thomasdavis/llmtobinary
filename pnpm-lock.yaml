@@ -420,6 +420,27 @@ importers:
         specifier: workspace:*
         version: link:../spec
 
+  packages/os:
+    dependencies:
+      '@llmtobinary/devices':
+        specifier: workspace:*
+        version: link:../devices
+      '@llmtobinary/protocol':
+        specifier: workspace:*
+        version: link:../protocol
+      '@llmtobinary/reference':
+        specifier: workspace:*
+        version: link:../reference
+      '@llmtobinary/runtime':
+        specifier: workspace:*
+        version: link:../runtime
+      '@llmtobinary/spec':
+        specifier: workspace:*
+        version: link:../spec
+      '@llmtobinary/validate':
+        specifier: workspace:*
+        version: link:../validate
+
   packages/protocol:
     dependencies:
       '@llmtobinary/diagnostics':
