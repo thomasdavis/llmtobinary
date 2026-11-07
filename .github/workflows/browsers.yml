@@ -1,0 +1,25 @@
+name: browsers
+# Runs the deployed site in Firefox. Playwright has no Firefox for the development box's OS.
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: Site to test
+        default: https://llmtobinary.com
+jobs:
+  firefox:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      BROWSER: firefox
+      SITE: ${{ inputs.url || 'https://llmtobinary.com' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install -g pnpm@12.6.0
+      - run: pnpm install --frozen-lockfile --store-dir ~/.pnpm-store
+      - run: npx --no-install playwright-core install --with-deps firefox
+      - run: node tests/e2e/boot-e2e.mjs "$SITE"
+      - run: node tests/e2e/community-e2e.mjs "$SITE"

@@ -1,12 +1,12 @@
 // An anonymous visitor boots the OS on a deployed site: node tests/e2e/boot-e2e.mjs <url>
-import { chromium } from "playwright-core";
+import { chromium, firefox } from "playwright-core";
 import { existsSync, readdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 const url = (process.argv[2] ?? "").replace(/\/$/, "");
 const cache = join(homedir(), ".cache/ms-playwright");
-const executablePath = process.env.CHROMIUM_PATH ?? readdirSync(cache).filter((d) => d.startsWith("chromium_headless_shell-")).sort().reverse().map((d) => join(cache, d, "chrome-linux/headless_shell")).find((p) => existsSync(p));
-const browser = await chromium.launch({ executablePath });
+const executablePath = process.env.CHROMIUM_PATH ?? (existsSync(cache) ? readdirSync(cache).filter((d) => d.startsWith("chromium_headless_shell-")).sort().reverse().map((d) => join(cache, d, "chrome-linux/headless_shell")).find((p) => existsSync(p)) : undefined);
+const browser = process.env.BROWSER === "firefox" ? await firefox.launch() : await chromium.launch({ executablePath });
 let failed = 0;
 const check = (ok, name) => { console.log(`${ok ? "✓" : "✗"} ${name}`); if (!ok) failed++; };
 for (const [label, viewport] of [["desktop", { width: 1280, height: 800 }], ["phone", { width: 390, height: 844 }]]) {

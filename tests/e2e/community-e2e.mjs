@@ -1,5 +1,5 @@
 // Community pages in a real browser: node tests/e2e/community-e2e.mjs <url>
-import { chromium } from "playwright-core";
+import { chromium, firefox } from "playwright-core";
 import { existsSync, readdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -7,9 +7,9 @@ import { join } from "node:path";
 const url = (process.argv[2] ?? "").replace(/\/$/, "");
 if (!url) throw new Error("usage: community-e2e.mjs <url>");
 const cache = join(homedir(), ".cache/ms-playwright");
-const dirs = readdirSync(cache).filter((d) => d.startsWith("chromium_headless_shell-")).sort().reverse();
+const dirs = existsSync(cache) ? readdirSync(cache).filter((d) => d.startsWith("chromium_headless_shell-")).sort().reverse() : [];
 const executablePath = process.env.CHROMIUM_PATH ?? dirs.map((d) => join(cache, d, "chrome-linux/headless_shell")).find((p) => existsSync(p));
-const browser = await chromium.launch({ executablePath });
+const browser = process.env.BROWSER === "firefox" ? await firefox.launch() : await chromium.launch({ executablePath });
 
 let failed = 0;
 const check = (ok, name) => {
