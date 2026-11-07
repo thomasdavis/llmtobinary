@@ -75,7 +75,7 @@ export type ReviewResult =
   | { ok: false; message: string; usage: ModelUsage | null };
 
 export interface ModelClient {
-  readonly kind: "openai" | "fake";
+  readonly kind: "openai" | "fake" | "research";
   turn(req: ModelTurnRequest, signal: AbortSignal): AsyncIterable<ModelEvent>;
   /** Optional: clients without it skip playtest reviews. */
   review?(req: ReviewRequest, signal: AbortSignal): Promise<ReviewResult>;

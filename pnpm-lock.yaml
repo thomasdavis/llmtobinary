@@ -553,6 +553,9 @@ importers:
       '@llmtobinary/annotations':
         specifier: workspace:*
         version: link:../../packages/annotations
+      '@llmtobinary/broker':
+        specifier: workspace:*
+        version: link:../../packages/broker
       '@llmtobinary/check':
         specifier: workspace:*
         version: link:../../packages/check

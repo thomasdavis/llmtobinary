@@ -17,6 +17,7 @@
     "@llmtobinary/validate": "workspace:*",
     "@llmtobinary/annotations": "workspace:*",
     "@llmtobinary/verify": "workspace:*",
-    "@llmtobinary/spec": "workspace:*"
+    "@llmtobinary/spec": "workspace:*",
+    "@llmtobinary/broker": "workspace:*"
   }
 }
