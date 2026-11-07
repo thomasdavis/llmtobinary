@@ -1,0 +1,36 @@
+// One real generation inside the running OS, on a deployed site. Spends real money, so run by hand.
+//   node tests/e2e/live-real-e2e.mjs <url> "<prompt>"
+import { chromium } from "playwright-core";
+import { existsSync, readdirSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
+const [urlArg, prompt] = process.argv.slice(2);
+const url = urlArg.replace(/\/$/, "");
+const cache = join(homedir(), ".cache/ms-playwright");
+const executablePath = readdirSync(cache).filter((d) => d.startsWith("chromium_headless_shell-")).sort().reverse().map((d) => join(cache, d, "chrome-linux/headless_shell")).find((p) => existsSync(p));
+const browser = await chromium.launch({ executablePath });
+const page = await browser.newPage();
+await page.goto(`${url}/boot`);
+const term = page.getByRole("textbox", { name: "Terminal" });
+await term.waitFor();
+await page.getByRole("button", { name: "Reset disk" }).click();
+await page.getByText("anma os").waitFor({ timeout: 30000 });
+await term.click();
+const screen = () => page.locator(".os-terminal").innerText();
+const started = Date.now();
+await page.keyboard.type(`gen tool ${prompt}\n`);
+await page.getByRole("alertdialog").waitFor({ timeout: 20000 });
+await page.getByRole("button", { name: "Allow" }).click();
+await term.click();
+await page.keyboard.type("ls\n");
+await page.waitForFunction(() => document.querySelector(".os-terminal")?.textContent?.includes("spin"), null, { timeout: 15000 });
+console.log("shell answered while generating:", (await screen()).includes("spin"));
+await page.getByText(/Done\. Press Enter|It failed/).waitFor({ timeout: 240000 });
+console.log("generation seconds:", Math.round((Date.now() - started) / 1000));
+await term.click();
+await page.keyboard.type("\n");
+await page.waitForFunction(() => /generated tool|generation failed/.test(document.querySelector(".os-terminal")?.textContent ?? ""), null, { timeout: 20000 });
+await page.keyboard.type("run tool\n");
+await page.waitForTimeout(3000);
+console.log(await screen());
+await browser.close();

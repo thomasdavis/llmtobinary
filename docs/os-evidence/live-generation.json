@@ -1,0 +1,24 @@
+{
+  "kind": "live-generation/1",
+  "where": "staging",
+  "sessions": 20,
+  "ran": 20,
+  "correct": 17,
+  "medianSeconds": 27.0,
+  "minSeconds": 10.6,
+  "maxSeconds": 42.8,
+  "wrong": [
+    [
+      "print the sum of 1 to 100",
+      "105"
+    ],
+    [
+      "print the first ten square numbers",
+      "0 1 4 9 16 25 36 49 64 81 "
+    ],
+    [
+      "print a countdown from 5 to 1",
+      "54321 "
+    ]
+  ]
+}

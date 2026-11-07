@@ -16,6 +16,14 @@ A model-written OS boots and passes its acceptance tests. The first image is 6 p
 
 **This is a small OS.** It has cooperative tasks, a flat 16-file directory and five shell commands. It has no scheduler, no isolation between files, and no way to pass arguments to programs. It runs as a guest on a trusted TypeScript VM, and the interfaces, tests and decomposition were written by people and agents.
 
+## Live generation
+
+Real generation works inside the running OS on production: a `gen` request produced a program in 16 seconds, the shell kept answering, and the program ran with no reboot.
+
+Across 20 real sessions on staging, all 20 delivered a program that ran. The median was 27 seconds, with a range of 11 to 43. **Only 17 of 20 were strictly correct.** One printed 105 for the sum of 1 to 100, which is simply wrong. Two were debatable: squares starting at 0, and a countdown printed with no spaces. Live programs get no test suite, so they stay at E1 or E2 until a verifier passes them.
+
+The latency sessions ran on staging, not production, to keep per-token spend inside staging's caps. One real session ran on production. Estimated cost for all of this is well under $1, from token counts rather than an invoice.
+
 ## Gate results
 
 **Gate B: passed, 18 of 20 in round 2** (threshold 16). Every pair where both sessions got a reply linked and matched the oracle on every hidden input, so there were 0 link failures and 0 wrong results. The two failures were lane faults: one `codex` exit, and one call that never returned after four attempts. 26 hung calls were retried in total, with 0 tool-audit failures.
