@@ -250,8 +250,8 @@ export class OsMachine implements HostExtension {
     for (;;) {
       const status = task.engine.run(1);
       // A task has its own devices, so its terminal output is carried to the console here.
-      const shown = task.engine.devices.terminal();
-      if (shown.length > task.printed) {
+      if (task.engine.devices.terminalLength() > task.printed) {
+        const shown = task.engine.devices.terminal();
         const failed = this.kernel.devices.writeBytes(shown.subarray(task.printed));
         task.printed = shown.length;
         if (failed) return failed;
