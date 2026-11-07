@@ -15,6 +15,7 @@ import { addComment, addReport, listComments, setStar } from "./community/social
 import { getObject, getPackage, listPackages, loadAttestations, parseObjectId, pendingJobs, publishGeneration, registryConfigured, submitAttestation, takeDown } from "./community/registry.ts";
 import type { Envelope, EvidenceClass } from "@llmtobinary/registry";
 import { contributions, getSlot, listBuilds, listSlots, pendingCounterexamples, settleCounterexample, slotCandidates, proposeCounterexample, proposeTest, publishBuild, reviewTest, type BuildRequest } from "./community/board.ts";
+import { emulatorApprove, emulatorEnabled, emulatorForm, EMULATOR_AUTHORIZE_PATH } from "./github-emulator.ts";
 import { accountsConfigured, avatar, beginSignIn, currentMember, deleteAccount, fakeOAuthEnabled, fakeSignIn, finishSignIn, quotaRemaining, requireMember, reserveMemberSpend, revokeAllSessions, signOut } from "./accounts.ts";
 
 export { GenerationSession } from "./session.ts";
@@ -27,8 +28,8 @@ const MAX_DESCRIPTION = 16_000;
 /** Charged against a member's daily quota per session. The BudgetLedger stays the hard site-wide cap. */
 const SESSION_ESTIMATE_MICRO_USD = 50_000;
 
-/** Sign-in is enforced only when switched on and working, so a missing OAuth App cannot stop generation. */
-const signInRequired = (env: Env): boolean => env.GENERATION_REQUIRES_SIGN_IN === "true" && accountsConfigured(env);
+/** Sign-in is enforced only when the public can sign in, so a missing OAuth App cannot stop generation. */
+const signInRequired = (env: Env): boolean => env.GENERATION_REQUIRES_SIGN_IN === "true" && accountsConfigured(env) && !emulatorEnabled(env);
 
 function buildCommit(): string {
   return typeof __BUILD_COMMIT__ === "string" ? __BUILD_COMMIT__ : "unknown";
@@ -49,7 +50,7 @@ function allowedFeatures(env: Env): number {
   return Number.isInteger(n) ? n & KNOWN_FEATURES : 0;
 }
 
-function config(env: Env): ConfigResponse & { liveReason: string | null; pricePolicy: string; promptVersion: string; accounts: boolean; signInRequired: boolean } {
+function config(env: Env): ConfigResponse & { liveReason: string | null; pricePolicy: string; promptVersion: string; accounts: boolean; accountsEmulated: boolean; signInRequired: boolean } {
   const live = liveStatus(env);
   const p = profileFromEnv(env);
   return {
@@ -68,7 +69,9 @@ function config(env: Env): ConfigResponse & { liveReason: string | null; pricePo
     recoveryTtlSeconds: Number(env.RECOVERY_TTL_SECONDS ?? "3600"),
     pricePolicy: PRICE_POLICY_VERSION,
     promptVersion: PROMPT_VERSION,
-    accounts: accountsConfigured(env),
+    // The emulator is for the owner, so the public site keeps showing no sign-in button.
+    accounts: accountsConfigured(env) && !emulatorEnabled(env),
+    accountsEmulated: emulatorEnabled(env),
     signInRequired: signInRequired(env),
   };
 }
@@ -168,6 +171,8 @@ async function route(request: Request, env: Env): Promise<Response> {
     if (!accountsConfigured(env)) throw new HttpError(503, "sign-in is not configured");
     return finishSignIn(request, env, siteOrigin);
   }
+  if (path === EMULATOR_AUTHORIZE_PATH && request.method === "GET") return emulatorForm(request, env, siteOrigin);
+  if (path === EMULATOR_AUTHORIZE_PATH && request.method === "POST") return emulatorApprove(request, env, siteOrigin);
   if (path === "/api/auth/fake" && request.method === "GET") {
     if (!fakeOAuthEnabled(env)) return json({ error: "not found" }, 404);
     return fakeSignIn(request, env);

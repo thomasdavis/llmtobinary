@@ -2,6 +2,7 @@
 // dropped as soon as the profile is read, and the session cookie holds a random value whose hash is
 // the only thing stored.
 
+import { EMULATOR_AUTHORIZE_PATH, EMULATOR_CLIENT_ID, EMULATOR_TOKEN_URL, EMULATOR_USER_URL, emulatorEnabled, emulatorFetch } from "./github-emulator.ts";
 import { HttpError, json } from "./http.ts";
 
 const SESSION_COOKIE = "__Host-lb_session";
@@ -32,7 +33,22 @@ export interface GitHubProfile {
 /** The fake provider exists for tests only and cannot be switched on by a deployed environment. */
 export const fakeOAuthEnabled = (env: Pick<Env, "ENVIRONMENT" | "TEST_FAKE_OAUTH">): boolean => env.ENVIRONMENT === "test" && env.TEST_FAKE_OAUTH === "1";
 
-export const accountsConfigured = (env: Env): boolean => !!env.COMMUNITY_DB && (fakeOAuthEnabled(env) || (!!env.GITHUB_CLIENT_ID && !!env.GITHUB_CLIENT_SECRET));
+export const accountsConfigured = (env: Env): boolean => !!env.COMMUNITY_DB && (fakeOAuthEnabled(env) || emulatorEnabled(env) || (!!env.GITHUB_CLIENT_ID && !!env.GITHUB_CLIENT_SECRET));
+
+interface OAuthProvider {
+  clientId: string | undefined;
+  clientSecret: string | undefined;
+  authorizeUrl: string;
+  tokenUrl: string;
+  userUrl: string;
+  fetch: typeof fetch;
+}
+
+/** GitHub, or the emulator while no OAuth App exists. The sign-in code below is the same for both. */
+const oauthProvider = (env: Env, origin: string): OAuthProvider =>
+  emulatorEnabled(env)
+    ? { clientId: EMULATOR_CLIENT_ID, clientSecret: "unused", authorizeUrl: `${origin}${EMULATOR_AUTHORIZE_PATH}`, tokenUrl: EMULATOR_TOKEN_URL, userUrl: EMULATOR_USER_URL, fetch: emulatorFetch(env) }
+    : { clientId: env.GITHUB_CLIENT_ID, clientSecret: env.GITHUB_CLIENT_SECRET, authorizeUrl: "https://github.com/login/oauth/authorize", tokenUrl: "https://github.com/login/oauth/access_token", userUrl: "https://api.github.com/user", fetch: (input, init) => fetch(input, init) };
 
 const randomToken = (): string => [...crypto.getRandomValues(new Uint8Array(32))].map((b) => b.toString(16).padStart(2, "0")).join("");
 
@@ -72,10 +88,11 @@ function redirect(location: string, cookies: string[]): Response {
 
 /** Sends the browser to GitHub. A full-page redirect: COOP same-origin cuts the link to a pop-up. */
 export function beginSignIn(env: Env, origin: string): Response {
-  if (!env.GITHUB_CLIENT_ID) throw new HttpError(503, "sign-in is not configured");
+  const provider = oauthProvider(env, origin);
+  if (!provider.clientId) throw new HttpError(503, "sign-in is not configured");
   const state = randomToken();
-  const u = new URL("https://github.com/login/oauth/authorize");
-  u.searchParams.set("client_id", env.GITHUB_CLIENT_ID);
+  const u = new URL(provider.authorizeUrl);
+  u.searchParams.set("client_id", provider.clientId);
   u.searchParams.set("redirect_uri", `${origin}/api/auth/github/callback`);
   u.searchParams.set("state", state);
   u.searchParams.set("allow_signup", "true");
@@ -86,14 +103,15 @@ export type FetchProfile = (code: string, env: Env, origin: string) => Promise<G
 
 /** Exchanges the code and reads the public profile. The token never leaves this function. */
 export const fetchGitHubProfile: FetchProfile = async (code, env, origin) => {
-  const tokenRes = await fetch("https://github.com/login/oauth/access_token", {
+  const provider = oauthProvider(env, origin);
+  const tokenRes = await provider.fetch(provider.tokenUrl, {
     method: "POST",
     headers: { accept: "application/json", "content-type": "application/json", "user-agent": "llmtobinary" },
-    body: JSON.stringify({ client_id: env.GITHUB_CLIENT_ID, client_secret: env.GITHUB_CLIENT_SECRET, code, redirect_uri: `${origin}/api/auth/github/callback` }),
+    body: JSON.stringify({ client_id: provider.clientId, client_secret: provider.clientSecret, code, redirect_uri: `${origin}/api/auth/github/callback` }),
   });
   const t = (await tokenRes.json()) as { access_token?: string };
   if (!t.access_token) throw new HttpError(401, "GitHub did not complete the sign-in");
-  const userRes = await fetch("https://api.github.com/user", { headers: { authorization: `Bearer ${t.access_token}`, accept: "application/vnd.github+json", "user-agent": "llmtobinary" } });
+  const userRes = await provider.fetch(provider.userUrl, { headers: { authorization: `Bearer ${t.access_token}`, accept: "application/vnd.github+json", "user-agent": "llmtobinary" } });
   if (!userRes.ok) throw new HttpError(401, "GitHub did not return a profile");
   const u = (await userRes.json()) as GitHubProfile;
   return { id: u.id, login: u.login, name: u.name ?? null, avatar_url: u.avatar_url ?? null, created_at: u.created_at };

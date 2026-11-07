@@ -3,6 +3,7 @@ import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import schema from "../migrations/0001_community.sql?raw";
 import worker from "./index.ts";
 import { MEMBER_DAILY_MICRO_USD, NEW_ACCOUNT_DAILY_MICRO_USD, avatarUrlAllowed, dailyQuotaMicroUsd, fakeOAuthEnabled, finishSignIn, reserveMemberSpend } from "./accounts.ts";
+import { EMULATED_PROFILE, EMULATOR_AUTHORIZE_PATH, EMULATOR_CLIENT_ID, EMULATOR_TOKEN_URL, EMULATOR_USER_URL, emulatorEnabled, emulatorFetch } from "./github-emulator.ts";
 import type { GitHubProfile, Member } from "./accounts.ts";
 
 const env = rawEnv as unknown as Env;
@@ -138,5 +139,95 @@ describe("quota", () => {
     expect(results.filter(Boolean).length).toBe(3);
     const row = await env.COMMUNITY_DB!.prepare("SELECT micro_usd FROM member_spend WHERE user_id = 20").first<{ micro_usd: number }>();
     expect(row!.micro_usd).toBe(900_000);
+  });
+});
+
+describe("GitHub emulator", () => {
+  const PASSCODE = "p".repeat(40);
+  const emu = { ...env, CANONICAL_HOST: undefined, GITHUB_CLIENT_ID: undefined, GITHUB_CLIENT_SECRET: undefined, TEST_FAKE_OAUTH: "0", GITHUB_EMULATOR_PASSCODE: PASSCODE } as Env;
+  const authorize = EMULATOR_AUTHORIZE_PATH;
+
+  async function begin(e: Env = emu): Promise<{ state: string; cookie: string; location: URL }> {
+    const res = await call("/api/auth/github", {}, e);
+    expect(res.status).toBe(302);
+    const location = new URL(res.headers.get("location")!);
+    return { state: location.searchParams.get("state")!, cookie: res.headers.get("set-cookie")!.split(";")[0]!, location };
+  }
+  const approve = (state: string, passcode: string, e: Env = emu, origin = ORIGIN) => {
+    const form = new URLSearchParams({ state, passcode });
+    return call(authorize, { method: "POST", body: form, headers: { origin, "content-type": "application/x-www-form-urlencoded" } }, e);
+  };
+  async function signInEmulated(): Promise<string> {
+    const { state, cookie } = await begin();
+    const res = await approve(state, PASSCODE);
+    expect(res.status).toBe(302);
+    const done = await call(new URL(res.headers.get("location")!).pathname + new URL(res.headers.get("location")!).search, { headers: { cookie } }, emu);
+    expect(done.status).toBe(302);
+    return done.headers.getSetCookie().find((c) => c.startsWith("__Host-lb_session=") && !c.includes("Max-Age=0"))!.split(";")[0]!;
+  }
+
+  it("is off without a long passcode, outside known environments, and once a real client exists", () => {
+    expect(emulatorEnabled({ ENVIRONMENT: "staging", GITHUB_EMULATOR_PASSCODE: PASSCODE })).toBe(true);
+    expect(emulatorEnabled({ ENVIRONMENT: "production", GITHUB_EMULATOR_PASSCODE: PASSCODE })).toBe(true);
+    expect(emulatorEnabled({ ENVIRONMENT: "production" })).toBe(false);
+    expect(emulatorEnabled({ ENVIRONMENT: "production", GITHUB_EMULATOR_PASSCODE: "short" })).toBe(false);
+    expect(emulatorEnabled({ ENVIRONMENT: "research", GITHUB_EMULATOR_PASSCODE: PASSCODE })).toBe(false);
+    expect(emulatorEnabled({ ENVIRONMENT: "production", GITHUB_EMULATOR_PASSCODE: PASSCODE, GITHUB_CLIENT_ID: "real" })).toBe(false);
+  });
+  it("runs the whole code flow and signs in the one fixed account", async () => {
+    const { location } = await begin();
+    expect(location.pathname).toBe(authorize);
+    expect(location.searchParams.get("redirect_uri")).toBe(`${ORIGIN}/api/auth/github/callback`);
+    const page = await call(location.pathname + location.search, {}, emu);
+    expect(page.status).toBe(200);
+    expect(await page.text()).toContain("This is not GitHub");
+    const cookie = await signInEmulated();
+    const me = (await (await call("/api/me", { headers: { cookie } }, emu)).json()) as { member: Member };
+    expect(me.member).toMatchObject({ id: EMULATED_PROFILE.id, login: EMULATED_PROFILE.login, role: "member" });
+    expect(EMULATED_PROFILE.id).toBeLessThan(0);
+  });
+  it("refuses a wrong passcode, a cross-origin post and a bad state", async () => {
+    const { state } = await begin();
+    expect((await approve(state, "x".repeat(40))).status).toBe(401);
+    expect((await approve(state, PASSCODE, emu, "https://evil.example")).status).toBe(403);
+    expect((await approve("<script>", PASSCODE)).status).toBe(400);
+  });
+  it("refuses a form request for another callback or client", async () => {
+    const { location } = await begin();
+    for (const [k, v] of [["redirect_uri", "https://evil.example/cb"], ["client_id", "other"], ["state", "<script>"]] as const) {
+      const u = new URL(location);
+      u.searchParams.set(k, v);
+      expect((await call(u.pathname + u.search, {}, emu)).status).toBe(400);
+    }
+  });
+  it("refuses tampered, expired and forged codes and tokens", async () => {
+    const f = emulatorFetch(emu);
+    const exchange = (code: string, redirect_uri = `${ORIGIN}/api/auth/github/callback`) => f(EMULATOR_TOKEN_URL, { method: "POST", body: JSON.stringify({ client_id: EMULATOR_CLIENT_ID, code, redirect_uri }) }).then((r) => r.json() as Promise<{ access_token?: string }>);
+    const { state } = await begin();
+    const code = new URL((await approve(state, PASSCODE)).headers.get("location")!).searchParams.get("code")!;
+    expect((await exchange(code)).access_token).toBeTruthy();
+    expect((await exchange(`${code.slice(0, -1)}${code.endsWith("0") ? "1" : "0"}`)).access_token).toBeUndefined();
+    expect((await exchange(code, "https://evil.example/cb")).access_token).toBeUndefined();
+    expect((await exchange(`1.${"0".repeat(64)}`)).access_token).toBeUndefined();
+    const other = emulatorFetch({ ...emu, GITHUB_EMULATOR_PASSCODE: "q".repeat(40) });
+    expect(((await (await other(EMULATOR_TOKEN_URL, { method: "POST", body: JSON.stringify({ client_id: EMULATOR_CLIENT_ID, code, redirect_uri: `${ORIGIN}/api/auth/github/callback` }) })).json()) as { access_token?: string }).access_token).toBeUndefined();
+    expect((await f(EMULATOR_USER_URL, { headers: { authorization: "Bearer nope" } })).status).toBe(401);
+  });
+  it("checks the sign-in state cookie exactly as it does for GitHub", async () => {
+    const { state } = await begin();
+    const target = new URL((await approve(state, PASSCODE)).headers.get("location")!);
+    expect((await call(target.pathname + target.search, { headers: { cookie: "__Host-lb_oauth=wrong" } }, emu)).status).toBe(400);
+  });
+  it("has no public token or profile route, and nothing when switched off", async () => {
+    expect((await call("/login/oauth/access_token", { method: "POST" }, emu)).status).not.toBe(200);
+    expect((await call("/api/auth/emulator/access_token", { method: "POST" }, emu)).status).toBe(404);
+    expect((await call("/api/auth/emulator/user", {}, emu)).status).toBe(404);
+    const off = { ...emu, GITHUB_EMULATOR_PASSCODE: undefined } as Env;
+    expect((await call(`${authorize}?state=${"0".repeat(64)}`, {}, off)).status).toBe(404);
+    expect((await approve("0".repeat(64), PASSCODE, off)).status).toBe(404);
+  });
+  it("shows the public no sign-in button and does not enforce sign-in", async () => {
+    const config = (await (await call("/api/config", {}, { ...emu, GENERATION_REQUIRES_SIGN_IN: "true" } as Env)).json()) as { accounts: boolean; accountsEmulated: boolean; signInRequired: boolean };
+    expect(config).toMatchObject({ accounts: false, accountsEmulated: true, signInRequired: false });
   });
 });

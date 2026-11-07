@@ -49,6 +49,8 @@ interface Env {
   VERIFIER_TOKEN?: string;
   GITHUB_CLIENT_ID?: string;
   GITHUB_CLIENT_SECRET?: string;
+  /** Owner-only stand-in for GitHub sign-in. Ignored once GITHUB_CLIENT_ID is set. */
+  GITHUB_EMULATOR_PASSCODE?: string;
   // test-only (never set for deployed environments)
   TEST_FAKE_MODEL?: string;
   TEST_FAKE_SCRIPT?: string;
