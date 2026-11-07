@@ -139,8 +139,8 @@ export async function publishBuild(env: Env, m: Member | null, b: BuildRequest, 
 }
 
 export async function listBuilds(env: Env): Promise<unknown[]> {
-  const r = await env.COMMUNITY_DB!.prepare("SELECT b.id, b.name, b.image_id, b.parent, b.created_at, u.login AS author FROM builds b LEFT JOIN users u ON u.id = b.author_id ORDER BY b.created_at DESC LIMIT 100").all();
-  return r.results;
+  const r = await env.COMMUNITY_DB!.prepare("SELECT b.id, b.name, b.image_id, b.parent, b.created_at, b.lock, u.login AS author FROM builds b LEFT JOIN users u ON u.id = b.author_id ORDER BY b.created_at DESC LIMIT 100").all<{ lock: string }>();
+  return r.results.map(({ lock, ...b }) => ({ ...b, lock_slots: (JSON.parse(lock) as LockFile).slots }));
 }
 
 export { classify };

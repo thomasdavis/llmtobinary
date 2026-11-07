@@ -246,7 +246,7 @@ function Board() {
   const [slots, setSlots] = useState<SlotView[] | null>(null);
   const [error, setError] = useState(false);
   const load = async () => {
-    const res = await fetch("/api/slots");
+    const res = await fetch("/api/slots", { cache: "no-store" });
     if (!res.ok) {
       setError(true);
       return;
@@ -303,12 +303,12 @@ function Compose() {
 
   useEffect(() => {
     void (async () => {
-      const res = await fetch("/api/slots");
+      const res = await fetch("/api/slots", { cache: "no-store" });
       if (!res.ok) return setNote("The OS board is not available yet.");
       const { slots } = (await res.json()) as { slots: (SlotView & { winner: { object_id: string } | null })[] };
       const out: Pick[] = [];
       for (const s of slots) {
-        const d = (await (await fetch(`/api/slots/${s.id}`)).json()) as { slot: SlotDetail; candidates: Pick["candidates"] };
+        const d = (await (await fetch(`/api/slots/${s.id}`, { cache: "no-store" })).json()) as { slot: SlotDetail; candidates: Pick["candidates"] };
         out.push({ slot: d.slot, candidates: d.candidates, chosen: s.winner?.object_id ?? d.candidates[0]?.object_id ?? "" });
       }
       setPicks(out);

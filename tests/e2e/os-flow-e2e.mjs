@@ -4,6 +4,7 @@
 //
 //   node tests/e2e/os-flow-e2e.mjs <url>
 import { chromium } from "playwright-core";
+import { execSync } from "node:child_process";
 import { existsSync, readdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
@@ -40,10 +41,20 @@ await page.waitForTimeout(1500);
 const after = await (await page.request.get(`${url}/api/slots/str`)).json();
 check(after.candidates.length === before.candidates.length + 1, "the new candidate appears on the slot");
 
+// The verifier judges the candidate. In production this is the running service.
+const added = after.candidates.find((c) => !before.candidates.some((b) => b.object_id === c.object_id));
+if (process.env.VERIFIER_COMMAND) {
+  execSync(process.env.VERIFIER_COMMAND, { stdio: "ignore", timeout: 120000 });
+  await page.waitForTimeout(1000);
+  const judged = (await (await page.request.get(`${url}/api/slots`)).json()).slots.find((s) => s.id === "str");
+  check(judged.winner.object_id === added.object_id && judged.winner.evidence_class === "E3", "the verifier passed it, and the rule made it the slot's default");
+}
+
 // Compose and publish from the winners.
 await page.goto(`${url}/compose`);
 await page.getByRole("heading", { name: "Compose a build" }).waitFor();
 await page.getByRole("button", { name: "Link" }).waitFor();
+if (process.env.VERIFIER_COMMAND) check((await page.getByLabel(/^str /).first().inputValue()) === added.object_id, "Compose selects the member's candidate");
 await page.getByRole("button", { name: "Link" }).click();
 await page.getByText(/^Linked: /).waitFor({ timeout: 20000 });
 check(true, "the browser linked the selected packages");
@@ -61,6 +72,10 @@ await term.click();
 await page.keyboard.type("ls\n");
 await page.getByText(/hello\s+crash\s+spin/).waitFor({ timeout: 15000 });
 check(true, "the forked build boots and lists the disk");
+if (process.env.VERIFIER_COMMAND) {
+  const builds = (await (await page.request.get(`${url}/api/builds`)).json()).builds;
+  check(builds[0].lock_slots?.str === added.object_id, "the booted build contains the member's candidate");
+}
 await page.keyboard.type("run hello\n");
 await page.getByText("hello from disk").waitFor({ timeout: 15000 });
 await page.keyboard.type("run crash\n");
