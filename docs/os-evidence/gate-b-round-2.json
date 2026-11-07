@@ -1,0 +1,41 @@
+{
+  "kind": "gate-b-result/1",
+  "round": 2,
+  "passed": 18,
+  "pairs": 20,
+  "stages": {
+    "pass": 18,
+    "generation-failed": 2
+  },
+  "byInterface": {
+    "fmt": {
+      "passed": 5,
+      "pairs": 5
+    },
+    "gcd": {
+      "passed": 4,
+      "pairs": 5
+    },
+    "sort": {
+      "passed": 5,
+      "pairs": 5
+    },
+    "stack": {
+      "passed": 4,
+      "pairs": 5
+    }
+  },
+  "hungCalls": 26,
+  "failures": [
+    {
+      "interface": "stack",
+      "index": 2,
+      "detail": "lib: infrastructure-error lane_failed: codex exited 1: ; app: ok"
+    },
+    {
+      "interface": "gcd",
+      "index": 3,
+      "detail": "lib: ok; app: infrastructure-error lane_hung: no reply after 4 calls"
+    }
+  ]
+}
