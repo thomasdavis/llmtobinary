@@ -1,0 +1,8 @@
+{
+  "id": "A8.5",
+  "result": "pass",
+  "command": "node scripts/live-library.mjs https://llmtobinary.com docs/os-evidence/gate-d/live-production.jsonl && node tests/e2e/live-real-e2e.mjs https://llmtobinary.com \"print the greatest common divisor of 1071 and 462, then a newline\"",
+  "commit": "c2028e0d0c46aa732ba3af2ef6ead0375999f93a",
+  "note": "Production version db101623, gpt-6-luna. lcm3 reused math.gcd and fnv reused fmt.dec + hash.fnv1a, both correct on 6 oracle cases; control did not import. gen in the OS reused math.gcd (E4), printed 21. Object sha256:fdcc63fe…",
+  "recordedAt": "2026-11-07T10:25:28.556Z"
+}
