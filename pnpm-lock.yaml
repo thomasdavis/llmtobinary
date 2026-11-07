@@ -639,6 +639,9 @@ importers:
       '@llmtobinary/research':
         specifier: workspace:*
         version: link:../../packages/research
+      '@llmtobinary/runtime':
+        specifier: workspace:*
+        version: link:../../packages/runtime
       '@llmtobinary/spec':
         specifier: workspace:*
         version: link:../../packages/spec
