@@ -14,7 +14,7 @@ import { parseModule } from "@llmtobinary/module";
 import type { BrowserFeedback, LoopEvent } from "@llmtobinary/protocol";
 import { CODEX_LANE, CodexModelClient } from "./codex-client.ts";
 import { privateSeed, reportForModel } from "./os-tests.ts";
-import { bytesOf, closure, importsOf, judge, setBuildDir, built, lockPath, type Built } from "./os-lib.ts";
+import { LIBRARY_SLOTS, bytesOf, closure, importsOf, judge, setBuildDir, built, lockPath, type Built } from "./os-lib.ts";
 import { SLOTS, type Slot } from "../../../os/slots.ts";
 
 const arg = (name: string, fallback?: string): string => {
@@ -92,7 +92,8 @@ async function session(s: Slot, seed: bigint): Promise<{ bytes: Uint8Array | nul
 
 const seed = privateSeed();
 const log = (s: unknown) => console.log(new Date().toISOString().slice(11, 19), s);
-for (const s of SLOTS) {
+const targets = process.argv.includes("--library") ? LIBRARY_SLOTS : SLOTS;
+for (const s of targets) {
   if (only && s.id !== only) continue;
   if (built(s.id)) continue;
   if (closure(s).some((d) => d !== s && !built(d.id))) {

@@ -7,6 +7,7 @@ import { validateBytes } from "@llmtobinary/validate";
 import { OsMachine } from "@llmtobinary/os";
 import { ALL, buildDisk, runKernelTests, runLibraryTests, runProcTests, type Failure, type Image } from "./os-tests.ts";
 import { SLOTS, type ExportSpec, type Slot } from "../../../os/slots.ts";
+import { LIBRARY, librarySlot } from "../../../os/library.ts";
 
 let dir = "";
 export const setBuildDir = (d: string): void => void (dir = d);
@@ -30,7 +31,8 @@ export const lockPath = (id: string) => `${dir}/${id}.json`;
 export const built = (id: string): Built | null => (existsSync(lockPath(id)) ? (JSON.parse(readFileSync(lockPath(id), "utf8")) as Built) : null);
 export const bytesOf = (hex: string): Uint8Array => Uint8Array.from(hex.match(/../g) ?? [], (x) => parseInt(x, 16));
 
-export const bySlot = new Map(SLOTS.map((s) => [s.id, s]));
+export const LIBRARY_SLOTS: Slot[] = LIBRARY.map(librarySlot);
+export const bySlot = new Map([...SLOTS, ...LIBRARY_SLOTS].map((s) => [s.id, s]));
 export function closure(s: Slot): Slot[] {
   const out: Slot[] = [];
   const walk = (x: Slot) => {

@@ -9,6 +9,7 @@ import type { Heap } from "@llmtobinary/devices";
 import type { RuntimeValue } from "@llmtobinary/protocol";
 import type { Module } from "@llmtobinary/validate";
 import { VISIBLE, type Arg, type OsCall } from "../../../os/slots.ts";
+import { LIBRARY } from "../../../os/library.ts";
 
 export const DISK_SECTORS = 129;
 export const ALL = Feature.HEAP | Feature.TERMINAL | Feature2.TEXT | Feature2.BLOCK | Feature2.TASKS;
@@ -205,12 +206,22 @@ function fsScenario(img: Image, seed: bigint, holdout: boolean, out: Failure[]):
   checkCall(img, { symbol: "fs.write", args: [enc.encode("seventeen-letters"), 0n, 17n, mailbox(), 1n], want: 0n }, holdout, out, disk);
 }
 
+function libraryCalls(slot: string, seed: bigint | null): OsCall[] {
+  const lib = LIBRARY.find((l) => l.id === slot);
+  if (!lib) return [];
+  const call = (symbol: string, c: { args: Arg[]; want: bigint | null; buffer?: { index: number; bytes: Uint8Array } }): OsCall => ({ symbol, args: c.args, ...(c.want !== null ? { want: c.want } : {}), ...(c.buffer ? { buffers: { [c.buffer.index]: c.buffer.bytes } } : {}) });
+  if (seed === null) return lib.functions.flatMap((f) => f.examples.map((e) => call(f.symbol, e)));
+  const r = rng(seed ^ 0x11bn);
+  return lib.functions.flatMap((f) => Array.from({ length: 30 }, () => call(f.symbol, f.random(r.next, r.int))));
+}
+
 export function runLibraryTests(slot: string, img: Image, seed: bigint | null): Failure[] {
   const out: Failure[] = [];
+  for (const c of libraryCalls(slot, null)) checkCall(img, c, false, out);
   for (const c of VISIBLE[slot] ?? []) checkCall(img, c, false, out);
   if (slot === "fs") fsScenario(img, 1n, false, out);
   if (seed === null || out.length) return out;
-  const hold = slot === "str" ? strHoldouts(seed) : slot === "fmt" ? fmtHoldouts(seed) : slot === "line" ? lineHoldouts(seed) : [];
+  const hold = slot === "str" ? strHoldouts(seed) : slot === "fmt" ? fmtHoldouts(seed) : slot === "line" ? lineHoldouts(seed) : libraryCalls(slot, seed);
   for (const c of hold) checkCall(img, c, true, out);
   if (slot === "fs") fsScenario(img, seed, true, out);
   return out;
