@@ -1,0 +1,8 @@
+{
+  "id": "A2.7",
+  "result": "pass",
+  "command": "tools/research-cli/src/gate-b.ts --round 2; docs/os-evidence/gate-b-round-2.json",
+  "commit": "1bad2235e4e59cdf99e6bdb84f315dee72bf1abf",
+  "note": "18 of 20. 0 link failures, 0 wrong results; both failures were lane faults. Same model on both sides, as only one lane qualified. Round 1 aborted for the lane fault.",
+  "recordedAt": "2026-11-07T02:59:33.805Z"
+}

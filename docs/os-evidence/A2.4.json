@@ -2,7 +2,7 @@
   "id": "A2.4",
   "result": "pass",
   "command": "node tools/research-cli/src/gate-b-engines.ts round-2.jsonl",
-  "commit": "6f26ac13ee84821ff439e8d3189c6bed8738ef1a",
-  "note": "63 runs of model-written linked programs on the reference and finite engines, 0 mismatches, 9 pairs at the time of the run.",
-  "recordedAt": "2026-11-07T02:38:46.596Z"
+  "commit": "1bad2235e4e59cdf99e6bdb84f315dee72bf1abf",
+  "note": "126 runs of model-written linked programs on the reference and finite engines, 0 mismatches, 18 pairs.",
+  "recordedAt": "2026-11-07T02:59:33.889Z"
 }
