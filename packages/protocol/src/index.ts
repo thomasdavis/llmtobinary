@@ -175,6 +175,8 @@ export interface LoopCounters {
   startedAt: number;
   /** Playtest reviews run so far. */
   reviews?: number;
+  /** search_library and use_library calls so far. */
+  libraryCalls?: number;
 }
 
 export interface TaskRequest {
@@ -194,6 +196,8 @@ export interface TaskRequest {
   registers?: number;
   /** The candidate is an ANMA-2 module, whose imports the checker stands in for. */
   module?: boolean;
+  /** The model may search the library and import from it. Set by the server only. */
+  library?: boolean;
   /** The OS slot this generation is for. Set by the server from the slot, never by a client. */
   slot?: string;
 }
@@ -285,6 +289,17 @@ export interface Candidate {
   rawText: string;
   sha256: string | null;
   byteLength: number | null;
+  /** Set when the model imported from the library. `rawText` then holds the linked image. */
+  link?: CandidateLink;
+}
+
+/** What the model reused. Every record in a linked image was written by a model. */
+export interface CandidateLink {
+  /** The model's own submission, exactly as written, before linking. */
+  moduleText: string;
+  packages: { slot: string; objectId: string; evidence: string; symbols: string[] }[];
+  /** Imports the program really calls. */
+  uses: string[];
 }
 
 interface EventBase {
@@ -301,6 +316,9 @@ export type LoopEvent =
   | (EventBase & { type: "model.tool_args.delta"; tool: "check_candidate" | "submit_candidate"; delta: string })
   | (EventBase & { type: "check.requested"; candidate: Candidate })
   | (EventBase & { type: "check.result"; candidateSeq: number; report: CheckReport })
+  | (EventBase & { type: "library.searched"; query: string; results: number })
+  | (EventBase & { type: "library.selected"; symbols: string[] })
+  | (EventBase & { type: "library.linked"; packages: CandidateLink["packages"]; uses: string[]; byteLength: number })
   | (EventBase & { type: "candidate.submitted"; candidate: Candidate; envelopeText: string })
   | (EventBase & { type: "loop.budget"; counters: LoopCounters; budget: LoopBudget })
   | (EventBase & { type: "loop.elided"; elidedChecks: number; elidedDrafts?: number })
@@ -517,6 +535,9 @@ export interface GalleryEntry extends GallerySummary {
   promptVersion: string;
   returnedModels: string[];
   stopDetail: string | null;
+  /** Library packages linked into this program. */
+  links?: CandidateLink["packages"];
+  uses?: string[];
 }
 
 export interface GalleryPage {

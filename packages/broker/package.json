@@ -16,8 +16,13 @@
     "@llmtobinary/annotations": "workspace:*",
     "@llmtobinary/protocol": "workspace:*",
     "@llmtobinary/check": "workspace:*",
+    "@llmtobinary/module": "workspace:*",
     "@llmtobinary/tasks": "workspace:*",
     "openai": "7.25.0",
     "@llmtobinary/anmr": "workspace:*"
+  },
+  "devDependencies": {
+    "@llmtobinary/link": "workspace:*",
+    "@llmtobinary/validate": "workspace:*"
   }
 }

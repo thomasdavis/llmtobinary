@@ -72,6 +72,16 @@ function timeline(g: GenState): Item[] {
         );
         break;
       }
+      case "library.searched": {
+        const ev = e as Extract<LoopEvent, { type: "library.searched" }>;
+        items.push({ key: `q${e.seq}`, tone: "info", title: `The AI searched the library for "${ev.query}"` });
+        break;
+      }
+      case "library.linked": {
+        const ev = e as Extract<LoopEvent, { type: "library.linked" }>;
+        items.push({ key: `k${e.seq}`, tone: "ok", title: ev.uses.length ? `The AI reused ${ev.uses.join(", ")} from the library` : "The server linked the AI's program" });
+        break;
+      }
       case "candidate.submitted": {
         const ev = e as Extract<LoopEvent, { type: "candidate.submitted" }>;
         items.push({ key: `s${e.seq}`, tone: "info", title: `The AI submitted its program (${(ev.candidate.byteLength ?? 0).toLocaleString()} bytes)` });

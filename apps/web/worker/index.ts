@@ -3,7 +3,7 @@
 
 import { CATALOG_VERSION } from "@llmtobinary/diagnostics";
 import { SPEC_ID, SPEC_SHA256, KNOWN_FEATURES } from "@llmtobinary/spec";
-import { DEFAULT_BUDGET, MAX_DEBUG_BROWSER_BYTES, PRICE_POLICY_VERSION, PROMPT_VERSION, TOOLS, generationInstructions, profileFromEnv } from "@llmtobinary/broker";
+import { DEFAULT_BUDGET, LIBRARY_TOOLS, MAX_DEBUG_BROWSER_BYTES, PRICE_POLICY_VERSION, PROMPT_VERSION, TOOLS, generationInstructions, libraryGuide, profileFromEnv } from "@llmtobinary/broker";
 import { TASK_BY_ID } from "@llmtobinary/tasks/registry";
 import { PROTOCOL_VERSION, type ConfigResponse, type CreateSessionRequest, type CreateSessionResponse, type AttemptRequest, type GalleryEntry } from "@llmtobinary/protocol";
 import { signToken, verifyToken } from "./auth.ts";
@@ -12,10 +12,11 @@ import type { CreatePayload } from "./session.ts";
 import { programPage, sitemap } from "./seo.ts";
 import { getGalleryEntry, hideGalleryEntry, isGalleryId, listGallery, rebuildFromArchives } from "./gallery.ts";
 import { addComment, addReport, listComments, setStar } from "./community/social.ts";
-import { getObject, getPackage, listPackages, loadAttestations, parseObjectId, pendingJobs, publishGeneration, registryConfigured, submitAttestation, takeDown } from "./community/registry.ts";
+import { getObject, getPackage, listPackages, packageLinks, loadAttestations, parseObjectId, pendingJobs, publishGeneration, registryConfigured, submitAttestation, takeDown } from "./community/registry.ts";
 import type { Envelope, EvidenceClass } from "@llmtobinary/registry";
 import { contributions, getSlot, listBuilds, listSlots, pendingCounterexamples, settleCounterexample, slotCandidates, proposeCounterexample, proposeTest, publishBuild, reviewTest, type BuildRequest } from "./community/board.ts";
 import { emulatorApprove, emulatorEnabled, emulatorForm, EMULATOR_AUTHORIZE_PATH } from "./github-emulator.ts";
+import { libraryGenerationEnabled } from "./community/library.ts";
 import { accountsConfigured, avatar, beginSignIn, currentMember, deleteAccount, fakeOAuthEnabled, fakeSignIn, finishSignIn, quotaRemaining, requireMember, reserveMemberSpend, revokeAllSessions, signOut } from "./accounts.ts";
 
 export { GenerationSession } from "./session.ts";
@@ -101,7 +102,7 @@ function validateCreate(body: unknown, env: Env): CreateSessionRequest {
   if (typeof t.requireClaims !== "boolean") throw new HttpError(400, "requireClaims must be a boolean");
   if (t.isa !== undefined && t.isa !== "ANMA-1" && t.isa !== "ANMR-1") throw new HttpError(400, "isa must be ANMA-1 or ANMR-1");
   // Set by the server for OS slots only.
-  if (t.module !== undefined || t.slot !== undefined) throw new HttpError(400, "module and slot cannot be set by a client");
+  if (t.module !== undefined || t.slot !== undefined || t.library !== undefined) throw new HttpError(400, "module, slot and library cannot be set by a client");
   if (t.isa === "ANMR-1") {
     const spec = t.taskId ? TASK_BY_ID.get(t.taskId) : null;
     if (!spec?.pressure || b.mode !== "tools" || !Number.isInteger(t.registers) || t.registers! < 4 || t.registers! > 32) {
@@ -200,7 +201,7 @@ async function route(request: Request, env: Env): Promise<Response> {
 
   // The exact system instructions and tool definitions every generation is given.
   if (path === "/api/system-prompt" && request.method === "GET") {
-    return json({ promptVersion: PROMPT_VERSION, instructions: generationInstructions(), tools: TOOLS }, 200, { "cache-control": "public, max-age=300" });
+    return json({ promptVersion: PROMPT_VERSION, instructions: generationInstructions(), tools: TOOLS, ...(libraryGenerationEnabled(env) ? { libraryTools: LIBRARY_TOOLS, libraryGuide: libraryGuide("(the current library is listed here)") } : {}) }, 200, { "cache-control": "public, max-age=300" });
   }
 
   // Operator only (GALLERY_ADMIN_KEY): rebuild the list from the debug archive, or take an entry down.
@@ -279,6 +280,8 @@ async function route(request: Request, env: Env): Promise<Response> {
     const member = signInRequired(env) ? await requireMember(request, env) : await currentMember(request, env);
     const body = await readJson<{ slot?: unknown }>(request, MAX_CREATE_BODY);
     const req = typeof body.slot === "string" ? await slotRequest(env, body.slot) : validateCreate({ ...body, slot: undefined }, env);
+    // Open generations reuse the library by default. Curated tasks stay standalone, so their results stay comparable.
+    if (libraryGenerationEnabled(env) && req.mode === "tools" && req.task.taskId === null && !req.task.slot && req.task.isa !== "ANMR-1") req.task = { ...req.task, library: true, module: true };
     const live = liveStatus(env);
     if (!live.live) throw new HttpError(503, `live generation is unavailable: ${live.reason}`);
     if (member && !(await reserveMemberSpend(env, member, SESSION_ESTIMATE_MICRO_USD, Date.now()))) throw new HttpError(429, "you have used today's generation quota; browsing and running still work");
@@ -400,7 +403,7 @@ async function registryRoute(request: Request, env: Env, url: URL, path: string)
     if (!p) return json({ error: "not found" }, 404);
     const attestations = (await loadAttestations(env, id)).map((a) => ({ predicateType: a.verified?.statement.predicateType ?? null, keyid: a.verified?.keyid ?? null, verified: !!a.verified }));
     const slot = await env.COMMUNITY_DB!.prepare("SELECT s.id, s.kind, s.interface, s.depends FROM slot_candidates c JOIN slots s ON s.id = c.slot_id WHERE c.object_id = ?1").bind(id).first();
-    return json({ package: p, attestations, comments: await listComments(env, id), slot });
+    return json({ package: p, attestations, comments: await listComments(env, id), slot, links: await packageLinks(env, id) });
   }
   if (sub === "/bytes" && request.method === "GET") return getObject(env, id);
   if (sub === "/attestations" && request.method === "POST") {

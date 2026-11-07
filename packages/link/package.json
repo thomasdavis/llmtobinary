@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "exports": { ".": "./src/index.ts" },
+  "exports": { ".": "./src/index.ts", "./library": "./src/library.ts" },
   "scripts": { "typecheck": "tsc --noEmit -p ." },
   "dependencies": {
     "@llmtobinary/spec": "workspace:*",

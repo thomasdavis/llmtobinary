@@ -39,6 +39,8 @@ interface Env {
   CANONICAL_HOST?: string;
   /** "true" requires a GitHub sign-in to generate; ignored until sign-in is configured. */
   GENERATION_REQUIRES_SIGN_IN?: string;
+  /** "true" lets open generations search and import from the library. */
+  LIBRARY_GENERATION?: string;
   // secrets (wrangler secret put / .dev.vars) — never in wrangler.jsonc
   OPENAI_API_KEY?: string;
   SESSION_SIGNING_KEY?: string;

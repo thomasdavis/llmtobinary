@@ -95,6 +95,27 @@ export const TOOLS = [
   },
 ];
 
+export const SEARCH_TOOL = "search_library" as const;
+export const USE_TOOL = "use_library" as const;
+
+/** Offered only in library sessions, so research sessions and curated tasks are unchanged. */
+export const LIBRARY_TOOLS = [
+  {
+    type: "function" as const,
+    name: SEARCH_TOOL,
+    description: "Search the shared library of tested packages by what you need done. Returns matching functions with their signatures, behaviour and the IMPORT records that declare them.",
+    strict: true,
+    parameters: { type: "object", properties: { query: { type: "string", description: "What you need, in plain words" } }, required: ["query"], additionalProperties: false } as Record<string, unknown>,
+  },
+  {
+    type: "function" as const,
+    name: USE_TOOL,
+    description: "Choose what your program imports, replacing any earlier choice. The kth symbol is your kth IMPORT record. An empty list means no imports.",
+    strict: true,
+    parameters: { type: "object", properties: { symbols: { type: "array", items: { type: "string" } } }, required: ["symbols"], additionalProperties: false } as Record<string, unknown>,
+  },
+];
+
 /** ANMR-1 envelope (research control): same shape, no annotations. */
 export const anmrEnvelopeSchema = {
   type: "object",

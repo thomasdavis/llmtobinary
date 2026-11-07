@@ -5,7 +5,7 @@
 
 import OpenAI from "openai";
 import type { FunctionCall, ModelClient, ModelEvent, ModelTurnRequest, ModelUsage, ReviewRequest, ReviewResult } from "./model.ts";
-import { ANMR_TOOLS, REVIEW_TOOL, REVIEW_TOOL_NAME, TOOLS } from "./schema.ts";
+import { ANMR_TOOLS, REVIEW_TOOL, REVIEW_TOOL_NAME, LIBRARY_TOOLS, TOOLS } from "./schema.ts";
 import { RAW_HEX_ADDENDUM } from "./prompts.ts";
 
 export interface OpenAIClientOptions {
@@ -44,7 +44,7 @@ export class OpenAIModelClient implements ModelClient {
       max_output_tokens: req.maxOutputTokens,
       ...(req.profile.reasoningEffort ? { reasoning: { effort: req.profile.reasoningEffort } } : {}),
       ...(tools && req.profile.carryReasoning ? { include: ["reasoning.encrypted_content"] } : {}),
-      ...(tools ? { tools: req.isa === "ANMR-1" ? ANMR_TOOLS : TOOLS, tool_choice: "required" as const, parallel_tool_calls: false } : { tools: [] }),
+      ...(tools ? { tools: req.isa === "ANMR-1" ? ANMR_TOOLS : req.library ? [...TOOLS, ...LIBRARY_TOOLS] : TOOLS, tool_choice: "required" as const, parallel_tool_calls: false } : { tools: [] }),
     };
     let stream: AsyncIterable<Record<string, unknown>>;
     try {

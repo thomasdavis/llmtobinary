@@ -85,6 +85,7 @@ export async function publishGeneration(env: Env, e: GalleryEntry, opts: { backf
   )
     .bind(id, e.label, e.prompt, e.taskId, e.outcome, e.model, e.instructions, bytes.length, e.sessionId, e.id, opts.authorId, opts.backfilled ? LICENCE_NONE : LICENCE_CC0, opts.backfilled ? 1 : 0, valid ? 1 : 0, selfConsistent ? 1 : 0, evidence.class, e.createdAt)
     .run();
+  for (const l of e.links ?? []) await env.COMMUNITY_DB!.prepare("INSERT OR IGNORE INTO package_links (object_id, dep_object_id, slot, symbols, created_at) VALUES (?1, ?2, ?3, ?4, ?5)").bind(id, l.objectId, l.slot, JSON.stringify(l.symbols), opts.now).run();
   if (opts.slot) await env.COMMUNITY_DB!.prepare("INSERT OR IGNORE INTO slot_candidates (slot_id, object_id, created_at) VALUES (?1, ?2, ?3)").bind(opts.slot, id, opts.now).run();
   if (fresh) {
     await logEvent(env, { at: opts.now, kind: "publish", subject: id, detail: { sessionId: e.sessionId, backfilled: opts.backfilled } });
@@ -93,7 +94,7 @@ export async function publishGeneration(env: Env, e: GalleryEntry, opts: { backf
     // Signed only at generation time: a backfilled entry can never claim this attestation.
     if (!opts.backfilled && env.BROKER_SIGNING_KEY) {
       const key2 = await importSigningKey(env.BROKER_KEY_ID ?? "broker-1", env.BROKER_SIGNING_KEY);
-      const env2 = await signStatement(statement(id, "provenance", { sessionId: e.sessionId, model: e.model, returnedModels: e.returnedModels, promptVersion: e.promptVersion, mode: e.mode, at: opts.now }), key2);
+      const env2 = await signStatement(statement(id, "provenance", { sessionId: e.sessionId, model: e.model, returnedModels: e.returnedModels, promptVersion: e.promptVersion, mode: e.mode, at: opts.now, ...(e.links?.length ? { links: e.links.map((l) => l.objectId) } : {}) }), key2);
       await storeAttestation(env, id, env2);
     }
   }
@@ -187,6 +188,20 @@ export async function listPackages(env: Env, f: PackageQuery): Promise<{ items: 
 
 export async function getPackage(env: Env, id: ObjectId): Promise<PackageRow | null> {
   return env.COMMUNITY_DB!.prepare(`${PACKAGE_SELECT} WHERE p.object_id = ?1`).bind(id).first<PackageRow>();
+}
+
+/**
+ * What a program was built from, and how many programs reuse this package. A linked image keeps the
+ * bytes it was built with, so a package withdrawn later is shown here rather than hidden.
+ */
+export async function packageLinks(env: Env, id: ObjectId): Promise<{ uses: { objectId: string; slot: string; symbols: string[]; evidence: string; withdrawn: boolean }[]; usedBy: number }> {
+  const db = env.COMMUNITY_DB!;
+  const rows = await db.prepare("SELECT l.dep_object_id, l.slot, l.symbols, p.evidence_class, p.retracted, p.taken_down, c.verified FROM package_links l LEFT JOIN packages p ON p.object_id = l.dep_object_id LEFT JOIN slot_candidates c ON c.object_id = l.dep_object_id AND c.slot_id = l.slot WHERE l.object_id = ?1 ORDER BY l.slot").bind(id).all<{ dep_object_id: string; slot: string; symbols: string; evidence_class: string | null; retracted: number | null; taken_down: number | null; verified: number | null }>();
+  const count = await db.prepare("SELECT COUNT(*) AS n FROM package_links WHERE dep_object_id = ?1").bind(id).first<{ n: number }>();
+  return {
+    uses: rows.results.map((r) => ({ objectId: r.dep_object_id, slot: r.slot, symbols: JSON.parse(r.symbols) as string[], evidence: r.evidence_class ?? "unknown", withdrawn: !!r.retracted || !!r.taken_down || r.verified === 0 })),
+    usedBy: count?.n ?? 0,
+  };
 }
 
 export async function getObject(env: Env, id: ObjectId): Promise<Response> {

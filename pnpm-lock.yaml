@@ -341,6 +341,9 @@ importers:
       '@llmtobinary/diagnostics':
         specifier: workspace:*
         version: link:../diagnostics
+      '@llmtobinary/module':
+        specifier: workspace:*
+        version: link:../module
       '@llmtobinary/protocol':
         specifier: workspace:*
         version: link:../protocol
@@ -353,6 +356,13 @@ importers:
       openai:
         specifier: 7.25.0
         version: 7.25.0(undici@7.29.1)(ws@8.21.0)(zod@4.4.3)
+    devDependencies:
+      '@llmtobinary/link':
+        specifier: workspace:*
+        version: link:../link
+      '@llmtobinary/validate':
+        specifier: workspace:*
+        version: link:../validate
 
   packages/check:
     dependencies:

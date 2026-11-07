@@ -72,6 +72,7 @@
       "version_metadata": { "binding": "CF_VERSION_METADATA" },
       "vars": {
         "ENVIRONMENT": "staging",
+        "LIBRARY_GENERATION": "true",
         "TRUSTED_KEYS": "[{\"keyid\": \"broker-staging-1\", \"publicKeyHex\": \"282a01ba7a348534aaae3f8dbcd4ed3eb33fc7f547076851de9e4c7ab9c97e8d\", \"role\": \"broker\"}, {\"keyid\": \"verifier-staging-1\", \"publicKeyHex\": \"80835db202cc9114e30ae9de44aed97d18de7ab98c92c2b4e76f47d7fdb27658\", \"role\": \"verifier\"}, {\"keyid\": \"verifier-staging-2\", \"publicKeyHex\": \"56dcf2a4e3b927fce24caf75144b35bf8bcd6565824536a1128cdef381acf312\", \"role\": \"verifier\"}]",
         "BROKER_KEY_ID": "broker-staging-1",
         "LIVE_GENERATION_ENABLED": "true",

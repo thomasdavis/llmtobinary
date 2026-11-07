@@ -8,6 +8,8 @@ import { FakeModelClient, OpenAIModelClient, MAX_DEBUG_BROWSER_BYTES, buildDebug
 import type { AttemptRequest, CreateSessionRequest, LoopBudget, LoopEvent, SessionSummary } from "@llmtobinary/protocol";
 import { buildGalleryEntry, galleryId, putGalleryEntry } from "./gallery.ts";
 import { publishGeneration } from "./community/registry.ts";
+import { libraryAccess, libraryCatalog } from "./community/library.ts";
+import { renderIndex } from "@llmtobinary/link/library";
 
 const enc = new TextEncoder();
 const pad = (n: number) => String(n).padStart(10, "0");
@@ -136,7 +138,11 @@ export class GenerationSession extends DurableObject<Env> {
   private async create(p: CreatePayload): Promise<Response> {
     if (await this.load()) return Response.json({ error: "session exists" }, { status: 409 });
     const now = Date.now();
-    this.state = createSession({ sessionId: p.sessionId, task: p.request.task, mode: p.request.mode, profile: p.profile, budget: p.budget, now, ttlMs: p.ttlMs });
+    // With nothing importable, the session is an ordinary one.
+    const allowed = p.request.task.allowedFeatures & Number(this.env.ALLOWED_FEATURES ?? "15");
+    const catalog = p.request.task.library ? await libraryCatalog(this.env, allowed) : [];
+    const task = catalog.length ? p.request.task : { ...p.request.task, library: false, module: !!p.request.task.slot };
+    this.state = createSession({ sessionId: p.sessionId, task, mode: p.request.mode, profile: p.profile, budget: p.budget, now, ttlMs: p.ttlMs, ...(catalog.length ? { libraryIndex: renderIndex(catalog) } : {}) });
     await this.save();
     await this.ctx.storage.setAlarm(this.state.expiresAt);
     // List it straight away (as in progress), so the program list shows generations as they start.
@@ -159,6 +165,7 @@ export class GenerationSession extends DurableObject<Env> {
     if (this.running) throw new LoopError("an attempt is already running", 409);
     if (s.status !== "active") throw new LoopError(`session is stopped (${s.outcome})`, 409);
     const model = this.model(s);
+    const library = s.task.library ? await libraryAccess(this.env, s.task.allowedFeatures & Number(this.env.ALLOWED_FEATURES ?? "15")) : undefined;
     const ac = new AbortController();
     this.running = ac;
     const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>();
@@ -187,6 +194,7 @@ export class GenerationSession extends DurableObject<Env> {
           newId: () => crypto.randomUUID(),
           // An OS slot's features come from the slot, which only the server sets.
           allowedFeatures: s.task.slot ? s.task.allowedFeatures : Number(this.env.ALLOWED_FEATURES ?? "15"),
+          ...(library ? { library } : {}),
           emit: async (ev) => {
             await this.ctx.storage.put(`e:${pad(ev.seq)}`, ev);
             if (ev.type === "check.result" || ev.type === "candidate.submitted" || ev.type === "loop.stopped") await this.save();

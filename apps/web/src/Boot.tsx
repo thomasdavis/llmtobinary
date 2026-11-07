@@ -41,8 +41,9 @@ async function generateProgram(prompt: string, onNote: (s: string) => void): Pro
     text = lines.pop() ?? "";
     for (const l of lines) {
       if (!l.trim()) continue;
-      const e = JSON.parse(l) as { type?: string; turn?: number; envelopeText?: string };
+      const e = JSON.parse(l) as { type?: string; turn?: number; envelopeText?: string; uses?: string[] };
       if (e.type === "turn.started") onNote(`A model is writing your program (turn ${e.turn}).`);
+      if (e.type === "library.linked" && e.uses?.length) onNote(`Reusing ${e.uses.join(", ")} from the library.`);
       if (e.type === "candidate.submitted" && e.envelopeText) hex = (JSON.parse(e.envelopeText) as { hex: string }).hex.replace(/\s+/g, "");
     }
   }

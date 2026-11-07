@@ -6,6 +6,8 @@ import type { ModelClient, ModelEvent, ModelTurnRequest, ReviewRequest, ReviewRe
 
 export type ScriptedTurn =
   | { kind: "check" | "submit"; envelope: unknown; usage?: { input: number; output: number } }
+  | { kind: "search"; query: string; usage?: { input: number; output: number } }
+  | { kind: "use"; symbols: string[]; usage?: { input: number; output: number } }
   | { kind: "text"; text: string; usage?: { input: number; output: number } }
   | { kind: "refuse"; message?: string }
   | { kind: "incomplete"; reason?: string }
@@ -58,6 +60,14 @@ export class FakeModelClient implements ModelClient {
           refusal: null,
           usage,
         };
+        return;
+      }
+      case "search":
+      case "use": {
+        const args = JSON.stringify(t.kind === "search" ? { query: t.query } : { symbols: t.symbols });
+        const name = t.kind === "search" ? "search_library" : "use_library";
+        const callId = `call_${n}`;
+        yield { type: "completed", responseId: `resp_${n}`, returnedModel: req.profile.model, output: [{ type: "function_call", id: `fc_${n}`, call_id: callId, name, arguments: args, status: "completed" }], functionCalls: [{ name, callId, arguments: args, itemId: `fc_${n}` }], text: "", refusal: null, usage };
         return;
       }
       case "text":

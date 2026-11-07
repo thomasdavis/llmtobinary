@@ -6,6 +6,7 @@ import community from "../../migrations/0001_community.sql?raw";
 import registry from "../../migrations/0002_registry.sql?raw";
 import os from "../../migrations/0003_os.sql?raw";
 import slotEvidence from "../../migrations/0004_slot_evidence.sql?raw";
+import packageLinksSql from "../../migrations/0005_package_links.sql?raw";
 import worker from "../index.ts";
 import { listPackages, publishGeneration, submitAttestation } from "./registry.ts";
 
@@ -24,7 +25,7 @@ let id: ObjectId;
 const passing = { passed: true, taskOwned: true, holdouts: true, outputHash: "abc" };
 
 beforeAll(async () => {
-  for (const sql of [community, registry, os, slotEvidence]) for (const s of sql.replace(/--.*$/gm, "").split(";").map((x: string) => x.trim()).filter(Boolean)) await base.COMMUNITY_DB!.prepare(s).run().catch((e: Error) => { if (!/already exists|duplicate column/.test(e.message)) throw e; });
+  for (const sql of [community, registry, os, slotEvidence, packageLinksSql]) for (const s of sql.replace(/--.*$/gm, "").split(";").map((x: string) => x.trim()).filter(Boolean)) await base.COMMUNITY_DB!.prepare(s).run().catch((e: Error) => { if (!/already exists|duplicate column/.test(e.message)) throw e; });
   pair = await generateKeyPair();
   const trust: TrustedKey[] = [{ keyid: "verifier-1", publicKeyHex: pair.publicKeyHex, role: "verifier" }];
   env = { ...base, TRUSTED_KEYS: JSON.stringify(trust) };

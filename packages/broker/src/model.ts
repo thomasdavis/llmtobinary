@@ -41,6 +41,8 @@ export interface ModelTurnRequest {
   maxOutputTokens: number;
   /** Which ISA's tools to offer (ANMR-1 only for the research control). */
   isa?: "ANMA-1" | "ANMR-1";
+  /** Also offer the library tools. */
+  library?: boolean;
 }
 
 export type ModelEvent =

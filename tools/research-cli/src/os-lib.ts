@@ -3,7 +3,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { createSession, runAttempt } from "@llmtobinary/broker";
-import type { ModelProfile } from "@llmtobinary/broker";
+import type { LibraryAccess, ModelProfile } from "@llmtobinary/broker";
 import { checkCandidate } from "@llmtobinary/check";
 import { parseHex } from "@llmtobinary/decode";
 import { IMPORTS_V2 } from "@llmtobinary/spec";
@@ -113,35 +113,44 @@ export interface Generated {
   hungCalls: number;
   last: string;
   audit: string[];
+  turns: number;
+  libraryCalls: number;
+  /** Imports the final program really calls, read from its bytes. */
+  uses: string[];
+  packages: string[];
+  /** Records the model wrote itself in the final program, excluding anything linked in. */
+  ownRecords: number | null;
 }
 
 /** One session through the real loop. `test` is the only judge, and the harness never edits bytes. */
-export async function generate(s: Pick<Slot, "features">, prompt: string, test: (bytes: Uint8Array) => Failure[], o: { model: string; effort: string; turnTimeoutMs?: number; wallClockMs?: number }): Promise<Generated> {
+export async function generate(s: Pick<Slot, "features">, prompt: string, test: (bytes: Uint8Array) => Failure[], o: { model: string; effort: string; turnTimeoutMs?: number; wallClockMs?: number; signature?: { params: "u64"[]; returns: "u64" }; plain?: boolean; library?: { access: LibraryAccess; index: string } }): Promise<Generated> {
   const budget = o.wallClockMs ? { ...BUDGET, maxWallClockMs: o.wallClockMs } : BUDGET;
   const profile: ModelProfile = { id: CODEX_LANE, label: `${o.model} via codex exec`, model: o.model, reasoningEffort: "medium", carryReasoning: false, inputPerMTok: 0, outputPerMTok: 0, maxContextChars: 400_000 };
   const client = new CodexModelClient(o);
   const events: LoopEvent[] = [];
-  const state = createSession({ sessionId: randomUUID(), task: { taskId: null, description: prompt, params: [], returns: "u64", allowedFeatures: s.features, requireClaims: false, module: true }, mode: "tools", profile, budget, now: Date.now(), ttlMs: 3_600_000 });
+  const state = createSession({ sessionId: randomUUID(), task: { taskId: null, description: prompt, params: o.signature?.params ?? [], returns: o.signature?.returns ?? "u64", allowedFeatures: s.features, requireClaims: false, module: !o.plain, ...(o.library ? { library: true } : {}) }, mode: "tools", profile, budget, now: Date.now(), ttlMs: 3_600_000, ...(o.library ? { libraryIndex: o.library.index } : {}) });
   const abort = new AbortController();
   const timer = setTimeout(() => abort.abort(), budget.maxWallClockMs + 60_000);
   let feedback: BrowserFeedback | null = null;
   let last = "no submission";
   let passed: Uint8Array | null = null;
+  let final: Extract<LoopEvent, { type: "candidate.submitted" }> | null = null;
   try {
     for (let i = 0; i <= budget.maxSubmissions && !passed; i++) {
       const before = events.length;
-      await runAttempt(state, { idempotencyKey: randomUUID(), feedback }, { model: client, ledger: { reserve: async () => ({ ok: true }), reconcile: async () => {} }, emit: async (e) => void events.push(e), now: () => Date.now(), signal: abort.signal, newId: () => randomUUID(), allowedFeatures: s.features });
+      await runAttempt(state, { idempotencyKey: randomUUID(), feedback }, { model: client, ledger: { reserve: async () => ({ ok: true }), reconcile: async () => {} }, emit: async (e) => void events.push(e), now: () => Date.now(), signal: abort.signal, newId: () => randomUUID(), allowedFeatures: s.features, ...(o.library ? { library: o.library.access } : {}) });
       if (state.status !== "active") {
         last = `${state.outcome}: ${state.stopDetail ?? ""}`.slice(0, 300);
         break;
       }
       const sub = events.slice(before).filter((e): e is Extract<LoopEvent, { type: "candidate.submitted" }> => e.type === "candidate.submitted").at(-1);
       if (!sub) break;
-      const c = await checkCandidate({ envelopeText: sub.envelopeText }, { allowedFeatures: s.features, modules: true });
+      const c = await checkCandidate({ envelopeText: sub.envelopeText }, { allowedFeatures: s.features, modules: !o.plain });
       const h = parseHex((JSON.parse(sub.envelopeText) as { hex: string }).hex);
       const failures = h.ok && c.report.ok ? test(h.bytes) : [{ name: "static check", detail: "the file did not pass the static check", holdout: false }];
       if (!failures.length && h.ok) {
         passed = h.bytes;
+        final = sub;
         break;
       }
       last = reportForModel(failures);
@@ -152,7 +161,10 @@ export async function generate(s: Pick<Slot, "features">, prompt: string, test: 
   } finally {
     clearTimeout(timer);
   }
-  return { bytes: passed, sessionId: state.sessionId, submissions: state.counters.submissions, outputTokens: state.counters.outputTokens, hungCalls: client.hungCalls, last, audit: [...new Set(client.audit.flatMap((a) => a.toolItems))] };
+  const link = final?.candidate.link;
+  const own = final ? parseHex((JSON.parse(link?.moduleText ?? final.envelopeText) as { hex: string }).hex) : null;
+  const parsed = own?.ok ? parseModule(own.bytes) : null;
+  return { bytes: passed, sessionId: state.sessionId, submissions: state.counters.submissions, outputTokens: state.counters.outputTokens, hungCalls: client.hungCalls, last, audit: [...new Set(client.audit.flatMap((a) => a.toolItems))], turns: state.counters.turns, libraryCalls: state.counters.libraryCalls ?? 0, uses: link?.uses ?? [], packages: link?.packages.map((p) => p.slot) ?? [], ownRecords: parsed?.ok ? parsed.module.recordCount : null };
 }
 
 export const DEVICES = IMPORTS_V2.filter((i) => i.id >= 7 && i.id !== 16).map((i) => `import ${i.id}: ${i.name}(${i.paramNames.join(", ")}), parameter types ${i.params.map((p) => TYPE[p]).join(", ") || "none"}, returns ${TYPE[i.result]}`).join("\n");

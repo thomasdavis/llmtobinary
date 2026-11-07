@@ -29,6 +29,22 @@ const REPLY_SCHEMA = {
   properties: { tool: { type: "string", enum: ["check_candidate", "submit_candidate"] }, envelope: candidateEnvelopeSchema },
 };
 
+/** Only for library sessions, so every earlier experiment's reply format stays exactly as it ran. */
+const LIBRARY_REPLY_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["tool", "envelope", "query", "symbols"],
+  properties: {
+    tool: { type: "string", enum: ["check_candidate", "submit_candidate", "search_library", "use_library"] },
+    envelope: { anyOf: [{ type: "null" }, candidateEnvelopeSchema] },
+    query: { type: ["string", "null"] },
+    symbols: { anyOf: [{ type: "null" }, { type: "array", items: { type: "string" } }] },
+  },
+};
+
+const LIBRARY_PROTOCOL = `You have no tools in this environment and must not try to run anything. Work out the bytes yourself.
+Reply with one JSON object holding "tool", "envelope", "query" and "symbols". "tool" is check_candidate, submit_candidate, search_library or use_library. For check_candidate or submit_candidate, "envelope" is that tool's argument, and "query" and "symbols" are null. For search_library, "query" is what you are looking for. For use_library, "symbols" is the ordered list of imports. Unused fields are null. Everything the task says about calling these tools applies to this reply.`;
+
 const PROTOCOL = `You have no tools in this environment and must not try to run anything. Work out the bytes yourself.
 Reply with one JSON object: "tool" is check_candidate or submit_candidate, and "envelope" is that tool's argument. Everything the instructions say about calling those two tools applies to this reply.`;
 
@@ -108,8 +124,8 @@ export class CodexModelClient implements ModelClient {
     const dir = mkdtempSync(join(process.env.CODEX_LANE_TMP ?? tmpdir(), "codex-turn-"));
     try {
       const schemaPath = join(dir, "reply.schema.json");
-      writeFileSync(schemaPath, JSON.stringify(REPLY_SCHEMA));
-      const prompt = `${req.instructions}\n\n${PROTOCOL}\n\n${renderTranscript(req.input)}`;
+      writeFileSync(schemaPath, JSON.stringify(req.library ? LIBRARY_REPLY_SCHEMA : REPLY_SCHEMA));
+      const prompt = `${req.instructions}\n\n${req.library ? LIBRARY_PROTOCOL : PROTOCOL}\n\n${renderTranscript(req.input)}`;
       let r: CodexRunResult | null = null;
       for (let attempt = 0; attempt < TURN_ATTEMPTS && !r; attempt++) {
         const watchdog = AbortSignal.any([signal, AbortSignal.timeout(this.opts.turnTimeoutMs ?? TURN_TIMEOUT_MS)]);
@@ -134,14 +150,14 @@ export class CodexModelClient implements ModelClient {
         yield { type: "error", code: "lane_failed", message: `codex exited ${r.code}: ${r.stderr.slice(-300)}`, retryable: false, status: null };
         return;
       }
-      let reply: { tool: string; envelope: unknown };
+      let reply: { tool: string; envelope: unknown; query?: string | null; symbols?: string[] | null };
       try {
         reply = JSON.parse(t.text);
       } catch {
         yield { type: "error", code: "lane_bad_reply", message: "the reply was not JSON", retryable: false, status: null };
         return;
       }
-      const args = JSON.stringify(reply.envelope);
+      const args = JSON.stringify(reply.tool === "search_library" ? { query: reply.query ?? "" } : reply.tool === "use_library" ? { symbols: reply.symbols ?? [] } : reply.envelope);
       const callId = `call_${n}`;
       yield { type: "tool_args.delta", name: reply.tool, delta: args };
       yield {

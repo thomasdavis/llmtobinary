@@ -109,6 +109,7 @@ export function buildGalleryEntry(i: GalleryInput): GalleryEntry | null {
     features: s.task.allowedFeatures,
     signature: `(${s.task.params.join(", ")}) -> ${s.task.returns}`,
     hex: bytes ? Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("") : "",
+    ...(bytes && cand?.link ? { links: cand.link.packages, uses: cand.link.uses } : {}),
     annotations,
     sha256: bytes && cand ? cand.sha256 : null,
     candidateSeq: bytes && cand ? cand.seq : null,

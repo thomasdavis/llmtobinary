@@ -400,7 +400,7 @@ function Compose() {
 
 function PackagePage({ id }: { id: string }) {
   const { member, accounts } = useMember();
-  const [data, setData] = useState<{ package: PackageRow; attestations: Attestation[]; comments: Comment[]; slot: { id: string; kind: string; interface: string; depends: string } | null } | null | "missing">(null);
+  const [data, setData] = useState<{ package: PackageRow; attestations: Attestation[]; comments: Comment[]; links?: { uses: { objectId: string; slot: string; symbols: string[]; evidence: string; withdrawn: boolean }[]; usedBy: number }; slot: { id: string; kind: string; interface: string; depends: string } | null } | null | "missing">(null);
   const [draft, setDraft] = useState("");
   const [note, setNote] = useState<string | null>(null);
 
@@ -471,6 +471,21 @@ function PackagePage({ id }: { id: string }) {
         <button onClick={() => void report()}>Report</button>
       </div>
       {note ? <p role="status">{note}</p> : null}
+      {data.links?.uses.length ? (
+        <>
+          <h2>Built from</h2>
+          <p className="muted">The model chose these packages itself. They are part of this program's bytes.</p>
+          <ul>
+            {data.links.uses.map((u) => (
+              <li key={u.objectId}>
+                <a href={`/package/${u.objectId}`}>{u.slot}</a> ({u.evidence}){u.symbols.length ? `: calls ${u.symbols.join(", ")}` : ", needed by another package"}
+                {u.withdrawn ? <strong> Withdrawn since this program was built.</strong> : null}
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : null}
+      {data.links?.usedBy ? <p className="muted">Reused by {data.links.usedBy} program{data.links.usedBy === 1 ? "" : "s"}.</p> : null}
       {data.slot ? (
         <>
           <h2>Documentation</h2>

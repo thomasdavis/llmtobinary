@@ -4,6 +4,7 @@ import community from "../../migrations/0001_community.sql?raw";
 import registry from "../../migrations/0002_registry.sql?raw";
 import board from "../../migrations/0003_os.sql?raw";
 import slotEvidence from "../../migrations/0004_slot_evidence.sql?raw";
+import packageLinksSql from "../../migrations/0005_package_links.sql?raw";
 import { classForSlot, contributions, defaultCandidate, proposeCounterexample, proposeTest, reviewTest, settleCounterexample } from "./board.ts";
 import type { Member } from "../accounts.ts";
 
@@ -12,7 +13,7 @@ const member = (id: number, role: Member["role"] = "member"): Member => ({ id, l
 const cand = (object_id: string, evidence_class: "E2" | "E3" | "E4", records: number, created_at: number, stars = 0) => ({ object_id, evidence_class, records, created_at, retracted: 0, taken_down: 0, stars, verified: 1 });
 
 beforeAll(async () => {
-  for (const sql of [community, registry, board, slotEvidence]) for (const s of sql.replace(/--.*$/gm, "").split(";").map((x: string) => x.trim()).filter(Boolean)) await env.COMMUNITY_DB!.prepare(s).run().catch((e: Error) => { if (!/already exists|duplicate column/.test(e.message)) throw e; });
+  for (const sql of [community, registry, board, slotEvidence, packageLinksSql]) for (const s of sql.replace(/--.*$/gm, "").split(";").map((x: string) => x.trim()).filter(Boolean)) await env.COMMUNITY_DB!.prepare(s).run().catch((e: Error) => { if (!/already exists|duplicate column/.test(e.message)) throw e; });
 });
 beforeEach(async () => {
   for (const t of ["counterexamples", "test_proposals", "slot_candidates", "packages", "slots", "users"]) await env.COMMUNITY_DB!.prepare(`DELETE FROM ${t}`).run();
