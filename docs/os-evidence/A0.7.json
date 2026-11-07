@@ -1,0 +1,8 @@
+{
+  "id": "A0.7",
+  "result": "pass",
+  "command": "tools/research-cli/src/gate-a.ts; docs/os-evidence/gate-a-result.json",
+  "commit": "3c94c7ac8b55bf8efe8a1cb02016a09b1743ca7d",
+  "note": "All buckets at or above 16 of 20 on one lane, codex-sol. Hyades unavailable.",
+  "recordedAt": "2026-11-07T04:13:56.906Z"
+}
