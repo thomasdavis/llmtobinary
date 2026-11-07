@@ -5,7 +5,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 const url = (process.argv[2] ?? "").replace(/\/$/, "");
 const cache = join(homedir(), ".cache/ms-playwright");
-const executablePath = process.env.CHROMIUM_PATH ?? (existsSync(cache) ? readdirSync(cache).filter((d) => d.startsWith("chromium_headless_shell-")).sort().reverse().map((d) => join(cache, d, "chrome-linux/headless_shell")).find((p) => existsSync(p)) : undefined);
+const executablePath = process.env.CHROMIUM_PATH ?? (existsSync(cache) ? readdirSync(cache).filter((d) => d.startsWith("chromium_headless_shell-")).sort().reverse().flatMap((d) => [join(cache, d, "chrome-linux/headless_shell"), join(cache, d, "chrome-headless-shell-linux64/chrome-headless-shell")]).find((p) => existsSync(p)) : undefined);
 const browser = process.env.BROWSER === "firefox" ? await firefox.launch() : await chromium.launch({ executablePath });
 let failed = 0;
 const check = (ok, name) => { console.log(`${ok ? "✓" : "✗"} ${name}`); if (!ok) failed++; };

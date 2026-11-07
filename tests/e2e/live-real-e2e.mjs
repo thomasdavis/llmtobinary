@@ -7,7 +7,7 @@ import { join } from "node:path";
 const [urlArg, prompt] = process.argv.slice(2);
 const url = urlArg.replace(/\/$/, "");
 const cache = join(homedir(), ".cache/ms-playwright");
-const executablePath = readdirSync(cache).filter((d) => d.startsWith("chromium_headless_shell-")).sort().reverse().map((d) => join(cache, d, "chrome-linux/headless_shell")).find((p) => existsSync(p));
+const executablePath = readdirSync(cache).filter((d) => d.startsWith("chromium_headless_shell-")).sort().reverse().flatMap((d) => [join(cache, d, "chrome-linux/headless_shell"), join(cache, d, "chrome-headless-shell-linux64/chrome-headless-shell")]).find((p) => existsSync(p));
 const browser = await chromium.launch({ executablePath });
 const page = await browser.newPage();
 await page.goto(`${url}/boot`);

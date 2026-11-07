@@ -12,8 +12,7 @@ function executablePath() {
   if (!existsSync(cache)) return undefined;
   const dirs = readdirSync(cache).filter((d) => d.startsWith("chromium_headless_shell-")).sort().reverse();
   for (const d of dirs) {
-    const p = join(cache, d, "chrome-linux/headless_shell");
-    if (existsSync(p)) return p;
+    for (const p of [join(cache, d, "chrome-linux/headless_shell"), join(cache, d, "chrome-headless-shell-linux64/chrome-headless-shell")]) if (existsSync(p)) return p;
   }
   return undefined;
 }

@@ -13,7 +13,7 @@ const url = (process.argv[2] ?? "").replace(/\/$/, "");
 if (!url) throw new Error("usage: os-flow-e2e.mjs <url>");
 const cache = join(homedir(), ".cache/ms-playwright");
 const dirs = readdirSync(cache).filter((d) => d.startsWith("chromium_headless_shell-")).sort().reverse();
-const executablePath = process.env.CHROMIUM_PATH ?? dirs.map((d) => join(cache, d, "chrome-linux/headless_shell")).find((p) => existsSync(p));
+const executablePath = process.env.CHROMIUM_PATH ?? dirs.flatMap((d) => [join(cache, d, "chrome-linux/headless_shell"), join(cache, d, "chrome-headless-shell-linux64/chrome-headless-shell")]).find((p) => existsSync(p));
 const browser = await chromium.launch({ executablePath });
 
 let failed = 0;
