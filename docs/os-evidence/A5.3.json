@@ -1,0 +1,8 @@
+{
+  "id": "A5.3",
+  "result": "pass",
+  "command": "tools/research-cli/src/os-accept.ts --image kernel",
+  "commit": "4a6cd88549f5017ef8b522248024b1c4f7df5f26",
+  "note": "Authority lists sector operations only.",
+  "recordedAt": "2026-11-07T05:17:47.433Z"
+}
