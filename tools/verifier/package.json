@@ -1,0 +1,13 @@
+{
+  "name": "@llmtobinary/verifier",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Off-Cloudflare verifier (PRD-OS 6.5): reruns packages against task-owned tests and signs the result.",
+  "scripts": { "typecheck": "tsc --noEmit -p .", "start": "node --experimental-transform-types --no-warnings src/main.ts" },
+  "dependencies": {
+    "@llmtobinary/registry": "workspace:*",
+    "@llmtobinary/tasks": "workspace:*",
+    "@llmtobinary/validate": "workspace:*"
+  }
+}

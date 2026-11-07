@@ -613,6 +613,18 @@ importers:
         specifier: workspace:*
         version: link:../../packages/verify
 
+  tools/verifier:
+    dependencies:
+      '@llmtobinary/registry':
+        specifier: workspace:*
+        version: link:../../packages/registry
+      '@llmtobinary/tasks':
+        specifier: workspace:*
+        version: link:../../packages/tasks
+      '@llmtobinary/validate':
+        specifier: workspace:*
+        version: link:../../packages/validate
+
 packages:
 
   '@cloudflare/kv-asset-handler@0.5.0':
