@@ -114,18 +114,19 @@ export interface Generated {
 }
 
 /** One session through the real loop. `test` is the only judge, and the harness never edits bytes. */
-export async function generate(s: Pick<Slot, "features">, prompt: string, test: (bytes: Uint8Array) => Failure[], o: { model: string; effort: string }): Promise<Generated> {
+export async function generate(s: Pick<Slot, "features">, prompt: string, test: (bytes: Uint8Array) => Failure[], o: { model: string; effort: string; turnTimeoutMs?: number; wallClockMs?: number }): Promise<Generated> {
+  const budget = o.wallClockMs ? { ...BUDGET, maxWallClockMs: o.wallClockMs } : BUDGET;
   const profile: ModelProfile = { id: CODEX_LANE, label: `${o.model} via codex exec`, model: o.model, reasoningEffort: "medium", carryReasoning: false, inputPerMTok: 0, outputPerMTok: 0, maxContextChars: 400_000 };
   const client = new CodexModelClient(o);
   const events: LoopEvent[] = [];
-  const state = createSession({ sessionId: randomUUID(), task: { taskId: null, description: prompt, params: [], returns: "u64", allowedFeatures: s.features, requireClaims: false, module: true }, mode: "tools", profile, budget: BUDGET, now: Date.now(), ttlMs: 3_600_000 });
+  const state = createSession({ sessionId: randomUUID(), task: { taskId: null, description: prompt, params: [], returns: "u64", allowedFeatures: s.features, requireClaims: false, module: true }, mode: "tools", profile, budget, now: Date.now(), ttlMs: 3_600_000 });
   const abort = new AbortController();
-  const timer = setTimeout(() => abort.abort(), BUDGET.maxWallClockMs + 60_000);
+  const timer = setTimeout(() => abort.abort(), budget.maxWallClockMs + 60_000);
   let feedback: BrowserFeedback | null = null;
   let last = "no submission";
   let passed: Uint8Array | null = null;
   try {
-    for (let i = 0; i <= BUDGET.maxSubmissions && !passed; i++) {
+    for (let i = 0; i <= budget.maxSubmissions && !passed; i++) {
       const before = events.length;
       await runAttempt(state, { idempotencyKey: randomUUID(), feedback }, { model: client, ledger: { reserve: async () => ({ ok: true }), reconcile: async () => {} }, emit: async (e) => void events.push(e), now: () => Date.now(), signal: abort.signal, newId: () => randomUUID(), allowedFeatures: s.features });
       if (state.status !== "active") {

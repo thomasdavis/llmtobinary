@@ -37,7 +37,9 @@ for (const s of targets) {
   }
   let done = false;
   for (let n = 1; n <= maxSessions && !done; n++) {
-    const r = await generate(s, promptFor(s), (bytes) => judge(s, bytes, seed), { model, effort });
+    // The kernels are the largest packages: at about 50 tokens a second one turn can outlast the default limit.
+    const big = s.kind === "root";
+    const r = await generate(s, promptFor(s), (bytes) => judge(s, bytes, seed), { model, effort, ...(big ? { turnTimeoutMs: 1_500_000, wallClockMs: 120 * 60_000 } : {}) });
     const clean = r.audit.length === 0;
     log(`${s.id} session ${n}: ${r.bytes && clean ? "PASSED" : "failed"}, ${r.submissions} submissions, ${r.outputTokens} tokens, hung ${r.hungCalls}${clean ? "" : ` AUDIT ${r.audit}`}. ${r.bytes ? "" : r.last.slice(0, 200).replace(/\n/g, " | ")}`);
     writeFileSync(`${dir}/attempts.jsonl`, `${JSON.stringify({ slot: s.id, n, passed: !!r.bytes && clean, ...r, bytes: undefined, at: new Date().toISOString() })}\n`, { flag: "a" });
