@@ -14,7 +14,7 @@ import { getGalleryEntry, hideGalleryEntry, isGalleryId, listGallery, rebuildFro
 import { addComment, addReport, listComments, setStar } from "./community/social.ts";
 import { getObject, getPackage, listPackages, loadAttestations, parseObjectId, pendingJobs, publishGeneration, registryConfigured, submitAttestation, takeDown } from "./community/registry.ts";
 import type { Envelope, EvidenceClass } from "@llmtobinary/registry";
-import { getSlot, listBuilds, listSlots, proposeCounterexample, proposeTest, publishBuild, reviewTest, type BuildRequest } from "./community/board.ts";
+import { getSlot, listBuilds, listSlots, slotCandidates, proposeCounterexample, proposeTest, publishBuild, reviewTest, type BuildRequest } from "./community/board.ts";
 import { accountsConfigured, avatar, beginSignIn, currentMember, deleteAccount, fakeOAuthEnabled, fakeSignIn, finishSignIn, quotaRemaining, requireMember, reserveMemberSpend, revokeAllSessions, signOut } from "./accounts.ts";
 
 export { GenerationSession } from "./session.ts";
@@ -353,6 +353,12 @@ async function registryRoute(request: Request, env: Env, url: URL, path: string)
     await admit(request, env, "build");
     const member = await currentMember(request, env);
     return json(await publishBuild(env, member, await readJson<BuildRequest>(request, 256 * 1024), now), 201);
+  }
+  const cands = /^\/api\/slots\/([a-z0-9-]{1,40})$/.exec(path);
+  if (cands && request.method === "GET") {
+    const slot = await getSlot(env, cands[1]!);
+    if (!slot) return json({ error: "not found" }, 404);
+    return json({ slot: { ...slot, prompt: undefined }, candidates: await slotCandidates(env, slot.id) });
   }
   const tests = /^\/api\/slots\/([a-z0-9-]{1,40})\/tests$/.exec(path);
   if (tests && request.method === "POST") {

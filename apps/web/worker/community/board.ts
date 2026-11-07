@@ -44,6 +44,11 @@ export async function listSlots(env: Env): Promise<{ slots: (Omit<SlotRow, "prom
   };
 }
 
+export async function slotCandidates(env: Env, slotId: string): Promise<Candidate[]> {
+  const r = await env.COMMUNITY_DB!.prepare("SELECT p.object_id, p.evidence_class, p.records, p.created_at, p.retracted, p.taken_down FROM slot_candidates c JOIN packages p ON p.object_id = c.object_id WHERE c.slot_id = ?1 AND p.taken_down = 0 ORDER BY p.created_at DESC LIMIT 50").bind(slotId).all<Candidate>();
+  return r.results;
+}
+
 export async function getSlot(env: Env, id: string): Promise<SlotRow | null> {
   return env.COMMUNITY_DB!.prepare("SELECT * FROM slots WHERE id = ?1").bind(id).first<SlotRow>();
 }

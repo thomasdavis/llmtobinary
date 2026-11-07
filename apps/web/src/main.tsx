@@ -9,7 +9,7 @@ startAnalytics();
 const ChipPage = lazy(() => import("./chip/ChipPage.tsx").then((m) => ({ default: m.ChipPage })));
 const Community = lazy(() => import("./Community.tsx").then((m) => ({ default: m.Community })));
 const Boot = lazy(() => import("./Boot.tsx").then((m) => ({ default: m.Boot })));
-const communityPage = /^\/(registry|os$|package\/|u\/)/.test(location.pathname);
+const communityPage = /^\/(registry|os$|compose$|package\/|u\/)/.test(location.pathname);
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

@@ -70,7 +70,18 @@ export function Boot() {
   const term = useRef<HTMLPreElement | null>(null);
 
   useEffect(() => {
-    void fetch("/os/default-build.json").then(async (r) => setBuild(r.ok && (r.headers.get("content-type") ?? "").includes("json") ? ((await r.json()) as Build) : "missing")).catch(() => setBuild("missing"));
+    void (async () => {
+      const r = await fetch("/os/default-build.json").catch(() => null);
+      if (!r?.ok || !(r.headers.get("content-type") ?? "").includes("json")) return setBuild("missing");
+      const base = (await r.json()) as Build;
+      // A community build swaps the image and keeps the starter disk.
+      const image = new URLSearchParams(location.search).get("image");
+      if (!image) return setBuild(base);
+      const b = await fetch(`/api/registry/${encodeURIComponent(image)}/bytes`).catch(() => null);
+      if (!b?.ok) return setBuild("missing");
+      const hex = [...new Uint8Array(await b.arrayBuffer())].map((x) => x.toString(16).padStart(2, "0")).join("");
+      setBuild({ ...base, name: "Community build", imageHex: hex, imageSha256: image.replace("sha256:", ""), packages: [] });
+    })();
   }, []);
 
   useEffect(() => {

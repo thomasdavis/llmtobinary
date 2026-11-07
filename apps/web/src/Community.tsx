@@ -88,6 +88,7 @@ function Bar() {
       <a className="community-brand" href="/">llmtobinary</a>
       <a href="/registry">Registry</a>
       <a href="/os">OS board</a>
+      <a href="/compose">Compose</a>
       <a href="/boot">Boot</a>
       <span className="community-spacer" />
       {ready && member ? (
@@ -277,6 +278,123 @@ function Board() {
   );
 }
 
+interface SlotDetail {
+  id: string;
+  kind: string;
+  depends: string;
+  interface: string;
+}
+interface Pick {
+  slot: SlotDetail;
+  candidates: { object_id: string; evidence_class: string; records: number }[];
+  chosen: string;
+}
+interface ExportCard {
+  symbol: string;
+  id: number;
+}
+
+/** Choose a candidate per slot, link in this browser, and publish the result as a build. */
+function Compose() {
+  const [picks, setPicks] = useState<Pick[] | null>(null);
+  const [name, setName] = useState("");
+  const [note, setNote] = useState<string | null>(null);
+  const [image, setImage] = useState<string | null>(null);
+
+  useEffect(() => {
+    void (async () => {
+      const res = await fetch("/api/slots");
+      if (!res.ok) return setNote("The OS board is not available yet.");
+      const { slots } = (await res.json()) as { slots: (SlotView & { winner: { object_id: string } | null })[] };
+      const out: Pick[] = [];
+      for (const s of slots) {
+        const d = (await (await fetch(`/api/slots/${s.id}`)).json()) as { slot: SlotDetail; candidates: Pick["candidates"] };
+        out.push({ slot: d.slot, candidates: d.candidates, chosen: s.winner?.object_id ?? d.candidates[0]?.object_id ?? "" });
+      }
+      setPicks(out);
+    })();
+  }, []);
+
+  const plan = async () => {
+    const { parseModule } = await import("@llmtobinary/module");
+    const { link } = await import("@llmtobinary/link");
+    const libs = picks!.filter((p) => p.slot.kind !== "program");
+    const exportsOf = (s: SlotDetail): ExportCard[] => JSON.parse(s.interface) as ExportCard[];
+    const bySlot = new Map(picks!.map((p) => [p.slot.id, p]));
+    const modules: { slot: string; exports: Record<string, number>; imports: Record<string, string> }[] = [];
+    const inputs = [];
+    for (const p of [...libs].sort((a) => (a.slot.kind === "root" ? -1 : 1))) {
+      const res = await fetch(`/api/registry/${p.chosen}/bytes`);
+      if (!res.ok) throw new Error(`${p.slot.id} has no bytes`);
+      const bytes = new Uint8Array(await res.arrayBuffer());
+      const parsed = parseModule(bytes);
+      if (!parsed.ok) throw new Error(`${p.slot.id}: ${parsed.error.message}`);
+      const wanted = (JSON.parse(p.slot.depends) as string[]).flatMap((d) => exportsOf(bySlot.get(d)!.slot));
+      const first = parsed.module.functions.length;
+      const imports = Object.fromEntries(wanted.slice(0, parsed.module.imports.length).map((e, k) => [String(first + k), e.symbol]));
+      const exports = Object.fromEntries(exportsOf(p.slot).map((e) => [e.symbol, e.id]));
+      modules.push({ slot: p.slot.id, exports, imports });
+      inputs.push({ name: p.slot.id, bytes, exports, imports: Object.fromEntries(Object.entries(imports).map(([k, v]) => [Number(k), v])) });
+    }
+    return { modules, linked: link(inputs) };
+  };
+
+  const check = async () => {
+    setNote("Linking…");
+    try {
+      const { linked } = await plan();
+      setNote(linked.ok ? `Linked: ${(linked.bytes.length - 32) / 16} records. The image can use ${linked.authority.join(", ")}.` : linked.errors.map((e) => e.message).join(" "));
+    } catch (e) {
+      setNote((e as Error).message);
+    }
+  };
+
+  const publish = async () => {
+    setNote("Publishing…");
+    try {
+      const { modules, linked } = await plan();
+      if (!linked.ok) return setNote(linked.errors.map((e) => e.message).join(" "));
+      const slots = Object.fromEntries(picks!.map((p) => [p.slot.id, p.chosen]));
+      const root = picks!.find((p) => p.slot.kind === "root")!.chosen;
+      const res = await send("/api/builds", { method: "POST", body: JSON.stringify({ name, modules, lock: { kind: "llmtobinary-lock/1", root, specDigest: "anma-2", engineDigest: "reference", policy: { minimumClass: "E3" }, slots } }) });
+      const b = (await res.json()) as { image?: string; error?: string };
+      if (!res.ok || !b.image) return setNote(b.error ?? "The build was refused.");
+      setImage(b.image);
+      setNote("Published. The server linked and validated it again.");
+    } catch (e) {
+      setNote((e as Error).message);
+    }
+  };
+
+  if (!picks) return <p className="muted">{note ?? "Loading…"}</p>;
+  return (
+    <>
+      <p className="muted">Choose a candidate for each slot. Linking happens in your browser, then the server repeats it, so a forged image cannot be published. A published build accepts only packages that passed independently held tests.</p>
+      {picks.map((p, i) => (
+        <p key={p.slot.id}>
+          <label>
+            {p.slot.id}{" "}
+            <select value={p.chosen} onChange={(e) => setPicks(picks.map((x, k) => (k === i ? { ...x, chosen: e.target.value } : x)))}>
+              {p.candidates.map((c) => (
+                <option key={c.object_id} value={c.object_id}>
+                  {c.evidence_class} · {c.records} records · {c.object_id.slice(7, 15)}
+                </option>
+              ))}
+            </select>
+          </label>
+        </p>
+      ))}
+      <div className="package-actions">
+        <button onClick={() => void check()}>Link</button>
+        <input aria-label="Build name" placeholder="Build name" value={name} maxLength={80} onChange={(e) => setName(e.target.value)} />
+        <button disabled={!name.trim()} onClick={() => void publish()}>Publish build</button>
+        {image ? <a className="action" href={`/boot?image=${image}`}>Boot this build</a> : null}
+      </div>
+      {note ? <p role="status">{note}</p> : null}
+    </>
+  );
+}
+
 function PackagePage({ id }: { id: string }) {
   const { member, accounts } = useMember();
   const [data, setData] = useState<{ package: PackageRow; attestations: Attestation[]; comments: Comment[] } | null | "missing">(null);
@@ -392,6 +510,11 @@ export function Community() {
       <main className="community-main">
         {pkg ? (
           <PackagePage id={pkg[1]!} />
+        ) : path === "/compose" ? (
+          <>
+            <h1>Compose a build</h1>
+            <Compose />
+          </>
         ) : path === "/os" ? (
           <>
             <h1>OS board</h1>
