@@ -1,0 +1,8 @@
+{
+  "id": "A3.4",
+  "result": "pass",
+  "command": "npx vitest run packages/registry tools/research-cli",
+  "commit": "6f39ced647911add1c8b468f466e9acd15190469",
+  "note": "Unknown objects and non-hash pins fail closed in checkLock.",
+  "recordedAt": "2026-11-07T04:38:52.270Z"
+}

@@ -1,0 +1,8 @@
+{
+  "id": "A3.8",
+  "result": "pass",
+  "command": "tools/research-cli/src/gate-c.ts; docs/os-evidence/gate-c-result.json",
+  "commit": "6f39ced647911add1c8b468f466e9acd15190469",
+  "note": "Token savings 31% at depth 2 and 65% at depth 3; 17 of 17 passing library sessions made real call edges. Success was 17 vs 19, all failures lane hangs. Favourable tasks.",
+  "recordedAt": "2026-11-07T04:38:52.184Z"
+}
