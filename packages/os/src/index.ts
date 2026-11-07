@@ -52,6 +52,8 @@ interface Task {
   ext: ChildExt;
   /** The child's own mailbox while it is suspended in task.yield. */
   mailbox: RuntimeValue | null;
+  /** How much of the child's terminal has reached the console. */
+  printed: number;
   finished: boolean;
 }
 
@@ -215,7 +217,7 @@ export class OsMachine implements HostExtension {
         const ext = new ChildExt(this);
         const engine = newEngine(this.kind, module, fuel, CHILD_FEATURES, heapBytes);
         engine.devices.ext = ext;
-        const task: Task = { engine, fuel, ext, mailbox: null, finished: false };
+        const task: Task = { engine, fuel, ext, mailbox: null, printed: 0, finished: false };
         ext.task = task;
         this.tasks.push(task);
         return ok(BigInt(this.tasks.length));
@@ -247,6 +249,13 @@ export class OsMachine implements HostExtension {
     }
     for (;;) {
       const status = task.engine.run(1);
+      // A task has its own devices, so its terminal output is carried to the console here.
+      const shown = task.engine.devices.terminal();
+      if (shown.length > task.printed) {
+        const failed = this.kernel.devices.writeBytes(shown.subarray(task.printed));
+        task.printed = shown.length;
+        if (failed) return failed;
+      }
       if (task.ext.yielded) {
         const y = task.ext.yielded;
         task.ext.yielded = null;

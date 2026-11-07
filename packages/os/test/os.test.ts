@@ -142,3 +142,21 @@ describe("engines agree", () => {
     expect(run("reference")).toBe(run("finite"));
   });
 });
+
+describe("program output", () => {
+  // "hi" in read-only data, printed by a child with terminal.print_utf8.
+  function printing(): Uint8Array {
+    const recs = wrap(2, [c(0, 0), c(1, 2), ...host(UNIT, 1, [0, 1]), [Op.RETURN, 0, 0, 0]].map((r) => r) as Rec[]);
+    const words = [0x414d4e41, 1, Feature.TERMINAL, recs.length, 2, 0, 0, 0, ...recs.flat()];
+    const out = new Uint8Array(words.length * 4 + 2);
+    words.forEach((w, i) => new DataView(out.buffer).setUint32(i * 4, w >>> 0, true));
+    out.set([104, 105], words.length * 4);
+    return out;
+  }
+  it.each(engines)("reaches the terminal from a task on the %s engine", (engine) => {
+    const child = printing();
+    const m = new OsMachine({ kernel: kernel(runner(child.length)), disk: disk(child), engine });
+    finish(m);
+    expect(m.terminal()).toBe("hi");
+  });
+});

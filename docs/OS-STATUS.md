@@ -52,4 +52,5 @@ The research report suggested a limit near 33k output tokens. Production data ru
 
 ## Harness faults during the OS build
 
+- **`proc` session 1 failed from a VM bug, not the model.** A task has its own devices, so its `print_utf8` output never reached the console and `proc`'s tests could not be passed. The model spent 7 submissions and 39,486 tokens on an impossible task. Fixed, with a failing test first. The attempt stays in `attempts.jsonl`.
 - **`fmt` session 1 failed from a harness bug, not the model.** The holdout seed is 128 bits and the generator assumed 64, so test numbers overflowed the test buffer and threw a `RangeError`. Fixed, with a test. The attempt stays in `attempts.jsonl`.
