@@ -1,0 +1,8 @@
+{
+  "id": "A2.2",
+  "result": "pass",
+  "command": "npx vitest run packages/link",
+  "commit": "6f26ac13ee84821ff439e8d3189c6bed8738ef1a",
+  "note": "1,500 mutated images and 1,500 mutated modules: nothing invalid passes. 1,000 random inputs do not crash the linker.",
+  "recordedAt": "2026-11-07T02:38:46.456Z"
+}

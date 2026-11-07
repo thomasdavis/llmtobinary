@@ -1,0 +1,8 @@
+{
+  "id": "A2.1",
+  "result": "pass",
+  "command": "npx vitest run packages/os packages/link; pnpm check:spec",
+  "commit": "6f26ac13ee84821ff439e8d3189c6bed8738ef1a",
+  "note": "Version 2 stays opt-in; ANMA-1 corpus and spec hash unchanged.",
+  "recordedAt": "2026-11-07T02:38:46.387Z"
+}
