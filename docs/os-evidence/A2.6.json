@@ -1,0 +1,8 @@
+{
+  "id": "A2.6",
+  "result": "pass",
+  "command": "tests/e2e/os-flow-e2e.mjs against vite preview in test mode",
+  "commit": "e5d732c541242f205e78e768d4a93b1246039837",
+  "note": "Compose links in the browser, the Worker re-links and accepts the build. A tampered image is impossible to submit: the Worker builds from pinned hashes.",
+  "recordedAt": "2026-11-07T05:30:08.140Z"
+}

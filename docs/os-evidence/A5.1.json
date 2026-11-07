@@ -1,8 +1,8 @@
 {
   "id": "A5.1",
   "result": "pass",
-  "command": "tools/research-cli/src/os-accept.ts --image kernel",
-  "commit": "4a6cd88549f5017ef8b522248024b1c4f7df5f26",
-  "note": "Verified on a reboot from the saved disk. Browser reload checked separately by os-flow-e2e.",
-  "recordedAt": "2026-11-07T05:17:47.259Z"
+  "command": "os-accept; tests/e2e/os-flow-e2e.mjs",
+  "commit": "e5d732c541242f205e78e768d4a93b1246039837",
+  "note": "Survives a reboot from the saved disk, and a real browser page reload through IndexedDB.",
+  "recordedAt": "2026-11-07T05:30:08.360Z"
 }
