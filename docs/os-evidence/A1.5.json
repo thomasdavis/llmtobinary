@@ -1,0 +1,8 @@
+{
+  "id": "A1.5",
+  "result": "pass",
+  "command": "pnpm test:worker",
+  "commit": "2d79fc575dcecd04c42de22a2788e2cf61e625ff",
+  "note": "With sign-in required, anonymous visitors browse and run but cannot generate, star or comment. Sign-in is not switched on in production, because no OAuth App exists.",
+  "recordedAt": "2026-11-07T05:18:44.978Z"
+}

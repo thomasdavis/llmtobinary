@@ -1,0 +1,8 @@
+{
+  "id": "A0.4",
+  "result": "pass",
+  "command": "pnpm test:worker; npx vitest run packages/registry",
+  "commit": "2d79fc575dcecd04c42de22a2788e2cf61e625ff",
+  "note": "New generations get a verifying provenance attestation; tampered ones fail. Broker signing key is set on production.",
+  "recordedAt": "2026-11-07T05:18:44.803Z"
+}
