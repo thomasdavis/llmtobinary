@@ -1,0 +1,8 @@
+{
+  "id": "A3.1",
+  "result": "pass",
+  "command": "curl /api/slots; package pages",
+  "commit": "f8ea6d166c18fc4002fb7f8b515cf7dd98ad2aa9",
+  "note": "23 packages at E3 on production, with docs rendered from their interfaces and examples run as tests.",
+  "recordedAt": "2026-11-07T05:49:13.677Z"
+}

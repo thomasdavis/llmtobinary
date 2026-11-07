@@ -1,0 +1,8 @@
+{
+  "id": "A6.4",
+  "result": "pass",
+  "command": "tools/research-cli/src/os-publish.ts; POST /api/builds refuses below E3",
+  "commit": "f8ea6d166c18fc4002fb7f8b515cf7dd98ad2aa9",
+  "note": "All 7 image packages are E3 for their own slot, CC0-1.0.",
+  "recordedAt": "2026-11-07T05:49:13.755Z"
+}
