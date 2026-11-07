@@ -29,3 +29,4 @@
 .package-doc { padding: 6px 0; }
 .package-doc code { font: 13px var(--mono); overflow-wrap: anywhere; }
 .package-doc p { margin: 4px 0 0; }
+.os-confirm { border: 1px solid var(--line); background: var(--panel); padding: 12px; margin: 12px 0; }

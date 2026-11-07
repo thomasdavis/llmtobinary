@@ -1,11 +1,11 @@
 // Runs the community OS: the same OsMachine the tests use, in a dedicated worker. The page sends
 // keys and receives terminal text. Guest bytes never touch the page.
 
-import { OsMachine } from "@llmtobinary/os";
+import { GenStatus, OsMachine, type GenProvider } from "@llmtobinary/os";
 import { validateBytes } from "@llmtobinary/validate";
 
-export type BootIn = { type: "boot"; imageHex: string; disk: Uint8Array } | { type: "keys"; keys: number[] };
-export type BootOut = { type: "terminal"; text: string } | { type: "disk"; disk: Uint8Array } | { type: "state"; state: string; detail?: string };
+export type BootIn = { type: "boot"; imageHex: string; disk: Uint8Array } | { type: "keys"; keys: number[] } | { type: "gen-result"; job: number; bytes: Uint8Array | null };
+export type BootOut = { type: "terminal"; text: string } | { type: "disk"; disk: Uint8Array } | { type: "state"; state: string; detail?: string } | { type: "gen-request"; job: number; prompt: string };
 
 const bytesOf = (hex: string): Uint8Array => Uint8Array.from(hex.match(/../g) ?? [], (x) => parseInt(x, 16));
 const post = (m: BootOut, transfer: Transferable[] = []) => (self as unknown as Worker).postMessage(m, transfer);
@@ -14,6 +14,21 @@ let os: OsMachine | null = null;
 let sent = 0;
 let dirty = false;
 let running = false;
+
+// The guest hands over a prompt and polls. The page decides whether it runs at all.
+const jobs = new Map<number, { status: number; bytes?: Uint8Array }>();
+let nextJob = 1;
+const gen: GenProvider = {
+  request(prompt) {
+    const job = nextJob++;
+    jobs.set(job, { status: GenStatus.PENDING });
+    post({ type: "gen-request", job, prompt: new TextDecoder().decode(prompt) });
+    return job;
+  },
+  poll(job) {
+    return jobs.get(job) ?? { status: GenStatus.FAILED };
+  },
+};
 
 function flush(): void {
   if (!os) return;
@@ -56,8 +71,10 @@ self.onmessage = (e: MessageEvent<BootIn>) => {
       return;
     }
     sent = 0;
-    os = new OsMachine({ kernel: v.module, disk: m.disk, fuel: Number.MAX_SAFE_INTEGER, onWrite: () => void (dirty = true) });
+    os = new OsMachine({ kernel: v.module, disk: m.disk, fuel: Number.MAX_SAFE_INTEGER, gen, onWrite: () => void (dirty = true) });
     pump();
+  } else if (m.type === "gen-result") {
+    jobs.set(m.job, m.bytes ? { status: GenStatus.READY, bytes: m.bytes } : { status: GenStatus.FAILED });
   } else if (os) {
     os.pushKeys(m.keys);
     pump();
