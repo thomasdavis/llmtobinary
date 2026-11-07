@@ -1,0 +1,8 @@
+{
+  "id": "A7.3",
+  "result": "pass",
+  "command": "npx vitest run packages/os",
+  "commit": "a5cc644bd267c8e7b5f2b534cfcdd808e43b5a20",
+  "note": "module.load refuses a program declaring the gen capability, so it cannot run or spend quota.",
+  "recordedAt": "2026-11-07T05:42:44.782Z"
+}

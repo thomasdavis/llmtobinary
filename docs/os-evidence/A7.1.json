@@ -1,0 +1,8 @@
+{
+  "id": "A7.1",
+  "result": "pass",
+  "command": "tools/research-cli/src/os-accept.ts --image kernel-live",
+  "commit": "a5cc644bd267c8e7b5f2b534cfcdd808e43b5a20",
+  "note": "gen delivers a program to disk and it runs with no reboot (fake provider).",
+  "recordedAt": "2026-11-07T05:42:44.595Z"
+}

@@ -1,0 +1,8 @@
+{
+  "id": "A6.3",
+  "result": "pass",
+  "command": "tools/research-cli/src/os-publish.ts --image kernel-live",
+  "commit": "a5cc644bd267c8e7b5f2b534cfcdd808e43b5a20",
+  "note": "Audit: all 1,828 records trace to 7 packages, byte for byte apart from the two fields the linker rewrites. All generated on the audited lane.",
+  "recordedAt": "2026-11-07T05:42:45.166Z"
+}

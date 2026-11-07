@@ -1,0 +1,8 @@
+{
+  "id": "A7.7",
+  "result": "pass",
+  "command": "tools/research-cli/src/os-accept.ts --image kernel-live; tests/e2e/os-flow-e2e.mjs",
+  "commit": "a5cc644bd267c8e7b5f2b534cfcdd808e43b5a20",
+  "note": "Failed generation leaves the OS running. Refusal and a spent quota reach the shell as ordinary failures.",
+  "recordedAt": "2026-11-07T05:42:44.966Z"
+}
