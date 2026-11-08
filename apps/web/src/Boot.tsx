@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import type { BootIn, BootOut } from "./boot.worker.ts";
 import "./community.css";
 import { OsIntro } from "./Intro.tsx";
+import { BuildLog, generateLogged, type LogEntry, type LogInput } from "./BuildLog.tsx";
 
 interface Build {
   name: string;
@@ -19,37 +20,6 @@ const DB = "llmtobinary-os";
 const bytesOf = (hex: string): Uint8Array => Uint8Array.from(hex.match(/../g) ?? [], (x) => parseInt(x, 16));
 
 const GUIDE = "Write a program for a small operating system. It runs as a task with its own heap. Entry signature fn0() -> u64, with no inputs. It may print with terminal.print_u64 and terminal.print_utf8, and must return 0 when it finishes.";
-
-/** Runs one generation through the site's normal loop and returns the submitted bytes. */
-async function generateProgram(prompt: string, onNote: (s: string) => void): Promise<Uint8Array | null> {
-  const headers = { "content-type": "application/json" };
-  const res = await fetch("/api/generation-sessions", { method: "POST", headers, body: JSON.stringify({ task: { taskId: null, description: `${GUIDE}\n\nThe program: ${prompt}`, params: [], returns: "u64", allowedFeatures: 3, requireClaims: false }, mode: "tools", profile: "default" }) });
-  const created = (await res.json()) as { sessionId?: string; token?: string; error?: string };
-  if (!res.ok || !created.sessionId || !created.token) {
-    onNote(created.error ?? "The generation could not start.");
-    return null;
-  }
-  const run = await fetch(`/api/generation-sessions/${created.sessionId}/attempts`, { method: "POST", headers: { ...headers, authorization: `Bearer ${created.token}` }, body: JSON.stringify({ idempotencyKey: crypto.randomUUID(), feedback: null }) });
-  const reader = run.body?.getReader();
-  const decoder = new TextDecoder();
-  let text = "";
-  let hex: string | null = null;
-  while (reader) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    text += decoder.decode(value, { stream: true });
-    const lines = text.split("\n");
-    text = lines.pop() ?? "";
-    for (const l of lines) {
-      if (!l.trim()) continue;
-      const e = JSON.parse(l) as { type?: string; turn?: number; envelopeText?: string; uses?: string[] };
-      if (e.type === "turn.started") onNote(`A model is writing your program (turn ${e.turn}).`);
-      if (e.type === "library.linked" && e.uses?.length) onNote(`Reusing ${e.uses.join(", ")} from the library.`);
-      if (e.type === "candidate.submitted" && e.envelopeText) hex = (JSON.parse(e.envelopeText) as { hex: string }).hex.replace(/\s+/g, "");
-    }
-  }
-  return hex ? bytesOf(hex) : null;
-}
 
 function open(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -102,7 +72,12 @@ export function Boot() {
   const [run, setRun] = useState(0);
   const [ask, setAsk] = useState<{ job: number; prompt: string } | null>(null);
   const [trusted, setTrusted] = useState(false);
-  const [genNote, setGenNote] = useState<string | null>(null);
+  const [log, setLog] = useState<LogEntry[]>([]);
+  const [genStatus, setGenStatus] = useState<string | null>(null);
+  const logId = useRef(0);
+  // After a generation, the page collects the program and runs it, watching the terminal for each step.
+  const follow = useRef<{ job: number; stage: "collect" | "run"; from: number; name?: string } | null>(null);
+  const screenRef = useRef("");
   const trust = useRef(false);
   const worker = useRef<Worker | null>(null);
   const term = useRef<HTMLPreElement | null>(null);
@@ -151,21 +126,69 @@ export function Boot() {
     };
   }, [build, run]);
 
+  const addLog = (job: number) => (e: LogInput) => setLog((xs) => [...xs, { ...e, id: ++logId.current, job, at: Date.now() }]);
+  const typeKeys = (text: string) => worker.current?.postMessage({ type: "keys", keys: [...text].map((c) => c.charCodeAt(0)) } satisfies BootIn);
+  const atPrompt = (text: string) => /(^|\n)> $/.test(text);
+
   useEffect(() => {
     term.current?.scrollTo(0, term.current.scrollHeight);
+    const shown = render(screen);
+    screenRef.current = shown;
+    const f = follow.current;
+    if (!f) return;
+    const say = addLog(f.job);
+    const fresh = shown.slice(f.from);
+    if (f.stage === "collect") {
+      const ok = /generated (\S+)/.exec(fresh);
+      if (ok && atPrompt(shown)) {
+        say({ tone: "ok", title: `The OS saved it to disk as ${ok[1]}` });
+        say({ tone: "info", title: `Typed “run ${ok[1]}” in the terminal` });
+        follow.current = { job: f.job, stage: "run", from: shown.length, name: ok[1]! };
+        setGenStatus(`Running ${ok[1]}…`);
+        typeKeys(`run ${ok[1]}\n`);
+      } else if (/generation failed/.test(fresh)) {
+        say({ tone: "bad", title: "The OS reports that the generation failed", output: fresh.replace(/\n> $/, "").trim() });
+        follow.current = null;
+      }
+    } else if (f.stage === "run") {
+      const lines = fresh.split("\n");
+      // The echo of the command, then the program's output, then the shell's next prompt.
+      if (lines.length > 1 && atPrompt(fresh)) {
+        const shownOut = lines.slice(1, -1).join("\n");
+        // The shell ends every run with one status word, straight after whatever the program printed.
+        const end = /(ok|trapped|out of fuel|not found)$/.exec(shownOut);
+        const output = end ? shownOut.slice(0, end.index) : shownOut;
+        const how: Record<string, [LogInput["tone"], string]> = {
+          ok: ["ok", "finished normally"],
+          trapped: ["bad", "crashed (the chip trapped it), and the OS carried on"],
+          "out of fuel": ["bad", "ran too long and the OS stopped it"],
+          "not found": ["bad", "was not found on the disk"],
+        };
+        const [tone, verb] = end ? how[end[1]!]! : ["info" as const, "ran"];
+        say({ tone, title: `${f.name} ${verb}. It printed:`, output: output.replace(/\n$/, "") });
+        setGenStatus(null);
+        follow.current = null;
+      }
+    }
   }, [screen]);
 
   // Spending happens only after this page says so, outside the guest, where a kernel cannot reach.
   async function runJob(job: number, prompt: string) {
-    setGenNote("Starting…");
+    const say = addLog(job);
     let bytes: Uint8Array | null = null;
     try {
-      bytes = await generateProgram(prompt, setGenNote);
-    } catch {
-      setGenNote("The connection was lost.");
+      bytes = await generateLogged(`${GUIDE}\n\nThe program: ${prompt}`, prompt, say, setGenStatus);
+    } catch (e) {
+      say({ tone: "bad", title: "The connection to the server was lost", detail: [String((e as Error)?.message ?? e)] });
     }
+    setGenStatus(null);
     worker.current?.postMessage({ type: "gen-result", job, bytes } satisfies BootIn);
-    setGenNote(bytes ? "Done. Press Enter in the terminal to collect it." : "It failed. Press Enter in the terminal to see that.");
+    say({ tone: bytes ? "info" : "bad", title: bytes ? "Handed the program to the OS" : "Told the OS the generation failed" });
+    follow.current = { job, stage: "collect", from: screenRef.current.length };
+    if (atPrompt(screenRef.current)) {
+      say({ tone: "info", title: "Pressed Enter in the terminal so the OS collects it" });
+      typeKeys("\n");
+    } else say({ tone: "warn", title: "Press Enter in the terminal to collect it (you were typing, so the page didn't)" });
   }
 
   const answer = (allow: boolean) => {
@@ -174,7 +197,10 @@ export function Boot() {
     if (allow) {
       trust.current = trusted;
       void runJob(a.job, a.prompt);
-    } else worker.current?.postMessage({ type: "gen-result", job: a.job, bytes: null } satisfies BootIn);
+    } else {
+      addLog(a.job)({ tone: "warn", title: `You refused the request: “${a.prompt}”` });
+      worker.current?.postMessage({ type: "gen-result", job: a.job, bytes: null } satisfies BootIn);
+    }
   };
 
   const key = (e: KeyboardEvent) => {
@@ -236,8 +262,9 @@ export function Boot() {
             </div>
           </div>
         ) : null}
-        {genNote ? <p role="status" className="muted">{genNote} Keep this tab open: closing it ends the generation.</p> : null}
-        <p className="muted small">Click the terminal, then try: ls, run hello, run crash, write note hi, cat note, or gen name what to make.</p>
+        {genStatus ? <p className="muted small">Keep this tab open: closing it ends the generation.</p> : null}
+        <BuildLog entries={log} status={genStatus} onClear={() => setLog([])} />
+        <p className="muted small">Click the terminal, then try: <code>ls</code>, <code>run hello</code>, <code>run crash</code>, <code>write note hi</code>, <code>cat note</code>, or <code>gen NAME what to make</code>, such as <code>gen hi print hello world</code>. The first word after <code>gen</code> is the file name. The build log below shows every step, then runs the program for you.</p>
         {build ? (
           <details>
             <summary>What this build is made of</summary>

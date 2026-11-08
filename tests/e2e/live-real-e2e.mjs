@@ -27,8 +27,8 @@ await page.waitForFunction(() => document.querySelector(".os-terminal")?.textCon
 console.log("shell answered while generating:", (await screen()).includes("spin"));
 // The page reports library reuse while the program is being written.
 let reused = null;
-const watch = setInterval(() => void page.evaluate(() => /Reusing .+? from the library/.exec(document.body.innerText)?.[0] ?? null).then((r) => (reused ??= r)).catch(() => {}), 250);
-await page.getByText(/Done\. Press Enter|It failed/).waitFor({ timeout: 240000 });
+const watch = setInterval(() => void page.evaluate(() => /Linked in .+? from the library/.exec(document.body.innerText)?.[0] ?? null).then((r) => (reused ??= r)).catch(() => {}), 250);
+await page.locator(".build-log").getByText(/Handed the program to the OS|Told the OS the generation failed/).waitFor({ timeout: 240000 });
 clearInterval(watch);
 console.log("library:", reused ?? "nothing reused");
 console.log("generation seconds:", Math.round((Date.now() - started) / 1000));
