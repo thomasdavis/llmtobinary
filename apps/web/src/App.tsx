@@ -12,7 +12,7 @@ import { Inspector, type VerificationState } from "./Inspector.tsx";
 import { verify } from "./verify-client.ts";
 import { F_CHOICES, MachinePanel, parseEntryInputs } from "./Machine.tsx";
 import { isBool, oneOf, usePersistentState } from "./settings.ts";
-import { Intro, type IntroAction } from "./Intro.tsx";
+import { Intro, OsIntro, type IntroAction } from "./Intro.tsx";
 import { GenerationModal } from "./GenerationModal.tsx";
 import { SystemPromptModal } from "./SystemPrompt.tsx";
 import { BinaryView } from "./BinaryView.tsx";
@@ -118,6 +118,7 @@ export function App() {
   const [expert, setExpert] = usePersistentState("expert", false, isBool);
   const [introSeen, setIntroSeen] = usePersistentState("introSeen", false, isBool);
   const [introOpen, setIntroOpen] = useState(!introSeen);
+  const [osIntroOpen, setOsIntroOpen] = useState(false);
   const [promptFocus, setPromptFocus] = useState(0);
   const [genOpen, setGenOpen] = useState(false);
   const [sysOpen, setSysOpen] = useState(false);
@@ -472,6 +473,7 @@ export function App() {
       void onExample({ kind: "ai", example: AI_EXAMPLES[0]! });
     }
     if (a === "ask") setPromptFocus((n) => n + 1);
+    if (a === "os") setOsIntroOpen(true);
   };
   return (
     <>
@@ -497,6 +499,7 @@ export function App() {
     <div className={`app${expert ? " is-expert" : " is-simple"}`}>
       <SystemPromptModal open={sysOpen} onClose={() => setSysOpen(false)} />
       <Intro open={introOpen} onClose={closeIntro} onAction={onIntroAction} canGenerate={!!config?.liveGeneration} />
+      <OsIntro open={osIntroOpen} onClose={() => setOsIntroOpen(false)} />
       <GenerationModal
         gen={genState}
         open={genOpen}

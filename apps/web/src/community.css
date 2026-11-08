@@ -30,3 +30,7 @@
 .package-doc code { font: 13px var(--mono); overflow-wrap: anywhere; }
 .package-doc p { margin: 4px 0 0; }
 .os-confirm { border: 1px solid var(--line); background: var(--panel); padding: 12px; margin: 12px 0; }
+
+/* Points first-time visitors at the part-two tour. */
+.tour-callout { border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 6px; padding: 8px 12px; background: var(--sel); }
+.tour-callout button.link { font: inherit; }

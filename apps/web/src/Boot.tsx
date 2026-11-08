@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import type { BootIn, BootOut } from "./boot.worker.ts";
 import "./community.css";
+import { OsIntro } from "./Intro.tsx";
 
 interface Build {
   name: string;
@@ -184,6 +185,7 @@ export function Boot() {
     worker.current?.postMessage({ type: "keys", keys: [code] } satisfies BootIn);
   };
 
+  const [tour, setTour] = useState(false);
   const reset = async () => {
     if (build && build !== "missing") await saveDisk(build.imageSha256, null);
     setRun((n) => n + 1);
@@ -207,12 +209,15 @@ export function Boot() {
         <a href="/registry">Registry</a>
         <span className="community-spacer" />
         <span className="muted small">{state}</span>
+        <button onClick={() => setTour(true)}>What is this?</button>
         <button onClick={() => setRun((n) => n + 1)}>Reboot</button>
         <button onClick={() => void reset()}>Reset disk</button>
       </nav>
       <main className="community-main">
         <h1>Community OS</h1>
         <p className="muted">Models wrote every instruction record of this system as literal bytes. It runs as a guest on a TypeScript virtual machine in your browser, not on hardware. Your disk stays in this browser.</p>
+        <p className="tour-callout">New to this? <button className="link" onClick={() => setTour(true)}>Take the short tour</button> of how AI-written programs became this operating system.</p>
+        <OsIntro open={tour} onClose={() => setTour(false)} />
         <pre className="os-terminal" ref={term} tabIndex={0} role="textbox" aria-label="Terminal" aria-multiline="true" onKeyDown={key}>
           {render(screen)}
           {state === "ready" ? "▌" : ""}

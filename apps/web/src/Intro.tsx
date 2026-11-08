@@ -4,7 +4,8 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
-export type IntroAction = "watch" | "ask" | "explore";
+export type IntroAction = "watch" | "ask" | "explore" | "os";
+type Step = { title: string; body: ReactNode };
 
 function Flow({ steps }: { steps: { label: string; detail: ReactNode; note?: string; struck?: boolean; accent?: boolean }[] }) {
   return (
@@ -23,7 +24,7 @@ function Flow({ steps }: { steps: { label: string; detail: ReactNode; note?: str
   );
 }
 
-const STEPS: { title: string; body: ReactNode }[] = [
+const STEPS: Step[] = [
   {
     title: "Computers only understand binary",
     body: (
@@ -246,7 +247,8 @@ const STEPS: { title: string; body: ReactNode }[] = [
   },
 ];
 
-export function Intro({ open, onClose, onAction, canGenerate }: { open: boolean; onClose: () => void; onAction: (a: IntroAction) => void; canGenerate: boolean }) {
+/** The step-by-step dialog both chapters use. */
+function Tour({ open, onClose, steps, label, actions }: { open: boolean; onClose: () => void; steps: Step[]; label: string; actions: ReactNode }) {
   const ref = useRef<HTMLDialogElement>(null);
   const [step, setStep] = useState(0);
   useEffect(() => {
@@ -257,27 +259,21 @@ export function Intro({ open, onClose, onAction, canGenerate }: { open: boolean;
       d.showModal();
     } else if (!open && d.open) d.close();
   }, [open]);
-  const last = step === STEPS.length - 1;
-  const s = STEPS[step]!;
+  const last = step === steps.length - 1;
+  const s = steps[step]!;
   return (
     <dialog ref={ref} className="intro" aria-labelledby="intro-title" onClose={onClose} onCancel={onClose} onClick={(e) => e.target === ref.current && onClose()}>
       <div className="intro-inner">
         <header className="intro-head">
-          <span className="intro-kicker">llmtobinary · {step + 1} of {STEPS.length}</span>
+          <span className="intro-kicker">{label} · {step + 1} of {steps.length}</span>
           <button className="intro-close" onClick={onClose} aria-label="Close the explanation">✕</button>
         </header>
         <h2 id="intro-title">{s.title}</h2>
         <div className="intro-body">{s.body}</div>
-        {last && (
-          <div className="intro-actions">
-            <button className="primary" onClick={() => onAction("watch")}>▶ Watch the AI's game run</button>
-            <button onClick={() => onAction("ask")} disabled={!canGenerate} title={canGenerate ? "" : "Live generation is unavailable right now"}>✎ Ask the AI for a program</button>
-            <button className="link" onClick={() => onAction("explore")}>Look around on my own</button>
-          </div>
-        )}
+        {last && <div className="intro-actions">{actions}</div>}
         <footer className="intro-foot">
           <div className="intro-dots" role="tablist" aria-label="Steps">
-            {STEPS.map((x, i) => (
+            {steps.map((x, i) => (
               <button key={x.title} role="tab" aria-selected={i === step} aria-label={`Step ${i + 1}: ${x.title}`} className={i === step ? "on" : ""} onClick={() => setStep(i)} />
             ))}
           </div>
@@ -288,5 +284,191 @@ export function Intro({ open, onClose, onAction, canGenerate }: { open: boolean;
         </footer>
       </div>
     </dialog>
+  );
+}
+
+export function Intro({ open, onClose, onAction, canGenerate }: { open: boolean; onClose: () => void; onAction: (a: IntroAction) => void; canGenerate: boolean }) {
+  return (
+    <Tour
+      open={open}
+      onClose={onClose}
+      steps={STEPS}
+      label="llmtobinary"
+      actions={
+        <>
+          <button className="primary" onClick={() => onAction("watch")}>▶ Watch the AI's game run</button>
+          <button onClick={() => onAction("ask")} disabled={!canGenerate} title={canGenerate ? "" : "Live generation is unavailable right now"}>✎ Ask the AI for a program</button>
+          <button onClick={() => onAction("os")}>Next: from programs to an operating system →</button>
+          <button className="link" onClick={() => onAction("explore")}>Look around on my own</button>
+        </>
+      }
+    />
+  );
+}
+
+const go = (href: string) => () => location.assign(href);
+
+// Part two: the library, linking, trust levels and the OS. Same rules as part one: plain words,
+// and every number here is one the site can show (docs/OS-STATUS.md, docs/os-evidence/).
+const OS_STEPS: Step[] = [
+  {
+    title: "Every program goes into a public library",
+    body: (
+      <>
+        <p>
+          Every program anyone asks the AI for here is kept, working or not, in a public library called the <strong>Registry</strong>. You can browse it, run any program in it, and see exactly what was asked for.
+        </p>
+        <p>
+          Each program is named by a <strong>fingerprint</strong> of its bytes (a hash). The same bytes always get the same fingerprint, and changing a single byte gives a completely different one. So a name always means exactly one program, and nobody can quietly swap it for another.
+        </p>
+        <Flow
+          steps={[
+            { label: "The program", detail: <code>20 00 00 00 03 …</code>, note: "the AI's bytes" },
+            { label: "Fingerprint", detail: <code>sha256:fdcc63fe…</code>, note: "its permanent name", accent: true },
+            { label: "Registry", detail: "public", note: "anyone can look it up" },
+          ]}
+        />
+      </>
+    ),
+  },
+  {
+    title: "How much can you trust a program?",
+    body: (
+      <>
+        <p>
+          A program that runs isn't necessarily right. So every program carries a <strong>trust level</strong>, from E0 to E4. A level is earned only from checks that a computer ran and signed. Likes, stars and comments never change it.
+        </p>
+        <ul className="notes">
+          <li><span className="note-kind">E0 Saved</span><span>The bytes exist. They might not even be a valid program.</span></li>
+          <li><span className="note-kind">E1 Valid</span><span>The checker found no broken rules.</span></li>
+          <li><span className="note-kind">E2 Consistent</span><span>It does what the AI's own notes say it does, but nobody else has tested it.</span></li>
+          <li><span className="note-kind">E3 Tested</span><span>Our checking machine passed it, including on hidden tests the AI never saw.</span></li>
+          <li><span className="note-kind">E4 Confirmed</span><span>A second machine, run by GitHub, repeated the tests and got exactly the same result, down to the last bit.</span></li>
+        </ul>
+        <p className="intro-small">A program you generate here starts at E1 or E2. It only goes higher if the checking machines test it.</p>
+      </>
+    ),
+  },
+  {
+    title: "Programs can use other programs",
+    body: (
+      <>
+        <p>
+          Real software isn't written from scratch every time. If a program needs, say, the greatest common divisor of two numbers, it can use a <code>gcd</code> function that already exists rather than write its own.
+        </p>
+        <p>
+          In ANMA-1 that is one instruction, <strong>CALL</strong>: go and run that function, then come back with its answer. A program can CALL a function that lives in a different program. A small tool called the <strong>linker</strong> then joins them into a single file and renumbers things so every CALL points to the right place.
+        </p>
+        <Flow
+          steps={[
+            { label: "Your program", detail: <code>CALL gcd</code> },
+            { label: "+ math.gcd", detail: "from the library" },
+            { label: "Linker", detail: "joins them into one file", accent: true },
+            { label: "Checker", detail: "checks the whole file again" },
+          ]}
+        />
+        <p className="intro-small">The linker never writes instructions; it only renumbers. The joined file is checked from scratch, so a mistake in the linker could produce a wrong program, but never one that breaks the chip's rules.</p>
+      </>
+    ),
+  },
+  {
+    title: "An operating system, built the same way",
+    body: (
+      <>
+        <p>
+          An <strong>operating system</strong> is the program that runs other programs. It gives you a command line, keeps your files, and starts and stops programs. People normally spend years writing one in source code.
+        </p>
+        <p>
+          Here it is split into small parts called <strong>slots</strong>, each with a written description of what it must do. The AI writes candidates for each slot as raw bytes, and a slot is filled by a candidate that passes its hidden tests. When several pass, a fixed rule picks one: most trusted, then smallest, then earliest. Never votes.
+        </p>
+        <ul className="notes">
+          <li><span className="note-kind">kernel</span><span>the core that keeps everything running</span></li>
+          <li><span className="note-kind">cmd</span><span>the commands you type, like <code>ls</code> and <code>run</code></span></li>
+          <li><span className="note-kind">fs</span><span>files on the disk</span></li>
+          <li><span className="note-kind">proc</span><span>starting programs and catching ones that crash</span></li>
+          <li><span className="note-kind">str, line</span><span>handling text and reading what you type</span></li>
+          <li><span className="note-kind">live</span><span>asking the AI for a new program from inside the OS</span></li>
+        </ul>
+        <Flow
+          steps={[
+            { label: "7 parts", detail: "each written by the AI" },
+            { label: "Linker", detail: "joins them" },
+            { label: "The OS", detail: "1,828 instructions", note: "29.5 KB, all AI-written", accent: true },
+          ]}
+        />
+      </>
+    ),
+  },
+  {
+    title: "Boot it in your browser",
+    body: (
+      <>
+        <p>
+          Open <strong>Boot</strong> and your browser starts the OS on the simulated ANMA-1 chip. You get a terminal. Click it and type a command:
+        </p>
+        <ul className="notes">
+          <li><span className="note-kind"><code>ls</code></span><span>list the files on the disk</span></li>
+          <li><span className="note-kind"><code>run hello</code></span><span>start a program</span></li>
+          <li><span className="note-kind"><code>run crash</code></span><span>start a program that breaks, and watch the OS catch it and carry on</span></li>
+          <li><span className="note-kind"><code>write note hi</code></span><span>save a file; <code>cat note</code> reads it back. Your disk stays in your browser.</span></li>
+          <li><span className="note-kind"><code>gen</code></span><span>ask the AI for a new program, such as <code>gen sum print the sum of 1 to 100</code>. The page shows you the request first, and the new program runs inside the OS without restarting it.</span></li>
+        </ul>
+      </>
+    ),
+  },
+  {
+    title: "The AI now reuses the library by itself",
+    body: (
+      <>
+        <p>
+          When you ask for a program, the AI now also gets a short index of every library function at the top trust level, E4. It decides for itself whether to use one, can search for more, or writes everything itself. Nobody chooses for it.
+        </p>
+        <p>
+          The site then joins in the pieces it chose, as in step 3, so you still get one ordinary file. The program's page lists what it was <strong>built from</strong>, and each library piece shows how many programs reuse it.
+        </p>
+        <Flow
+          steps={[
+            { label: "Your request", detail: <q>print a checksum</q> },
+            { label: "AI", detail: "picks crc-8 from the library", accent: true },
+            { label: "Linker", detail: "joins it in" },
+            { label: "One program", detail: "built from crc-8" },
+          ]}
+        />
+        <p className="intro-small">
+          Before switching this on we ran a test of 60 sessions, with the rules for passing written down in advance. On the two tasks where reuse made sense, a hash and a checksum, the AI reused a library piece every time and wrote 36% and 63% less. On simpler tasks it wrote everything itself. Overall it only just cleared the bar we had set.
+        </p>
+      </>
+    ),
+  },
+  {
+    title: "What this is, and what it isn't",
+    body: (
+      <>
+        <ul className="intro-list">
+          <li>The AI wrote every instruction of the OS and its programs, as bytes. People and agents designed the slots, their descriptions and the tests.</li>
+          <li>It is a very small OS: a few commands, up to 16 files in one folder, and programs that take turns rather than run at the same time. Nothing stops one program from touching another's files.</li>
+          <li>It runs on the simulated ANMA-1 chip in your browser, not on real hardware.</li>
+        </ul>
+        <p>Try it, or look at the parts it is made of.</p>
+      </>
+    ),
+  },
+];
+
+export function OsIntro({ open, onClose }: { open: boolean; onClose: () => void }) {
+  return (
+    <Tour
+      open={open}
+      onClose={onClose}
+      steps={OS_STEPS}
+      label="Part 2: the library and the OS"
+      actions={
+        <>
+          <button className="primary" onClick={go("/boot")}>▶ Boot the OS</button>
+          <button onClick={go("/registry")}>Browse the library</button>
+          <button onClick={go("/os")}>See the OS parts</button>
+        </>
+      }
+    />
   );
 }

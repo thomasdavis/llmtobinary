@@ -3,6 +3,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import "./community.css";
+import { OsIntro } from "./Intro.tsx";
 
 interface PackageRow {
   object_id: string;
@@ -79,6 +80,7 @@ function Evidence({ value, retracted }: { value: string; retracted?: boolean }) 
 
 function Bar() {
   const { member, ready, accounts } = useMember();
+  const [tour, setTour] = useState(false);
   const signOut = async () => {
     await send("/api/auth/logout", { method: "POST" });
     location.reload();
@@ -91,6 +93,8 @@ function Bar() {
       <a href="/compose">Compose</a>
       <a href="/boot">Boot</a>
       <span className="community-spacer" />
+      <button onClick={() => setTour(true)}>What is this?</button>
+      <OsIntro open={tour} onClose={() => setTour(false)} />
       {ready && member ? (
         <>
           <a href={`/u/${encodeURIComponent(member.login)}`}>{member.login}</a>
